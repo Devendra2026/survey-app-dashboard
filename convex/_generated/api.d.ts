@@ -8,10 +8,28 @@
  * @module
  */
 
+import type * as addressRules from "../addressRules.js";
 import type * as admin from "../admin.js";
+import type * as analytics from "../analytics.js";
+import type * as analyticsTrends from "../analyticsTrends.js";
+import type * as areaMasters from "../areaMasters.js";
+import type * as audit from "../audit.js";
 import type * as clerk from "../clerk.js";
+import type * as floors from "../floors.js";
+import type * as gpsAccuracy from "../gpsAccuracy.js";
 import type * as helpers from "../helpers.js";
+import type * as http from "../http.js";
+import type * as masterCatalog from "../masterCatalog.js";
+import type * as masters from "../masters.js";
+import type * as ownerMobile from "../ownerMobile.js";
+import type * as ownerRules from "../ownerRules.js";
+import type * as photos from "../photos.js";
+import type * as qc from "../qc.js";
 import type * as serviceMasters from "../serviceMasters.js";
+import type * as survey from "../survey.js";
+import type * as taxationMasters from "../taxationMasters.js";
+import type * as tenancy from "../tenancy.js";
+import type * as tenants from "../tenants.js";
 import type * as users from "../users.js";
 
 import type {
@@ -21,10 +39,28 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  addressRules: typeof addressRules;
   admin: typeof admin;
+  analytics: typeof analytics;
+  analyticsTrends: typeof analyticsTrends;
+  areaMasters: typeof areaMasters;
+  audit: typeof audit;
   clerk: typeof clerk;
+  floors: typeof floors;
+  gpsAccuracy: typeof gpsAccuracy;
   helpers: typeof helpers;
+  http: typeof http;
+  masterCatalog: typeof masterCatalog;
+  masters: typeof masters;
+  ownerMobile: typeof ownerMobile;
+  ownerRules: typeof ownerRules;
+  photos: typeof photos;
+  qc: typeof qc;
   serviceMasters: typeof serviceMasters;
+  survey: typeof survey;
+  taxationMasters: typeof taxationMasters;
+  tenancy: typeof tenancy;
+  tenants: typeof tenants;
   users: typeof users;
 }>;
 

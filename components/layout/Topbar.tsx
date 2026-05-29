@@ -38,7 +38,7 @@ export function Topbar() {
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">{user?.name ?? "…"}</p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {role && <Badge tone="muted">{ROLE_LABEL[role] ?? role}</Badge>}
+          {role && <Badge variant="outline">{ROLE_LABEL[role] ?? role}</Badge>}
           {user?.municipality?.name && <span className="truncate">{user.municipality.name}</span>}
           {user?.district?.name && <span className="truncate">· {user.district.name}</span>}
         </div>

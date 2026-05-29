@@ -7,17 +7,6 @@ import { RedirectToSignIn } from "@clerk/nextjs";
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 import { Clock, Loader2, ShieldX } from "lucide-react";
 
-/**
- * Wraps every authenticated page. Three-state gate that mirrors the mobile
- * app's account lifecycle (helpers.requireUser):
- *   - loading            → spinner
- *   - pending_approval   → "awaiting approval" screen (no app access)
- *   - disabled           → "account disabled" screen
- *   - active             → full console
- *
- * Auth itself is enforced by Clerk middleware + Convex JWT validation; this is
- * the domain-status layer on top.
- */
 function AccountGate({ children }: { children: React.ReactNode }) {
   const { user, isLoading, isPending, isDisabled } = useCurrentUser();
 
