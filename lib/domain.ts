@@ -16,19 +16,19 @@
 
 export {
   OWNERSHIP_TYPES,
+  PROPERTY_USE_SUBCATEGORIES,
   PROPERTY_USES,
   PROPERTY_USES_REQUIRING_SUBCATEGORY,
-  PROPERTY_USE_SUBCATEGORIES,
   ROAD_TYPES,
   SITUATIONS,
   TAX_RATE_ZONES,
 } from "@/convex/taxationMasters";
 
-export { SANITATION_TYPES, SANITATION_TYPE_VALUES, WATER_SOURCES, WATER_SOURCE_VALUES } from "@/convex/serviceMasters";
+export { SANITATION_TYPE_VALUES, SANITATION_TYPES, WATER_SOURCE_VALUES, WATER_SOURCES } from "@/convex/serviceMasters";
 
 export { CONSTRUCTION_TYPES, FLOOR_NAMES, FLOOR_USAGE_FACTORS, FLOOR_USAGE_TYPES } from "@/convex/areaMasters";
 
-export { MAX_SURVEY_OWNERS, RESPONDENT_RELATIONSHIPS, RESPONDENT_RELATIONSHIP_VALUES } from "@/convex/ownerConstants";
+export { MAX_SURVEY_OWNERS, RESPONDENT_RELATIONSHIP_VALUES, RESPONDENT_RELATIONSHIPS } from "@/convex/ownerConstants";
 
 export {
   GPS_ACCEPT_MAX_ACCURACY_METERS,
@@ -48,7 +48,23 @@ export const PHOTO_SLOTS = ["front", "inside", "side", "document"] as const;
 export type PhotoSlot = (typeof PHOTO_SLOTS)[number];
 
 export const USER_ROLES = ["pending", "surveyor", "supervisor", "admin"] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+
 export const USER_STATUSES = ["pending_approval", "active", "disabled"] as const;
+export type UserStatus = (typeof USER_STATUSES)[number];
+
+export const USER_ROLE_LABEL: Record<UserRole, string> = {
+  pending: "Pending",
+  surveyor: "Surveyor",
+  supervisor: "Supervisor",
+  admin: "Administrator",
+};
+
+export const USER_STATUS_LABEL: Record<UserStatus, string> = {
+  pending_approval: "Pending approval",
+  active: "Active",
+  disabled: "Disabled",
+};
 
 /** Master categories editable from the Masters module (brief list). */
 export const MASTER_CATEGORIES = [
