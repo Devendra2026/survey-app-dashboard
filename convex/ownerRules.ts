@@ -3,47 +3,25 @@
  * Canonical dropdown values live here (not admin-editable masters).
  */
 import { query } from "./_generated/server";
+import { MAX_SURVEY_OWNERS, RESPONDENT_RELATIONSHIPS, RESPONDENT_RELATIONSHIP_VALUES } from "./ownerConstants";
 import { isRespondentOwner, isValidIndianOwnerMobile, primaryOwnerMobileFromOwners } from "./ownerMobile";
 
 export {
+  MAX_SURVEY_OWNERS,
+  RESPONDENT_RELATIONSHIPS,
+  RESPONDENT_RELATIONSHIP_VALUES,
+  type RespondentRelationshipValue,
+} from "./ownerConstants";
+
+export {
+  OWNER_MOBILE_UNKNOWN,
   isAcceptedOwnerMobile,
   isRespondentOwner,
   isValidIndianOwnerMobile,
-  OWNER_MOBILE_UNKNOWN,
   primaryOwnerMobileFromOwners,
 } from "./ownerMobile";
 
-export const RESPONDENT_RELATIONSHIP_VALUES = [
-  "self",
-  "father",
-  "mother",
-  "wife",
-  "son",
-  "daughter",
-  "brother",
-  "sister",
-  "neighbour",
-  "other",
-] as const;
-
-export type RespondentRelationshipValue = (typeof RESPONDENT_RELATIONSHIP_VALUES)[number];
-
-export const RESPONDENT_RELATIONSHIPS: { value: RespondentRelationshipValue; label: string }[] = [
-  { value: "self", label: "Self" },
-  { value: "father", label: "Father" },
-  { value: "mother", label: "Mother" },
-  { value: "wife", label: "Wife" },
-  { value: "son", label: "Son" },
-  { value: "daughter", label: "Daughter" },
-  { value: "brother", label: "Brother" },
-  { value: "sister", label: "Sister" },
-  { value: "neighbour", label: "Neighbour" },
-  { value: "other", label: "Other" },
-];
-
 const RELATIONSHIP_SET = new Set<string>(RESPONDENT_RELATIONSHIP_VALUES);
-
-export const MAX_SURVEY_OWNERS = 10;
 
 export type OwnerEntry = {
   name?: string;

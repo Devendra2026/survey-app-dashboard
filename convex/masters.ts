@@ -6,7 +6,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { CONSTRUCTION_TYPES, FLOOR_NAMES, FLOOR_USAGE_FACTORS, FLOOR_USAGE_TYPES } from "./areaMasters";
 import { requireUser } from "./helpers";
-import { RESPONDENT_RELATIONSHIPS } from "./ownerRules";
+import { RESPONDENT_RELATIONSHIPS } from "./ownerConstants";
 import { mergeMasterOptions, SANITATION_TYPES, WATER_SOURCES } from "./serviceMasters";
 import {
   OWNERSHIP_TYPES,

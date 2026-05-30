@@ -21,6 +21,7 @@ import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as masterCatalog from "../masterCatalog.js";
 import type * as masters from "../masters.js";
+import type * as ownerConstants from "../ownerConstants.js";
 import type * as ownerMobile from "../ownerMobile.js";
 import type * as ownerRules from "../ownerRules.js";
 import type * as photos from "../photos.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   masterCatalog: typeof masterCatalog;
   masters: typeof masters;
+  ownerConstants: typeof ownerConstants;
   ownerMobile: typeof ownerMobile;
   ownerRules: typeof ownerRules;
   photos: typeof photos;
