@@ -18,13 +18,13 @@ import {
 
 const CHART_HEIGHT_PX = 288;
 
-/** Avoid Recharts measuring -1 before the grid/flex parent has layout. */
+/** Fixed height — percentage height inside a scrollable main can inflate page scroll. */
 function ChartViewport({ children }: { children: ReactNode }) {
   return (
-    <div className="h-72 w-full min-w-0">
+    <div className="w-full min-w-0" style={{ height: CHART_HEIGHT_PX }}>
       <ResponsiveContainer
         width="100%"
-        height="100%"
+        height={CHART_HEIGHT_PX}
         minWidth={0}
         initialDimension={{ width: 320, height: CHART_HEIGHT_PX }}
       >

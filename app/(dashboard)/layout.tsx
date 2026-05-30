@@ -12,7 +12,7 @@ function AccountGate({ children }: { children: React.ReactNode }) {
 
   if (isLoading || !user) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex min-h-0 flex-1 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -41,12 +41,12 @@ function AccountGate({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex min-h-0 flex-1 overflow-hidden">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar />
-        <main className="flex-1 overflow-y-auto bg-background">
-          <div className="mx-auto max-w-7xl space-y-6 p-5 lg:p-8">{children}</div>
+        <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background">
+          <div className="mx-auto w-full max-w-7xl space-y-6 p-5 pb-10 lg:p-8 lg:pb-12">{children}</div>
         </main>
       </div>
     </div>
@@ -65,7 +65,7 @@ function StatusScreen({
   body: string;
 }) {
   return (
-    <div className="flex h-screen items-center justify-center px-4">
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-4">
       <div className="max-w-md text-center">
         <Icon className={`mx-auto mb-4 h-10 w-10 ${tone}`} />
         <h1 className="font-display text-xl font-semibold">{title}</h1>
@@ -79,7 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <>
       <AuthLoading>
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex min-h-0 flex-1 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       </AuthLoading>

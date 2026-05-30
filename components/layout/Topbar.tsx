@@ -8,12 +8,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  useMarkAllRead,
-  useMarkRead,
-  useNotifications,
-  useUnreadCount,
-} from "@/hooks/masters/useNotifications";
+import { useMarkAllRead, useMarkRead, useNotifications, useUnreadCount } from "@/hooks/masters/useNotifications";
 import { useCurrentUser } from "@/lib/session";
 import { fmtDate } from "@/lib/utils";
 import { UserButton } from "@clerk/nextjs";
@@ -34,7 +29,7 @@ export function Topbar() {
   const markRead = useMarkRead();
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-background/80 px-5 backdrop-blur">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-background/80 px-5 backdrop-blur">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">{user?.name ?? "…"}</p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

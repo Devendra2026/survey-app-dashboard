@@ -34,7 +34,7 @@ export function Sidebar() {
   const items = NAV.filter((n) => visible.includes(n.key));
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
+    <aside className="hidden h-full min-h-0 w-60 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
       <div className="flex h-16 items-center gap-2.5 border-b border-border px-5">
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
           <ClipboardList className="h-4 w-4" />

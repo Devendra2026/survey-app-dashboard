@@ -3,7 +3,7 @@ import { ClipboardList } from "lucide-react";
 
 export default function SignUpPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background to-secondary px-4">
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto bg-linear-to-br from-background to-secondary px-4 py-8">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">

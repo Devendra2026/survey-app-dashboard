@@ -1,8 +1,12 @@
 "use client";
-
+/**
+ * Survey feature hooks — thin bindings over the EXISTING surveys.* functions.
+ * No business logic lives here; filtering/search beyond what the server
+ * supports is applied client-side over the already tenant-scoped result.
+ */
+import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { useMutation, useQuery } from "convex/react";
 
 export interface SurveyListFilters {
@@ -15,7 +19,7 @@ export interface SurveyListFilters {
   limit?: number;
 }
 
-/** api.survey.list — server enforces tenant scope + role visibility. */
+/** api.surveys.list — server enforces tenant scope + role visibility. */
 export function useSurveyList(filters: SurveyListFilters = {}) {
   return useQuery(api.survey.list, {
     status: filters.status,
@@ -28,7 +32,7 @@ export function useSurveyList(filters: SurveyListFilters = {}) {
   });
 }
 
-/** api.survey.get — full detail w/ floors, photos (hydrated URLs), qcRemarks. */
+/** api.surveys.get — full detail w/ floors, photos (hydrated URLs), qcRemarks. */
 export function useSurvey(id: string | undefined) {
   return useQuery(api.survey.get, id ? { id: id as Id<"surveys"> } : "skip");
 }
@@ -45,7 +49,16 @@ export function useUpsertSurvey() {
 export function useSaveDraft() {
   return useMutation(api.survey.saveDraft);
 }
+export function useSetGps() {
+  return useMutation(api.survey.setGps);
+}
 
+/**
+ * Client-side search over the scoped list — Property ID, Owner Name, Mobile,
+ * Parcel No. The backend has no text index (faithful to schema), so we filter
+ * the already-authorized rows in memory. For very large tenants, add a Convex
+ * search index later; the call site stays identical.
+ */
 export function searchSurveys<
   T extends {
     propertyId?: string;
