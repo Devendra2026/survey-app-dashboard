@@ -4,9 +4,9 @@
  * No business logic lives here; filtering/search beyond what the server
  * supports is applied client-side over the already tenant-scoped result.
  */
-import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { useMutation, useQuery } from "convex/react";
 
 export interface SurveyListFilters {
@@ -19,7 +19,7 @@ export interface SurveyListFilters {
   limit?: number;
 }
 
-/** api.surveys.list — server enforces tenant scope + role visibility. */
+/** api.survey.list — server enforces tenant scope + role visibility. */
 export function useSurveyList(filters: SurveyListFilters = {}) {
   return useQuery(api.survey.list, {
     status: filters.status,
@@ -32,7 +32,7 @@ export function useSurveyList(filters: SurveyListFilters = {}) {
   });
 }
 
-/** api.surveys.get — full detail w/ floors, photos (hydrated URLs), qcRemarks. */
+/** api.survey.get — full detail w/ floors, photos (hydrated URLs), qcRemarks. */
 export function useSurvey(id: string | undefined) {
   return useQuery(api.survey.get, id ? { id: id as Id<"surveys"> } : "skip");
 }

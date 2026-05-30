@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SDV admin web + canonical Convex backend
 
-## Getting Started
+Next.js dashboard for survey QC, analytics, masters, and users. **This repo owns the shared Convex backend** used by the mobile app (`../survey-app`).
 
-First, run the development server:
+## Shared backend
+
+| Concern       | This repo (web)                         | Mobile (`../survey-app`)                                            |
+| ------------- | --------------------------------------- | ------------------------------------------------------------------- |
+| Convex source | `convex/` — edit here only              | `convex/` is a mirror for types; sync from web when backend changes |
+| Dev server    | `npm run dev` → Next.js + `convex dev`  | `npm run dev` → Expo only (connects to same deployment)             |
+| Env URL       | `NEXT_PUBLIC_CONVEX_URL`                | `EXPO_PUBLIC_CONVEX_URL` — **must be identical**                    |
+| Clerk         | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`     | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` — **same Clerk app**            |
+| Deploy        | `npx convex deploy` from this directory | Do **not** deploy Convex from mobile                                |
+
+## Getting started
+
+1. Copy env and fill from Convex dashboard + Clerk:
+
+   ```bash
+   cp .env.example .env.local   # if present; otherwise create .env.local
+   ```
+
+   Required in `.env.local`:
+   - `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_DEPLOYMENT`
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
+   - `CLERK_JWT_ISSUER_DOMAIN` (also set on deployment: `npx convex env set CLERK_JWT_ISSUER_DOMAIN …`)
+
+2. Install and run:
+
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+3. Point the mobile app at the same deployment (see `../survey-app/.env.example`).
+
+## Production
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npx convex deploy
+npx convex env set CLERK_JWT_ISSUER_DOMAIN "https://…" --prod
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Register Clerk webhook: `<CONVEX_SITE_URL>/clerk-webhook`.
