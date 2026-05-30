@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useMasters } from "@/features/masters/hooks/useMasters";
+import { useMasters } from "@/hooks/masters/useMasters";
 import { QC_STATUSES, QC_STATUS_LABEL, SURVEY_STATUSES, SURVEY_STATUS_LABEL } from "@/lib/domain";
 import { Search } from "lucide-react";
 

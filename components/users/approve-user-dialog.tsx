@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useApproveUser, useTenantCatalog } from "@/features/users/hooks/useUsers";
+import { useApproveUser, useTenantCatalog } from "@/hooks/users/useUsers";
 import { parseConvexError } from "@/lib/errors";
 import { useState } from "react";
 import { toast } from "sonner";

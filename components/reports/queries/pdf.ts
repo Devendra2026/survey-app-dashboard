@@ -1,9 +1,9 @@
 "use client";
 
+import { QC_STATUS_LABEL, SURVEY_STATUS_LABEL } from "@/lib/domain";
+import { fmtDate } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { SURVEY_STATUS_LABEL, QC_STATUS_LABEL } from "@/lib/domain";
-import { fmtDate } from "@/lib/utils";
 
 const NAVY: [number, number, number] = [30, 58, 95];
 
