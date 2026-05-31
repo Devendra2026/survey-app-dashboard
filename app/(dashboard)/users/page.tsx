@@ -147,7 +147,7 @@ export default function UsersPage() {
                           <TableHead>Requested</TableHead>
                           <TableHead>Reason</TableHead>
                           <TableHead>Registered</TableHead>
-                          <TableHead className="w-[140px]"></TableHead>
+                          <TableHead className="w-35"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -196,7 +196,7 @@ export default function UsersPage() {
                 <CardTitle className="text-base">Directory</CardTitle>
                 <div className="flex flex-wrap items-center gap-2">
                   <Select value={roleFilter} onValueChange={setRoleFilter}>
-                    <SelectTrigger className="h-8 w-[130px]" aria-label="Filter by role">
+                    <SelectTrigger className="h-8 w-32.5" aria-label="Filter by role">
                       <SelectValue placeholder="Role" />
                     </SelectTrigger>
                     <SelectContent>
@@ -208,7 +208,7 @@ export default function UsersPage() {
                     </SelectContent>
                   </Select>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="h-8 w-[150px]" aria-label="Filter by status">
+                    <SelectTrigger className="h-8 w-37.5" aria-label="Filter by status">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -241,7 +241,7 @@ export default function UsersPage() {
                             <TableHead>Status</TableHead>
                             <TableHead>Municipality</TableHead>
                             <TableHead>Wards</TableHead>
-                            <TableHead className="w-[120px]"></TableHead>
+                            <TableHead className="w-30"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -258,7 +258,7 @@ export default function UsersPage() {
                                 </Badge>
                               </TableCell>
                               <TableCell>{u.municipalityName ?? "—"}</TableCell>
-                              <TableCell className="max-w-[10rem] truncate text-muted-foreground">
+                              <TableCell className="max-w-40 truncate text-muted-foreground">
                                 {u.wardAssignments?.length ? u.wardAssignments.join(", ") : "all"}
                               </TableCell>
                               <TableCell>
