@@ -1,49 +1,30 @@
 "use client";
 
-import { QcPanel } from "@/components/qc/qc-panel";
-import { generateSurveyReportPdf } from "@/components/reports/queries/pdf";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
-import { PhotoGallery } from "@/components/surveys/photo-gallery";
+import { FloorsEditor } from "@/components/surveys/floors-editor";
+import { GpsCapturePanel } from "@/components/surveys/gps-capture";
+import { PhotoUploader } from "@/components/surveys/photo-uploader";
+import { SurveyForm } from "@/components/surveys/survey-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuditLog } from "@/hooks/audit/useAudit";
-import { useQcRemarks } from "@/hooks/qc/useQc";
-import { useRemoveSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
-import { GPS_ACCEPT_MAX_ACCURACY_METERS } from "@/lib/domain";
+import { useSubmitSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
 import { parseConvexError } from "@/lib/errors";
-import { fmtDate } from "@/lib/utils";
-import { ArrowLeft, Download, MapPin, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Eye, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use } from "react";
+import { use, useState } from "react";
 import { toast } from "sonner";
 
-function Field({ label, value }: { label: string; value: any }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-sm">{value == null || value === "" ? "—" : String(value)}</p>
-    </div>
-  );
-}
-
-function Grid({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>;
-}
-
-export default function SurveyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function SurveyEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const survey = useSurvey(id);
-  const remarks = useQcRemarks(id);
-  const audit = useAuditLog({ entity: "survey", entityId: id, limit: 100 });
-  const removeSurvey = useRemoveSurvey();
+  const submitSurvey = useSubmitSurvey();
+  const [submitting, setSubmitting] = useState(false);
 
   if (survey === undefined) {
     return (
@@ -53,334 +34,109 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
       </div>
     );
   }
+
   if (survey === null) {
     return <EmptyState title="Survey not found" description="It may have been deleted or is outside your scope." />;
   }
 
-  const owners = survey.owners ?? [];
+  const locked = survey.qcStatus === "approved";
+  const canSubmit = survey.status === "draft" || survey.status === "rejected";
 
-  async function onDelete() {
-    if (!confirm("Delete this survey? This cannot be undone.")) return;
+  async function onSubmit() {
+    if (!confirm("Submit this survey for QC review? You won't be able to edit it until it's reviewed.")) return;
+    setSubmitting(true);
     try {
-      await removeSurvey({ id: id as any });
-      toast.success("Survey deleted");
-      router.push("/surveys");
+      await submitSurvey({ id: id as any });
+      toast.success("Survey submitted for QC");
+      router.push(`/surveys/${id}`);
     } catch (e) {
       toast.error(parseConvexError(e).message);
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
-    <div className="space-y-5">
-      <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
-        <Link href="/surveys">
-          <ArrowLeft className="h-4 w-4" /> Back to surveys
-        </Link>
-      </Button>
+    <RoleGate
+      capability="surveys.editDraft"
+      fallback={<EmptyState title="Not permitted" description="You don't have permission to edit surveys." />}
+    >
+      <div className="space-y-5">
+        <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
+          <Link href={`/surveys/${id}`}>
+            <ArrowLeft className="h-4 w-4" /> Back to detail
+          </Link>
+        </Button>
 
-      <PageHeader
-        title={survey.propertyId || `Parcel ${survey.parcelNo}`}
-        description={`${survey.city} · Ward ${survey.wardNo} · ${survey.locality ?? ""}`}
-        actions={
-          <div className="flex items-center gap-2">
-            <SurveyStatusBadge status={survey.status} />
-            <QcStatusBadge status={survey.qcStatus} />
-            <Button variant="outline" size="sm" onClick={() => generateSurveyReportPdf(survey)}>
-              <Download className="h-4 w-4" /> PDF
-            </Button>
-            <RoleGate capability="surveys.editDraft">
-              {survey.qcStatus !== "approved" && (
-                <Button asChild variant="default" size="sm">
-                  <Link href={`/surveys/${id}/edit`}>
-                    <Pencil className="h-4 w-4" /> Edit
-                  </Link>
-                </Button>
+        <PageHeader
+          title={`Edit — ${survey.propertyId || `Parcel ${survey.parcelNo}`}`}
+          description={`${survey.city} · Ward ${survey.wardNo} · Save each section, then add floors, photos and GPS before submitting.`}
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <SurveyStatusBadge status={survey.status} />
+              <QcStatusBadge status={survey.qcStatus} />
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/surveys/${id}`}>
+                  <Eye className="h-4 w-4" /> View detail
+                </Link>
+              </Button>
+              {canSubmit && !locked && (
+                <RoleGate capability="surveys.submit">
+                  <Button size="sm" disabled={submitting} onClick={onSubmit}>
+                    <Send className="h-4 w-4" /> {submitting ? "Submitting…" : "Submit for QC"}
+                  </Button>
+                </RoleGate>
               )}
-            </RoleGate>
-            <RoleGate capability="surveys.delete">
-              {survey.qcStatus !== "approved" && (
-                <Button variant="ghost" size="icon" onClick={onDelete}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              )}
-            </RoleGate>
+            </div>
+          }
+        />
+
+        {locked ? (
+          <EmptyState
+            title="Survey locked"
+            description="This survey has been approved and can no longer be edited. Contact a supervisor to re-open it."
+            action={
+              <Button asChild variant="outline">
+                <Link href={`/surveys/${id}`}>View detail</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <div className="space-y-5">
+            <SurveyForm localId={survey.localId} existing={survey} />
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Floors</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FloorsEditor surveyId={id} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Photos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PhotoUploader surveyId={id} />
+              </CardContent>
+            </Card>
+
+            <GpsCapturePanel surveyId={id} gps={survey.gps} />
+
+            {canSubmit && (
+              <RoleGate capability="surveys.submit">
+                <div className="flex justify-end border-t border-border pt-5">
+                  <Button disabled={submitting} onClick={onSubmit}>
+                    <Send className="h-4 w-4" /> {submitting ? "Submitting…" : "Submit for QC"}
+                  </Button>
+                </div>
+              </RoleGate>
+            )}
           </div>
-        }
-      />
-
-      <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
-        <div>
-          <Tabs defaultValue="overview">
-            <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="owner">Owner</TabsTrigger>
-              <TabsTrigger value="address">Address</TabsTrigger>
-              <TabsTrigger value="taxation">Taxation</TabsTrigger>
-              <TabsTrigger value="floors">Floors</TabsTrigger>
-              <TabsTrigger value="services">Services</TabsTrigger>
-              <TabsTrigger value="gis">GIS</TabsTrigger>
-              <TabsTrigger value="photos">Photos</TabsTrigger>
-              <TabsTrigger value="qc">QC History</TabsTrigger>
-              <TabsTrigger value="audit">Audit</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview">
-              <Card>
-                <CardContent className="pt-5">
-                  <Grid>
-                    <Field label="Property ID" value={survey.propertyId} />
-                    <Field label="Parcel No" value={survey.parcelNo} />
-                    <Field label="Unit No" value={survey.unitNo} />
-                    <Field label="Sector No" value={survey.sectorNo} />
-                    <Field label="Old Property No" value={survey.oldPropertyNo} />
-                    <Field label="Constructed Year" value={survey.constructedYear} />
-                    <Field label="Slum" value={survey.isSlum ? "Yes" : "No"} />
-                    <Field label="Surveyor" value={survey.surveyor?.name} />
-                    <Field label="Submitted" value={survey.submittedAt ? fmtDate(survey.submittedAt) : "—"} />
-                  </Grid>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="owner">
-              <Card>
-                <CardContent className="space-y-4 pt-5">
-                  <Grid>
-                    <Field label="Respondent" value={survey.respondentName} />
-                    <Field label="Relationship" value={survey.relationship} />
-                    <Field label="Family Size" value={survey.familySize} />
-                    <Field label="Primary Mobile" value={survey.mobileNo} />
-                    <Field label="Alt Mobile" value={survey.altMobileNo} />
-                  </Grid>
-                  {owners.length > 0 && (
-                    <div>
-                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Co-owners ({owners.length})
-                      </p>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Father/Husband</TableHead>
-                            <TableHead>Mobile</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {owners.map((o: any, i: number) => (
-                            <TableRow key={i}>
-                              <TableCell>{o.name || "—"}</TableCell>
-                              <TableCell>{o.fatherOrHusbandName || "—"}</TableCell>
-                              <TableCell>{o.mobileNo || "—"}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="address">
-              <Card>
-                <CardContent className="pt-5">
-                  <Grid>
-                    <Field label="House No" value={survey.houseNo} />
-                    <Field label="Locality" value={survey.locality} />
-                    <Field label="Colony" value={survey.colonyName} />
-                    <Field label="City / ULB" value={survey.city} />
-                    <Field label="PIN Code" value={survey.pinCode} />
-                  </Grid>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="taxation">
-              <Card>
-                <CardContent className="pt-5">
-                  <Grid>
-                    <Field label="Assessment Year" value={survey.assessmentYear} />
-                    <Field label="Ownership Type" value={survey.ownershipType} />
-                    <Field label="Property Use" value={survey.propertyUse} />
-                    <Field label="Property Type" value={survey.propertyType} />
-                    <Field label="Situation" value={survey.situation} />
-                    <Field label="Road Type" value={survey.roadType} />
-                    <Field label="Tax Rate Zone" value={survey.taxRateZone} />
-                    <Field label="Plot (sqft)" value={survey.plotSqft} />
-                    <Field label="Plinth (sqft)" value={survey.plinthSqft} />
-                  </Grid>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="floors">
-              <Card>
-                <CardContent className="pt-5">
-                  {survey.floors?.length ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>#</TableHead>
-                          <TableHead>Floor</TableHead>
-                          <TableHead>Usage</TableHead>
-                          <TableHead>Construction</TableHead>
-                          <TableHead>Occupied</TableHead>
-                          <TableHead>Area (sqft)</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {survey.floors.map((f: any) => (
-                          <TableRow key={f._id}>
-                            <TableCell>{f.position}</TableCell>
-                            <TableCell className="capitalize">{f.floorName}</TableCell>
-                            <TableCell className="capitalize">{f.usageType}</TableCell>
-                            <TableCell className="capitalize">{f.constructionType}</TableCell>
-                            <TableCell>{f.isOccupied ? "Yes" : "No"}</TableCell>
-                            <TableCell className="tabular-nums">{f.areaSqft}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No floors recorded.</p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="services">
-              <Card>
-                <CardContent className="pt-5">
-                  <Grid>
-                    <Field label="Municipal Water Connection" value={survey.municipalWaterConnection ? "Yes" : "No"} />
-                    <Field label="Water Source" value={survey.waterSource} />
-                    <Field label="Sanitation Type" value={survey.sanitationType} />
-                    <Field label="Waste Collection" value={survey.municipalWasteCollection ? "Yes" : "No"} />
-                    <Field label="Electricity No" value={survey.electricityNo} />
-                  </Grid>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="gis">
-              <Card>
-                <CardContent className="pt-5">
-                  {survey.gps ? (
-                    <Grid>
-                      <Field label="Latitude" value={survey.gps.latitude} />
-                      <Field label="Longitude" value={survey.gps.longitude} />
-                      <Field
-                        label="Accuracy (m)"
-                        value={`±${survey.gps.accuracyMeters} ${survey.gps.accuracyMeters > GPS_ACCEPT_MAX_ACCURACY_METERS ? "(out of tolerance)" : ""}`}
-                      />
-                      <Field label="Captured" value={fmtDate(survey.gps.capturedAt)} />
-                      <Field label="Provider" value={survey.gps.provider} />
-                      <Field label="Mock Location" value={survey.gps.isMockLocation ? "Yes ⚠" : "No"} />
-                      <div className="sm:col-span-3">
-                        <a
-                          href={`https://www.google.com/maps?q=${survey.gps.latitude},${survey.gps.longitude}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-                        >
-                          <MapPin className="h-4 w-4" /> Open in Google Maps
-                        </a>
-                      </div>
-                    </Grid>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No GPS capture on this survey.</p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="photos">
-              <Card>
-                <CardContent className="pt-5">
-                  <PhotoGallery photos={(survey.photos ?? []) as any} uploaderName={survey.surveyor?.name} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="qc">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">QC History</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {remarks === undefined ? (
-                    <Skeleton className="h-24 w-full" />
-                  ) : remarks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No QC remarks recorded.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {remarks.map((r: any) => (
-                        <div key={r._id} className="rounded-md border border-border p-3">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>
-                              {r.author?.name} · {r.authorRole} · {r.status}
-                            </span>
-                            <span>{fmtDate(r._creationTime)}</span>
-                          </div>
-                          <p className="mt-1 text-sm">{r.message}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="audit">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Audit History</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RoleGate
-                    capability="audit.view"
-                    fallback={
-                      <p className="text-sm text-muted-foreground">Audit history is visible to administrators only.</p>
-                    }
-                  >
-                    {audit === undefined ? (
-                      <Skeleton className="h-24 w-full" />
-                    ) : audit.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No audit entries for this survey.</p>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>When</TableHead>
-                            <TableHead>Action</TableHead>
-                            <TableHead>Actor</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {audit.map((a: any) => (
-                            <TableRow key={a._id}>
-                              <TableCell className="whitespace-nowrap text-muted-foreground">
-                                {fmtDate(a._creationTime)}
-                              </TableCell>
-                              <TableCell className="font-mono text-xs">{a.action}</TableCell>
-                              <TableCell>{a.actor?.name ?? "System"}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </RoleGate>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        {/* QC sidebar — review/decision + remark thread */}
-        <RoleGate anyOf={["qc.review", "qc.decide"]}>
-          <QcPanel survey={survey} />
-        </RoleGate>
+        )}
       </div>
-    </div>
+    </RoleGate>
   );
 }

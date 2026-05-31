@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters";
 import { useSaveDraft } from "@/hooks/surveys/useSurveys";
 import { applyServerFieldErrors } from "@/lib/errors";
-import type { SurveyDetail } from "@/schema/surveys/index";
+import type { SurveyListItem } from "@/schema/surveys/index";
 import { surveyDraftSchema, type SurveyDraftValues } from "@/schema/surveys/surveySchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Save } from "lucide-react";
@@ -26,6 +26,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </Card>
   );
 }
+
 function FieldErr({ msg }: { msg?: string }) {
   return msg ? <p className="text-xs text-destructive">{msg}</p> : null;
 }
@@ -38,7 +39,7 @@ export function SurveyForm({
 }: {
   localId: string;
   municipalityId?: string;
-  existing?: SurveyDetail | null;
+  existing?: SurveyListItem | null;
   onSaved?: (surveyId: string) => void;
 }) {
   const { masters } = useMasters();

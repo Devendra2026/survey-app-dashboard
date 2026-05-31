@@ -43,3 +43,7 @@ convex-backups/*.zip
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.cursor/
+.jetro/
+.agent/
+.windsurf/

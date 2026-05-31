@@ -1,28 +1,29 @@
 "use client";
 
-import { use } from "react";
-import { ArrowLeft, Download, MapPin, Trash2, Pencil } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { QcPanel } from "@/components/qc/qc-panel";
+import { generateSurveyReportPdf } from "@/components/reports/queries/pdf";
+import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
+import { RoleGate } from "@/components/shared/role-gate";
+import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
+import { PhotoGallery } from "@/components/surveys/photo-gallery";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SurveyStatusBadge, QcStatusBadge } from "@/components/shared/status-badge";
-import { EmptyState } from "@/components/shared/empty-state";
-import { RoleGate } from "@/components/shared/role-gate";
-import { PhotoGallery } from "@/components/surveys/photo-gallery";
-import { QcPanel } from "@/components/qc/qc-panel";
-import { useSurvey, useRemoveSurvey } from "@/hooks/surveys/useSurveys";
-import { useQcRemarks } from "@/hooks/qc/useQc";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuditLog } from "@/hooks/audit/useAudit";
-import { generateSurveyReportPdf } from "@/components/reports/queries/pdf";
+import { useMasters } from "@/hooks/masters/useMasters";
+import { useQcRemarks } from "@/hooks/qc/useQc";
+import { useRemoveSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
+import { GPS_ACCEPT_MAX_ACCURACY_METERS, SURVEY_STATUS_LABEL } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
 import { fmtDate } from "@/lib/utils";
-import { GPS_ACCEPT_MAX_ACCURACY_METERS } from "@/lib/domain";
+import { ArrowLeft, Download, MapPin, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { use } from "react";
+import { toast } from "sonner";
 
 function Field({ label, value }: { label: string; value: any }) {
   return (
@@ -41,6 +42,7 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const router = useRouter();
   const survey = useSurvey(id);
+  const { masters } = useMasters();
   const remarks = useQcRemarks(id);
   const audit = useAuditLog({ entity: "survey", entityId: id, limit: 100 });
   const removeSurvey = useRemoveSurvey();
@@ -58,6 +60,10 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
   }
 
   const owners = survey.owners ?? [];
+  const ulb = masters?.ulbs?.find((m: { _id: string }) => m._id === survey.municipalityId);
+  const district = masters?.districts?.find(
+    (d: { _id: string }) => d._id === (survey as { districtId?: string }).districtId,
+  );
 
   async function onDelete() {
     if (!confirm("Delete this survey? This cannot be undone.")) return;
@@ -111,23 +117,28 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
       <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
         <div>
           <Tabs defaultValue="overview">
-            <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="owner">Owner</TabsTrigger>
-              <TabsTrigger value="address">Address</TabsTrigger>
-              <TabsTrigger value="taxation">Taxation</TabsTrigger>
-              <TabsTrigger value="floors">Floors</TabsTrigger>
-              <TabsTrigger value="services">Services</TabsTrigger>
-              <TabsTrigger value="gis">GIS</TabsTrigger>
-              <TabsTrigger value="photos">Photos</TabsTrigger>
-              <TabsTrigger value="qc">QC History</TabsTrigger>
-              <TabsTrigger value="audit">Audit</TabsTrigger>
-            </TabsList>
+            <div className="-mx-1 overflow-x-auto pb-1">
+              <TabsList className="inline-flex w-max min-w-full flex-nowrap sm:min-w-0">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="owner">Owner</TabsTrigger>
+                <TabsTrigger value="address">Address</TabsTrigger>
+                <TabsTrigger value="taxation">Taxation</TabsTrigger>
+                <TabsTrigger value="floors">Floors</TabsTrigger>
+                <TabsTrigger value="services">Services</TabsTrigger>
+                <TabsTrigger value="gis">GIS</TabsTrigger>
+                <TabsTrigger value="photos">Photos</TabsTrigger>
+                <TabsTrigger value="qc">QC History</TabsTrigger>
+                <TabsTrigger value="audit">Audit</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="overview">
               <Card>
                 <CardContent className="pt-5">
                   <Grid>
+                    <Field label="District" value={district?.name ?? "—"} />
+                    <Field label="ULB / Municipality" value={ulb?.name ?? survey.city} />
+                    <Field label="Ward" value={survey.wardNo} />
                     <Field label="Property ID" value={survey.propertyId} />
                     <Field label="Parcel No" value={survey.parcelNo} />
                     <Field label="Unit No" value={survey.unitNo} />
@@ -135,7 +146,9 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
                     <Field label="Old Property No" value={survey.oldPropertyNo} />
                     <Field label="Constructed Year" value={survey.constructedYear} />
                     <Field label="Slum" value={survey.isSlum ? "Yes" : "No"} />
+                    <Field label="Survey Status" value={SURVEY_STATUS_LABEL[survey.status]} />
                     <Field label="Surveyor" value={survey.surveyor?.name} />
+                    <Field label="Last Updated" value={fmtDate(survey.clientUpdatedAt)} />
                     <Field label="Submitted" value={survey.submittedAt ? fmtDate(survey.submittedAt) : "—"} />
                   </Grid>
                 </CardContent>
@@ -163,6 +176,7 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
                             <TableHead>Name</TableHead>
                             <TableHead>Father/Husband</TableHead>
                             <TableHead>Mobile</TableHead>
+                            <TableHead>Alt Mobile</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -171,6 +185,7 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
                               <TableCell>{o.name || "—"}</TableCell>
                               <TableCell>{o.fatherOrHusbandName || "—"}</TableCell>
                               <TableCell>{o.mobileNo || "—"}</TableCell>
+                              <TableCell>{o.altMobileNo || "—"}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -222,6 +237,7 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
                         <TableRow>
                           <TableHead>#</TableHead>
                           <TableHead>Floor</TableHead>
+                          <TableHead>Usage Factor</TableHead>
                           <TableHead>Usage</TableHead>
                           <TableHead>Construction</TableHead>
                           <TableHead>Occupied</TableHead>
@@ -233,8 +249,9 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
                           <TableRow key={f._id}>
                             <TableCell>{f.position}</TableCell>
                             <TableCell className="capitalize">{f.floorName}</TableCell>
-                            <TableCell className="capitalize">{f.usageType}</TableCell>
-                            <TableCell className="capitalize">{f.constructionType}</TableCell>
+                            <TableCell className="capitalize">{f.usageFactor?.replace(/_/g, " ") ?? "—"}</TableCell>
+                            <TableCell className="capitalize">{f.usageType?.replace(/_/g, " ")}</TableCell>
+                            <TableCell className="capitalize">{f.constructionType?.replace(/_/g, " ")}</TableCell>
                             <TableCell>{f.isOccupied ? "Yes" : "No"}</TableCell>
                             <TableCell className="tabular-nums">{f.areaSqft}</TableCell>
                           </TableRow>
