@@ -34,6 +34,12 @@ Next.js dashboard for survey QC, analytics, masters, and users. **This repo owns
 
 3. Point the mobile app at the same deployment (see `../survey-app/.env.example`).
 
+### Troubleshooting local dev
+
+- **`Could not find public function for 'surveys:list'`** — Run `npm run dev` (starts **both** Next.js and `convex dev`). If you only ran `next dev`, push functions once: `npx convex dev --once`. Public API is `survey:list` (`convex/survey.ts`); `surveys:list` is a compatibility alias.
+- **Browser: “Clerk has been loaded with development keys”** — Expected while using `pk_test_…` / `organic-halibut-21`. Safe to ignore during development.
+- **`Failed to fetch RSC payload`** — Often a side effect of the Convex error above or a dev-server restart; fix Convex first, then hard-refresh the browser.
+
 ## Production
 
 ```bash

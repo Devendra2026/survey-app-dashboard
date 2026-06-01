@@ -1,6 +1,6 @@
 "use client";
 /**
- * Survey feature hooks — thin bindings over the EXISTING surveys.* functions.
+ * Survey feature hooks — thin bindings over `api.survey.*` (see `convex/survey.ts`).
  * No business logic lives here; filtering/search beyond what the server
  * supports is applied client-side over the already tenant-scoped result.
  */
