@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuditLog } from "@/hooks/audit/useAudit";
 import { useMasters } from "@/hooks/masters/useMasters";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS, SURVEY_STATUS_LABEL, type PhotoSlot } from "@/lib/domain";
-import { builtUpSqftFromFloors, formatAreaSqft } from "@/lib/survey/area";
+import { formatAreaSqft, formatAreaSqMeter, surveyAreaMetrics } from "@/lib/survey/area";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { surveyCompletionPercent } from "@/lib/survey/progress";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
@@ -168,8 +168,32 @@ function DetailPhotoSlots({ photos, uploaderName }: { photos: SurveyDetail["phot
   );
 }
 
+function AreaSummaryGrid({ survey }: { survey: SurveyDetail }) {
+  const areas = surveyAreaMetrics({
+    plotSqft: survey.plotSqft,
+    plinthSqft: survey.plinthSqft,
+    floors: survey.floors,
+  });
+  return (
+    <div className="grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <DetailField label="Plot Area SqFt" value={areas.plotSqft > 0 ? areas.plotSqft.toLocaleString("en-IN") : "—"} />
+      <DetailField label="Plot Area SqMeter" value={formatAreaSqMeter(areas.plotSqft)} />
+      <DetailField
+        label="Plinth Area SqFt"
+        value={areas.plinthSqft > 0 ? areas.plinthSqft.toLocaleString("en-IN") : "—"}
+      />
+      <DetailField label="Plinth Area SqMeter" value={formatAreaSqMeter(areas.plinthSqft)} />
+      <DetailField
+        label="Total Built Up Area SqFt"
+        value={areas.builtUpSqft > 0 ? areas.builtUpSqft.toLocaleString("en-IN") : "—"}
+      />
+      <DetailField label="Total Built Up Area SqMeter" value={formatAreaSqMeter(areas.builtUpSqft)} />
+    </div>
+  );
+}
+
 function FloorsTable({ floors, propertyId, masters }: { floors: FloorRow[]; propertyId?: string; masters: any }) {
-  const builtUp = builtUpSqftFromFloors(floors);
+  const areas = surveyAreaMetrics({ plotSqft: 0, plinthSqft: 0, floors });
   return (
     <div className="space-y-3">
       <div className="overflow-hidden rounded-lg border border-border">
@@ -206,7 +230,8 @@ function FloorsTable({ floors, propertyId, masters }: { floors: FloorRow[]; prop
         </Table>
       </div>
       <p className="text-sm font-semibold text-primary">
-        TOTAL BUILT-UP AREA: {formatAreaSqft(builtUp).replace(" sq ft", " Sqft").toUpperCase()}
+        TOTAL BUILT-UP AREA: {formatAreaSqft(areas.builtUpSqft).replace(" sq ft", " Sqft").toUpperCase()} (
+        {formatAreaSqMeter(areas.builtUpSqft)})
       </p>
     </div>
   );
@@ -394,17 +419,21 @@ export function SurveyDetailView({
           <DetailField label="Situation" value={lbl(masters?.situations, survey.situation)} />
           <DetailField label="Road Type" value={lbl(masters?.roadTypes, survey.roadType)} />
           <DetailField label="Tax Rate Zone" value={lbl(masters?.taxRateZones, survey.taxRateZone)} />
-          <DetailField label="Plot Area (Sqft)" value={survey.plotSqft?.toLocaleString("en-IN")} />
-          <DetailField label="Plinth (Sqft)" value={survey.plinthSqft?.toLocaleString("en-IN")} />
         </FieldGrid>
       </SectionCard>
 
-      <SectionCard title="Floor Details" description="Floor rows captured on mobile; Property ID repeated per row.">
-        {survey.floors?.length ? (
-          <FloorsTable floors={survey.floors} propertyId={propertyId} masters={masters} />
-        ) : (
-          <p className="text-sm text-muted-foreground">No floors recorded.</p>
-        )}
+      <SectionCard
+        title="Floor Details"
+        description="Plot, plinth, and built-up totals (sq ft and sq m) plus floor rows from mobile."
+      >
+        <div className="space-y-4">
+          <AreaSummaryGrid survey={survey} />
+          {survey.floors?.length ? (
+            <FloorsTable floors={survey.floors} propertyId={propertyId} masters={masters} />
+          ) : (
+            <p className="text-sm text-muted-foreground">No floors recorded.</p>
+          )}
+        </div>
       </SectionCard>
 
       <SectionCard title="Municipal Services">

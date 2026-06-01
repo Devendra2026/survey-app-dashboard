@@ -11,10 +11,12 @@
  * `admin.upsertMaster`), Convex pushes the change and every open form updates.
  */
 import { api } from "@/convex/_generated/api";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { useQuery } from "convex/react";
 
 export function useMasters() {
-  const bundle = useQuery(api.masters.bundle);
+  const ready = useConvexAuthReady();
+  const bundle = useQuery(api.masters.bundle, ready ? {} : "skip");
   return { masters: bundle, isLoading: bundle === undefined };
 }
 

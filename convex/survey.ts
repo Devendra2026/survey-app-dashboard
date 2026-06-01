@@ -788,7 +788,7 @@ type SurveyUpsertArgs = {
   street?: string;
 };
 
-function normalizePropertyFields<
+export function normalizePropertyFields<
   T extends {
     parcelNo?: string;
     unitNo?: string;
@@ -809,7 +809,7 @@ function normalizePropertyFields<
   };
 }
 
-function withResolvedPropertyId<
+export function withResolvedPropertyId<
   T extends {
     propertyId?: string;
     wardNo?: string;
@@ -823,7 +823,7 @@ function withResolvedPropertyId<
   };
 }
 
-function normalizeOwnerFields<
+export function normalizeOwnerFields<
   T extends {
     mobileNo?: string;
     altMobileNo?: string;
@@ -852,7 +852,7 @@ function normalizeOwnerFields<
   };
 }
 
-function stripLocalId<T extends { localId: string; surveyorId?: Id<"users"> }>(args: T): Omit<T, "localId"> {
+export function stripLocalId<T extends { localId: string; surveyorId?: Id<"users"> }>(args: T): Omit<T, "localId"> {
   const { localId: _l, ...rest } = args;
   return rest;
 }
@@ -865,7 +865,7 @@ type DraftMutationArgs = {
   [key: string]: unknown;
 };
 
-function mergeDraftArgs(
+export function mergeDraftArgs(
   existing: Doc<"surveys"> | null,
   patch: DraftMutationArgs,
   muni: Doc<"municipalities">,

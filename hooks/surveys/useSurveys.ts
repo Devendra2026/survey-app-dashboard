@@ -6,6 +6,7 @@
  */
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { resolveDisplayPropertyId, type PropertyIdSource } from "@/lib/survey/resolve-display-property-id";
@@ -24,15 +25,21 @@ export interface SurveyListFilters {
 
 /** api.survey.list — server enforces tenant scope + role visibility. */
 export function useSurveyList(filters: SurveyListFilters = {}) {
-  return useQuery(api.survey.list, {
-    status: filters.status,
-    qcStatus: filters.qcStatus,
-    wardNo: filters.wardNo,
-    districtId: filters.districtId as Id<"districts"> | undefined,
-    municipalityId: filters.municipalityId as Id<"municipalities"> | undefined,
-    surveyorId: filters.surveyorId as Id<"users"> | undefined,
-    limit: filters.limit ?? 200,
-  });
+  const ready = useConvexAuthReady();
+  return useQuery(
+    api.survey.list,
+    ready
+      ? {
+          status: filters.status,
+          qcStatus: filters.qcStatus,
+          wardNo: filters.wardNo,
+          districtId: filters.districtId as Id<"districts"> | undefined,
+          municipalityId: filters.municipalityId as Id<"municipalities"> | undefined,
+          surveyorId: filters.surveyorId as Id<"users"> | undefined,
+          limit: filters.limit ?? 200,
+        }
+      : "skip",
+  );
 }
 
 /** Cursor-paginated survey list sorted by Property ID ascending. */
@@ -48,15 +55,21 @@ export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize
     pageNumber,
   } = useCursorPagination(resetKey, pageSize);
 
-  const result = useQuery(api.survey.listPaginated, {
-    paginationOpts: { numItems: size, cursor },
-    status: filters.status,
-    qcStatus: filters.qcStatus,
-    wardNo: filters.wardNo,
-    districtId: filters.districtId as Id<"districts"> | undefined,
-    municipalityId: filters.municipalityId as Id<"municipalities"> | undefined,
-    surveyorId: filters.surveyorId as Id<"users"> | undefined,
-  });
+  const ready = useConvexAuthReady();
+  const result = useQuery(
+    api.survey.listPaginated,
+    ready
+      ? {
+          paginationOpts: { numItems: size, cursor },
+          status: filters.status,
+          qcStatus: filters.qcStatus,
+          wardNo: filters.wardNo,
+          districtId: filters.districtId as Id<"districts"> | undefined,
+          municipalityId: filters.municipalityId as Id<"municipalities"> | undefined,
+          surveyorId: filters.surveyorId as Id<"users"> | undefined,
+        }
+      : "skip",
+  );
 
   const surveys = result?.page;
   const canGoNext = result ? !result.isDone : false;
@@ -81,7 +94,8 @@ export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize
 
 /** api.survey.get — full detail w/ floors, photos (hydrated URLs), qcRemarks. */
 export function useSurvey(id: string | undefined) {
-  return useQuery(api.survey.get, id ? { id: id as Id<"surveys"> } : "skip");
+  const ready = useConvexAuthReady();
+  return useQuery(api.survey.get, ready && id ? { id: id as Id<"surveys"> } : "skip");
 }
 
 export function useSubmitSurvey() {
