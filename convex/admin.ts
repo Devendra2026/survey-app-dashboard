@@ -253,6 +253,36 @@ export const listUsers = query({
   },
 });
 
+/** Active user count for admin dashboard cards. */
+export const countActiveUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    const me = await requireUser(ctx);
+    requireRole(me, "admin", "supervisor");
+
+    const rows = await ctx.db
+      .query("users")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect();
+    return rows.length;
+  },
+});
+
+/** Single user row for admin assignment / detail screens. */
+export const getUserForAdmin = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    requireRole(me, "admin", "supervisor");
+
+    const row = await ctx.db.get(args.userId);
+    if (!row) return null;
+
+    const [user] = await hydrateUsersForAdmin(ctx, [row]);
+    return user ?? null;
+  },
+});
+
 /** Assign district + ULB for an active surveyor or supervisor. */
 export const assignTenant = mutation({
   args: {
