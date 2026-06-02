@@ -16,12 +16,11 @@ export function PropertyIdBanner({ propertyId, className }: { propertyId?: strin
   const id = propertyId?.trim();
   if (!id) return null;
   return (
-    <div className={cn("rounded-lg border border-primary/20 bg-primary/5 px-4 py-3", className)}>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Property ID</p>
-      <p className="font-mono text-lg font-semibold tracking-tight text-primary">{id}</p>
-      <p className="mt-0.5 text-xs text-muted-foreground">
-        ULB (6) – Ward (3) – Parcel (5) – Use code · sorted ascending in lists
-      </p>
+    <div
+      className={cn("rounded-xl border border-primary/25 bg-white px-4 py-3 shadow-sm dark:bg-slate-900/70", className)}
+    >
+      <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">Property ID</p>
+      <p className="font-mono text-lg font-bold tracking-tight text-primary">{id}</p>
     </div>
   );
 }

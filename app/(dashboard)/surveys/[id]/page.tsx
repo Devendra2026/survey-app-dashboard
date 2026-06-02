@@ -1,11 +1,9 @@
 "use client";
 
-import { QcPanel } from "@/components/qc/qc-panel";
 import { generateSurveyReportPdf } from "@/components/reports/queries/pdf";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
 import { SurveyDetailView } from "@/components/surveys/survey-detail-view";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,53 +46,64 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
     }
   }
 
-  const title = survey.propertyId || `Parcel ${survey.parcelNo}`;
-
   return (
-    <div className="space-y-5">
-      <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
+    <div className="space-y-6">
+      <Button
+        asChild
+        variant="outline"
+        size="sm"
+        className="w-fit rounded-full border-primary/30 bg-primary/5 px-4 text-primary hover:bg-primary/10"
+      >
         <Link href="/surveys">
           <ArrowLeft className="h-4 w-4" /> Back to surveys
         </Link>
       </Button>
 
-      <PageHeader
-        title="Property Survey"
-        description={title}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <SurveyStatusBadge status={survey.status} />
-            <QcStatusBadge status={survey.qcStatus} />
-            <Button variant="outline" size="sm" onClick={() => generateSurveyReportPdf(survey)}>
-              <Download className="h-4 w-4" /> PDF
-            </Button>
-            <RoleGate capability="surveys.editDraft">
-              {survey.qcStatus !== "approved" && (
-                <Button asChild variant="default" size="sm">
-                  <Link href={`/surveys/${id}/edit`}>
-                    <Pencil className="h-4 w-4" /> Edit
-                  </Link>
-                </Button>
-              )}
-            </RoleGate>
-            <RoleGate capability="surveys.delete">
-              {survey.qcStatus !== "approved" && (
-                <Button variant="ghost" size="icon" onClick={onDelete}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              )}
-            </RoleGate>
-          </div>
-        }
-      />
+      <div className="rounded-2xl border border-border/70 bg-linear-to-r from-sky-50 to-indigo-50 px-6 py-5 shadow-sm dark:from-slate-900 dark:to-slate-800">
+        <PageHeader
+          title="Property Survey"
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => generateSurveyReportPdf(survey)}
+                className="rounded-full border-blue-200 bg-white text-blue-700 shadow-sm hover:bg-blue-50"
+              >
+                <Download className="h-4 w-4" /> PDF
+              </Button>
+              <RoleGate capability="surveys.editDraft">
+                {survey.qcStatus !== "approved" && (
+                  <Button
+                    asChild
+                    size="sm"
+                    className="rounded-full bg-linear-to-r from-indigo-600 to-blue-600 text-white shadow-sm hover:from-indigo-500 hover:to-blue-500"
+                  >
+                    <Link href={`/surveys/${id}/edit`}>
+                      <Pencil className="h-4 w-4" /> Edit
+                    </Link>
+                  </Button>
+                )}
+              </RoleGate>
+              <RoleGate capability="surveys.delete">
+                {survey.qcStatus !== "approved" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onDelete}
+                    className="rounded-full border-rose-300 bg-white text-rose-700 shadow-sm hover:bg-rose-50"
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </Button>
+                )}
+              </RoleGate>
+            </div>
+          }
+        />
+      </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+      <div className="grid gap-5">
         <SurveyDetailView survey={survey as any} surveyId={id} remarks={remarks as any} />
-        <RoleGate anyOf={["qc.review", "qc.decide"]}>
-          <div className="xl:sticky xl:top-4 xl:self-start">
-            <QcPanel survey={survey} />
-          </div>
-        </RoleGate>
       </div>
     </div>
   );

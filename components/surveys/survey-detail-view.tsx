@@ -1,9 +1,7 @@
 "use client";
 
 import { RoleGate } from "@/components/shared/role-gate";
-import { PhotoGallery } from "@/components/surveys/photo-gallery";
 import { PropertyIdBanner, PropertyIdTableCell, PropertyIdTableHead } from "@/components/surveys/property-id-table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -17,14 +15,14 @@ import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { surveyCompletionPercent } from "@/lib/survey/progress";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import { fmtDate } from "@/lib/utils";
-import type { FloorRow, OwnerEntry, SurveyDetail, SurveyRemark } from "@/schema/surveys/index";
-import { Crosshair, ImageOff, Info, MapPin } from "lucide-react";
+import type { FloorRow, OwnerEntry, SurveyDetail } from "@/schema/surveys/index";
+import { Crosshair, ImageOff, MapPin } from "lucide-react";
 
 const DETAIL_PHOTO_LABEL: Record<PhotoSlot, string> = {
   front: "Front View (Street)",
   side: "Side View (Boundary)",
-  inside: "Interior / Usage Proof",
-  document: "Document",
+  inside: "",
+  document: "",
 };
 
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
@@ -49,7 +47,7 @@ function SectionCard({
   className?: string;
 }) {
   return (
-    <Card className={className}>
+    <Card className={`border-border/70 shadow-sm ${className ?? ""}`}>
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold">{title}</CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
@@ -84,14 +82,19 @@ function OccupancyBadge({ usageType }: { usageType: string }) {
 function GisPanel({ gps }: { gps: NonNullable<SurveyDetail["gps"]> }) {
   const lat = gps.latitude;
   const lng = gps.longitude;
-  const mapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=18&size=640x360&markers=${lat},${lng},lightblue1`;
+  const googleEmbedUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=18&output=embed`;
   const accuracyOk = gps.accuracyMeters <= GPS_ACCEPT_MAX_ACCURACY_METERS;
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border bg-muted/30">
       <div className="relative aspect-video w-full overflow-hidden bg-muted">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={mapUrl} alt="Property location" className="h-full w-full object-cover" />
+        <iframe
+          title="Property location map"
+          src={googleEmbedUrl}
+          className="h-full w-full border-0"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
         <div className="absolute left-3 top-3">
           <Badge variant={accuracyOk ? "default" : "destructive"} className="font-mono text-[10px] uppercase">
             Accuracy: {gps.accuracyMeters.toFixed(1)}m
@@ -123,7 +126,7 @@ function GisPanel({ gps }: { gps: NonNullable<SurveyDetail["gps"]> }) {
 }
 
 function DetailPhotoSlots({ photos, uploaderName }: { photos: SurveyDetail["photos"]; uploaderName?: string }) {
-  const slots: PhotoSlot[] = ["front", "side", "inside"];
+  const slots: PhotoSlot[] = ["front", "side"];
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       {slots.map((slot) => {
@@ -158,12 +161,6 @@ function DetailPhotoSlots({ photos, uploaderName }: { photos: SurveyDetail["phot
           </div>
         );
       })}
-      {photos.some((p) => p.slot === "document") && (
-        <div className="sm:col-span-3">
-          <p className="mb-2 text-sm font-medium">Additional documents</p>
-          <PhotoGallery photos={photos.filter((p) => p.slot === "document") as any} uploaderName={uploaderName} />
-        </div>
-      )}
     </div>
   );
 }
@@ -237,36 +234,6 @@ function FloorsTable({ floors, propertyId, masters }: { floors: FloorRow[]; prop
   );
 }
 
-function QcRemarksTable({ remarks, propertyId }: { remarks: SurveyRemark[]; propertyId?: string }) {
-  if (remarks.length === 0) {
-    return <p className="text-sm text-muted-foreground">No QC remarks recorded.</p>;
-  }
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <PropertyIdTableHead />
-          <TableHead>When</TableHead>
-          <TableHead>Author</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Message</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {remarks.map((r) => (
-          <TableRow key={r._id}>
-            <PropertyIdTableCell propertyId={propertyId} />
-            <TableCell className="whitespace-nowrap text-muted-foreground">{fmtDate(r._creationTime)}</TableCell>
-            <TableCell>{(r as { author?: { name?: string } }).author?.name ?? r.authorRole}</TableCell>
-            <TableCell className="capitalize">{r.status}</TableCell>
-            <TableCell>{r.message}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-
 function AuditTable({ audit, propertyId }: { audit: any[]; propertyId?: string }) {
   return (
     <Table>
@@ -295,15 +262,14 @@ function AuditTable({ audit, propertyId }: { audit: any[]; propertyId?: string }
 export function SurveyDetailView({
   survey,
   surveyId,
-  remarks,
+  remarks: _remarks,
 }: {
   survey: SurveyDetail;
   surveyId: string;
-  remarks?: SurveyRemark[] | null;
+  remarks?: unknown;
 }) {
   const { masters } = useMasters();
   const audit = useAuditLog({ entity: "survey", entityId: surveyId, limit: 100 });
-  const qcRemarks = remarks;
   const ulbCodes = buildUlbCodeMap(masters?.ulbs);
   const propertyId = resolveDisplayPropertyId(survey, ulbCodes) ?? survey.propertyId;
   const owners: OwnerEntry[] = survey.owners ?? [];
@@ -317,16 +283,10 @@ export function SurveyDetailView({
 
   return (
     <div className="space-y-5">
-      <Alert className="border-primary/20 bg-primary/5">
-        <Info className="h-4 w-4 text-primary" />
-        <AlertDescription>
-          Fields marked with an asterisk (*) on the mobile app are mandatory. Property ID format:{" "}
-          <span className="font-mono font-medium">800828-001-00001-P</span> (ULB 6 digits – Ward 3 – Parcel 5 – Use
-          letter).
-        </AlertDescription>
-      </Alert>
-
-      <PropertyIdBanner propertyId={propertyId} />
+      <PropertyIdBanner
+        propertyId={propertyId}
+        className="bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40"
+      />
 
       <SectionCard title="Property Identification" description="ULB, ward, parcel and generated Property ID.">
         <FieldGrid cols={4}>
@@ -450,14 +410,6 @@ export function SurveyDetailView({
         <DetailPhotoSlots photos={survey.photos ?? []} uploaderName={survey.surveyor?.name} />
       </SectionCard>
 
-      <SectionCard title="QC History">
-        {qcRemarks === undefined ? (
-          <Skeleton className="h-24 w-full" />
-        ) : (
-          <QcRemarksTable remarks={qcRemarks ?? []} propertyId={propertyId} />
-        )}
-      </SectionCard>
-
       <SectionCard title="Audit History">
         <RoleGate
           capability="audit.view"
@@ -474,7 +426,7 @@ export function SurveyDetailView({
       </SectionCard>
 
       <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-3 rounded-lg border border-border bg-card/95 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-[200px] flex-1 space-y-1.5">
+        <div className="min-w-50 flex-1 space-y-1.5">
           <p className="text-xs font-medium text-muted-foreground">Survey Progress: {progress}% Complete</p>
           <Progress value={progress} className="h-2" />
         </div>
