@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import {
   Area,
@@ -8,17 +9,16 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { approvalBarClass, chartPalette, chartTooltipStyle } from "./chart-theme";
 
 const CHART_HEIGHT_PX = 288;
 
-/** Fixed height — percentage height inside a scrollable main can inflate page scroll. */
 function ChartViewport({ children }: { children: ReactNode }) {
   return (
     <div className="w-full min-w-0" style={{ height: CHART_HEIGHT_PX }}>
@@ -34,17 +34,17 @@ function ChartViewport({ children }: { children: ReactNode }) {
   );
 }
 
-const COLORS = {
-  navy: "hsl(215 60% 32%)",
-  green: "hsl(152 55% 38%)",
-  amber: "hsl(35 92% 48%)",
-  red: "hsl(0 72% 50%)",
-  slate: "hsl(215 12% 55%)",
-};
-
-const tooltipStyle = {
-  contentStyle: { borderRadius: 8, border: "1px solid hsl(215 16% 88%)", fontSize: 12 },
-};
+function ChartCard({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  return (
+    <Card className="shadow-sm transition-shadow hover:shadow-md">
+      <CardHeader className="border-b border-border/60 pb-3">
+        <CardTitle className="font-display text-base font-semibold tracking-tight">{title}</CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
+      </CardHeader>
+      <CardContent className="pt-4">{children}</CardContent>
+    </Card>
+  );
+}
 
 export function TrendChart({
   data,
@@ -54,56 +54,64 @@ export function TrendChart({
   title: string;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ChartViewport>
-          <AreaChart data={data ?? []} margin={{ left: -16, right: 8, top: 4 }}>
-            <defs>
-              <linearGradient id="gCreated" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={COLORS.navy} stopOpacity={0.35} />
-                <stop offset="100%" stopColor={COLORS.navy} stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gApproved" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={COLORS.green} stopOpacity={0.35} />
-                <stop offset="100%" stopColor={COLORS.green} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 16% 92%)" vertical={false} />
-            <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d) => String(d).slice(5)} minTickGap={24} />
-            <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={36} />
-            <Tooltip {...tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Area
-              type="monotone"
-              dataKey="created"
-              name="Created"
-              stroke={COLORS.navy}
-              fill="url(#gCreated)"
-              strokeWidth={2}
-            />
-            <Area
-              type="monotone"
-              dataKey="approved"
-              name="Approved"
-              stroke={COLORS.green}
-              fill="url(#gApproved)"
-              strokeWidth={2}
-            />
-            <Area
-              type="monotone"
-              dataKey="rejected"
-              name="Rejected"
-              stroke={COLORS.red}
-              fillOpacity={0}
-              strokeWidth={1.5}
-            />
-          </AreaChart>
-        </ChartViewport>
-      </CardContent>
-    </Card>
+    <ChartCard title={title} description="Created vs approved vs rejected over time">
+      <ChartViewport>
+        <AreaChart data={data ?? []} margin={{ left: -8, right: 12, top: 8, bottom: 0 }}>
+          <defs>
+            <linearGradient id="gCreated" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={chartPalette.primary} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={chartPalette.primary} stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="gApproved" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={chartPalette.positive} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={chartPalette.positive} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            tickFormatter={(d) => String(d).slice(5)}
+            minTickGap={24}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            allowDecimals={false}
+            width={40}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip {...chartTooltipStyle} />
+          <Legend wrapperStyle={{ fontSize: 12, color: "var(--muted-foreground)" }} />
+          <Area
+            type="monotone"
+            dataKey="created"
+            name="Created"
+            stroke={chartPalette.primary}
+            fill="url(#gCreated)"
+            strokeWidth={2}
+          />
+          <Area
+            type="monotone"
+            dataKey="approved"
+            name="Approved"
+            stroke={chartPalette.positive}
+            fill="url(#gApproved)"
+            strokeWidth={2}
+          />
+          <Area
+            type="monotone"
+            dataKey="rejected"
+            name="Rejected"
+            stroke={chartPalette.negative}
+            fillOpacity={0}
+            strokeWidth={1.5}
+          />
+        </AreaChart>
+      </ChartViewport>
+    </ChartCard>
   );
 }
 
@@ -115,57 +123,135 @@ export function SurveyorProductivityChart({
   title: string;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
+    <ChartCard title={title} description="Top surveyors by status (stacked)">
+      <ChartViewport>
+        <BarChart data={(data ?? []).slice(0, 10)} margin={{ left: -8, right: 12, top: 8, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <XAxis
+            dataKey="name"
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+            interval={0}
+            angle={-22}
+            textAnchor="end"
+            height={64}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            allowDecimals={false}
+            width={40}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip {...chartTooltipStyle} />
+          <Legend wrapperStyle={{ fontSize: 12, color: "var(--muted-foreground)" }} />
+          <Bar dataKey="approved" name="Approved" stackId="a" fill={chartPalette.positive} radius={[0, 0, 0, 0]} />
+          <Bar dataKey="submitted" name="Submitted" stackId="a" fill={chartPalette.primary} />
+          <Bar dataKey="drafts" name="Drafts" stackId="a" fill={chartPalette.muted} radius={[3, 3, 0, 0]} />
+        </BarChart>
+      </ChartViewport>
+    </ChartCard>
+  );
+}
+
+export type WardCoverageItem = {
+  wardNo: string;
+  municipalityName: string;
+  total: number;
+  approvalRate: number;
+};
+
+/** Scrollable ward list — avoids cramped chart axis labels overlapping ward details. */
+export function CoverageChart({ data, title }: { data?: WardCoverageItem[]; title: string }) {
+  const rows = (data ?? []).slice(0, 20);
+
+  return (
+    <Card className="flex h-full min-h-80 flex-col shadow-sm transition-shadow hover:shadow-md">
+      <CardHeader className="shrink-0 border-b border-border/60 pb-3">
+        <CardTitle className="font-display text-base font-semibold tracking-tight">{title}</CardTitle>
+        <CardDescription>Surveys per ward · bar color reflects approval rate</CardDescription>
       </CardHeader>
-      <CardContent>
-        <ChartViewport>
-          <BarChart data={(data ?? []).slice(0, 10)} margin={{ left: -16, right: 8, top: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 16% 92%)" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
-            <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={36} />
-            <Tooltip {...tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="approved" name="Approved" stackId="a" fill={COLORS.green} radius={[0, 0, 0, 0]} />
-            <Bar dataKey="submitted" name="Submitted" stackId="a" fill={COLORS.navy} />
-            <Bar dataKey="drafts" name="Drafts" stackId="a" fill={COLORS.slate} radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </ChartViewport>
+      <CardContent className="min-h-0 flex-1 overflow-hidden pt-3">
+        {rows.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">No ward data in scope.</p>
+        ) : (
+          <ul className="max-h-[min(22rem,52vh)] space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] scrollbar-thin">
+            {rows.map((w) => (
+              <li key={`${w.municipalityName}-${w.wardNo}`} className="space-y-1.5">
+                <div className="flex items-start gap-2.5">
+                  <span
+                    className="mt-0.5 inline-flex shrink-0 items-center justify-center rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-semibold tabular-nums text-primary dark:bg-primary/20 dark:text-primary-foreground"
+                    title={`Ward ${w.wardNo}`}
+                  >
+                    W{w.wardNo}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium leading-snug text-foreground" title={w.municipalityName}>
+                      {w.municipalityName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {w.total} survey{w.total === 1 ? "" : "s"} · {w.approvalRate}% approved
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{w.total}</span>
+                </div>
+                <div className="ml-12.5 h-2 overflow-hidden rounded-full bg-muted/80">
+                  <div
+                    className={cn("h-full rounded-full transition-[width]", approvalBarClass(w.approvalRate))}
+                    style={{ width: `${w.total > 0 ? Math.max(4, w.approvalRate) : 0}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-export function CoverageChart({
-  data,
-  title,
+export function MunicipalityPerformanceCard({
+  items,
+  title = "Municipality Performance",
 }: {
-  data?: { label: string; total: number; approvalRate: number }[];
-  title: string;
+  items?: { id: string; name: string; approved: number; total: number }[];
+  title?: string;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
+    <Card className="flex h-full min-h-80 flex-col shadow-sm transition-shadow hover:shadow-md">
+      <CardHeader className="shrink-0 border-b border-border/60 pb-3">
+        <CardTitle className="font-display text-base font-semibold tracking-tight">{title}</CardTitle>
+        <CardDescription>Approval share within each ULB</CardDescription>
       </CardHeader>
-      <CardContent>
-        <ChartViewport>
-          <BarChart data={(data ?? []).slice(0, 12)} layout="vertical" margin={{ left: 8, right: 16 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 16% 92%)" horizontal={false} />
-            <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-            <YAxis type="category" dataKey="label" tick={{ fontSize: 10 }} width={90} />
-            <Tooltip {...tooltipStyle} />
-            <Bar dataKey="total" name="Surveys" radius={[0, 4, 4, 0]}>
-              {(data ?? []).slice(0, 12).map((d, i) => (
-                <Cell
-                  key={i}
-                  fill={d.approvalRate >= 60 ? COLORS.green : d.approvalRate >= 30 ? COLORS.amber : COLORS.slate}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ChartViewport>
+      <CardContent className="min-h-0 flex-1 overflow-hidden pt-3">
+        {!items?.length ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">No data in scope.</p>
+        ) : (
+          <ul className="max-h-[min(22rem,52vh)] space-y-4 overflow-y-auto pr-1 scrollbar-thin">
+            {items.map((m) => {
+              const rate = m.total > 0 ? Math.round((m.approved / m.total) * 100) : 0;
+              return (
+                <li key={m.id} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-medium text-foreground" title={m.name}>
+                      {m.name}
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {m.approved}/{m.total} · {rate}%
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-muted/80">
+                    <div
+                      className={cn("h-full rounded-full transition-[width]", approvalBarClass(rate))}
+                      style={{ width: `${rate}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );

@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
 export function KpiCard({
   label,
   value,
@@ -11,23 +12,19 @@ export function KpiCard({
   hint?: string;
   tone?: "default" | "success" | "warning" | "destructive" | "muted";
 }) {
-  const ring = {
-    default: "before:bg-primary",
-    success: "before:bg-success",
-    warning: "before:bg-warning",
-    destructive: "before:bg-destructive",
-    muted: "before:bg-muted-foreground",
+  const accent = {
+    default: "border-l-primary bg-card",
+    success: "border-l-emerald-500 bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08]",
+    warning: "border-l-amber-500 bg-amber-500/[0.04] dark:bg-amber-500/[0.08]",
+    destructive: "border-l-rose-500 bg-rose-500/[0.04] dark:bg-rose-500/[0.08]",
+    muted: "border-l-muted-foreground/40 bg-muted/30",
   }[tone];
+
   return (
-    <Card
-      className={cn(
-        "relative overflow-hidden p-5 before:absolute before:left-0 before:top-0 before:h-full before:w-1",
-        ring,
-      )}
-    >
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-foreground">{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+    <Card className={cn("border-l-[3px] p-5 shadow-sm transition-shadow hover:shadow-md", accent)}>
+      <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-2 font-display text-3xl font-semibold tabular-nums tracking-tight text-foreground">{value}</p>
+      {hint && <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{hint}</p>}
     </Card>
   );
 }
