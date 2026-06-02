@@ -140,7 +140,7 @@ export const list = query({
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    const limit = Math.min(args.limit ?? 50, 200);
+    const limit = Math.min(args.limit ?? 200, 2000);
 
     // Choose the cheapest index. Surveyors hit the by_surveyor index;
     // supervisors/admins use municipality-level indexes.

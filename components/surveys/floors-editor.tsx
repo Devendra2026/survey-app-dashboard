@@ -183,7 +183,7 @@ export function FloorsEditor({
           <CardDescription>Total plot size on ground (sq ft).</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1.5 min-w-[160px]">
+          <div className="space-y-1.5 min-w-40">
             <Label>Plot (sqft)</Label>
             <Input type="number" value={plotSqft || ""} onChange={(e) => setPlotSqft(Number(e.target.value))} />
           </div>

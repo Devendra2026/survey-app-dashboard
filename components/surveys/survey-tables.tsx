@@ -17,7 +17,7 @@ import {
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronRight } from "lucide-react";
+import { ArrowUpDown } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -46,6 +46,11 @@ export function SurveyTable({ rows, hrefBase = "/surveys" }: { rows?: SurveyRow[
 
   const columns = useMemo(
     () => [
+      col.display({
+        id: "serialNo",
+        header: "S.No",
+        cell: (c) => <span className="tabular-nums text-muted-foreground">{c.row.index + 1}</span>,
+      }),
       col.accessor((row) => resolveDisplayPropertyId(row, ulbCodes) ?? "", {
         id: "propertyId",
         header: "Property ID",
@@ -70,12 +75,10 @@ export function SurveyTable({ rows, hrefBase = "/surveys" }: { rows?: SurveyRow[
       }),
       col.display({
         id: "open",
-        header: "",
+        header: "Action",
         cell: (c) => (
-          <Button asChild variant="ghost" size="icon" className="h-7 w-7">
-            <Link href={`${hrefBase}/${c.row.original._id}`}>
-              <ChevronRight className="h-4 w-4" />
-            </Link>
+          <Button asChild variant="outline" size="sm" className="h-8 px-3">
+            <Link href={`${hrefBase}/${c.row.original._id}`}>View</Link>
           </Button>
         ),
       }),
@@ -97,17 +100,28 @@ export function SurveyTable({ rows, hrefBase = "/surveys" }: { rows?: SurveyRow[
     return <EmptyState title="No surveys found" description="Adjust your filters or search term to see results." />;
   }
 
+  const rowTone = (row: SurveyRow) => {
+    if (row.qcStatus === "approved") return "bg-emerald-500/5 hover:bg-emerald-500/10";
+    if (row.qcStatus === "rejected") return "bg-rose-500/5 hover:bg-rose-500/10";
+    if (row.qcStatus === "pending") return "bg-amber-500/5 hover:bg-amber-500/10";
+    if (row.status === "submitted") return "bg-indigo-500/5 hover:bg-indigo-500/10";
+    return "hover:bg-muted/40";
+  };
+
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <Table>
+    <div className="overflow-hidden rounded-lg border border-border/70 bg-card/95 shadow-sm dark:bg-card/85">
+      <Table className="min-w-full">
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
-            <TableRow key={hg.id}>
+            <TableRow key={hg.id} className="bg-muted/50 hover:bg-muted/50 dark:bg-muted/20">
               {hg.headers.map((h) => (
-                <TableHead key={h.id}>
+                <TableHead
+                  key={h.id}
+                  className="h-11 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+                >
                   {h.isPlaceholder ? null : h.column.getCanSort() ? (
                     <button
-                      className="flex items-center gap-1 hover:text-foreground"
+                      className="flex items-center gap-1 transition-colors hover:text-foreground"
                       onClick={h.column.getToggleSortingHandler()}
                     >
                       {flexRender(h.column.columnDef.header, h.getContext())}
@@ -123,9 +137,14 @@ export function SurveyTable({ rows, hrefBase = "/surveys" }: { rows?: SurveyRow[
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows.map((r) => (
-            <TableRow key={r.id}>
+            <TableRow
+              key={r.id}
+              className={`h-12 border-b border-border/50 text-sm transition-colors ${rowTone(r.original)}`}
+            >
               {r.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                <TableCell key={cell.id} className="py-3 align-middle">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
               ))}
             </TableRow>
           ))}
