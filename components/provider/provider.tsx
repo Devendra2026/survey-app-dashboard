@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { useState } from "react";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "./theme-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => {
@@ -31,7 +32,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <QueryClientProvider client={queryClient}>
           <div className="flex h-full min-h-0 flex-col overflow-hidden">
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+                {children}
+              </ThemeProvider>
+            </div>
             <Toaster position="top-right" richColors closeButton />
           </div>
         </QueryClientProvider>

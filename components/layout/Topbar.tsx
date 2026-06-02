@@ -15,6 +15,7 @@ import { useCurrentUser } from "@/lib/session";
 import { fmtDate } from "@/lib/utils";
 import { UserButton } from "@clerk/nextjs";
 import { Bell, Check } from "lucide-react";
+import { ModeToggle } from "../provider/mode-toggle";
 
 function roleLabel(role: Role | undefined): string {
   if (!role) return "";
@@ -82,7 +83,7 @@ export function Topbar() {
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
-
+        <ModeToggle />
         <UserButton />
       </div>
     </header>
