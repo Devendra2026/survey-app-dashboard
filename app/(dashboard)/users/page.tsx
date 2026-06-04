@@ -5,102 +5,131 @@ import { TableSkeleton } from "@/components/shared/loading";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { TablePagination } from "@/components/shared/table-pagination";
-import { Badge, badgeVariants } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ApproveUserDialog } from "@/components/users/approve-user-dialog";
-import { UserAllotmentsDialog } from "@/components/users/user-allotments-dialog";
+import { type SheetListedUser, type SheetPendingUser, type SheetUser, UserEditSheet } from "@/components/users/user-edit-sheet";
 import { api } from "@/convex/_generated/api";
-import {
-  useDisableUser,
-  usePendingApprovals,
-  useRejectUser,
-  useUserListPaginated,
-  type UserListFilters,
-} from "@/hooks/users/useUsers";
-import { parseConvexError } from "@/lib/errors";
+import type { Id } from "@/convex/_generated/dataModel";
+import { usePendingApprovals, useUserListPaginated, type UserListFilters } from "@/hooks/users/useUsers";
 import { fmtDate } from "@/lib/utils";
-import type { VariantProps } from "class-variance-authority";
 import type { FunctionReturnType } from "convex/server";
-import { Ban, UserCheck, UserX } from "lucide-react";
+import { Ban, Clock, MapPin, Search, ShieldCheck, UserCheck, Users } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 
-type BadgeTone = "default" | "success" | "muted" | "warning" | "destructive";
-type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
 type PendingUser = FunctionReturnType<typeof api.admin.listPendingApprovals>[number];
 type ListedUser = FunctionReturnType<typeof api.admin.listUsers>["page"][number];
 
-function badgeVariantForTone(tone: BadgeTone): BadgeVariant {
-  if (tone === "destructive") return "destructive";
-  if (tone === "success" || tone === "default") return "default";
-  return "outline";
+// ─── color maps ────────────────────────────────────────────────────────────────
+
+const AVATAR_PALETTE = [
+  "bg-violet-100 text-violet-700",
+  "bg-blue-100 text-blue-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-amber-100 text-amber-700",
+  "bg-pink-100 text-pink-700",
+  "bg-cyan-100 text-cyan-700",
+  "bg-orange-100 text-orange-700",
+  "bg-indigo-100 text-indigo-700",
+];
+
+const ROLE_COLORS: Record<string, string> = {
+  admin:
+    "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30",
+  supervisor:
+    "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30",
+  surveyor:
+    "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
+  pending:
+    "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  active:
+    "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
+  pending_approval:
+    "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30",
+  disabled:
+    "bg-red-100 text-red-600 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30",
+};
+
+function avatarColor(name: string) {
+  return AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length];
 }
 
-const ROLE_TONE: Record<string, BadgeTone> = {
-  admin: "default",
-  supervisor: "success",
-  surveyor: "muted",
-  pending: "warning",
-};
-const STATUS_TONE: Record<string, BadgeTone> = {
-  active: "success",
-  pending_approval: "warning",
-  disabled: "destructive",
-};
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
 
-const ALL_FILTER = "__all__";
+// ─── adapter helpers ──────────────────────────────────────────────────────────
+
+function toPendingSheet(u: PendingUser): SheetPendingUser {
+  return {
+    kind: "pending",
+    _id: u._id as Id<"users">,
+    name: u.name,
+    email: u.email,
+    requestedRole: u.requestedRole ?? undefined,
+    requestedReason: u.requestedReason ?? undefined,
+    createdAt: u.createdAt,
+  };
+}
+
+function toListedSheet(u: ListedUser): SheetListedUser {
+  return {
+    kind: "listed",
+    _id: u._id as Id<"users">,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    status: u.status,
+    municipalityId: u.municipalityId as Id<"municipalities"> | null | undefined,
+    municipalityName: u.municipalityName,
+    wardAssignments: u.wardAssignments,
+    createdAt: u.createdAt,
+  };
+}
+
+const ALL = "__all__";
+
+// ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
   const pending = usePendingApprovals();
-  const [roleFilter, setRoleFilter] = useState<string>(ALL_FILTER);
-  const [statusFilter, setStatusFilter] = useState<string>(ALL_FILTER);
+  const [roleFilter, setRoleFilter] = useState<string>(ALL);
+  const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [pageSize, setPageSize] = useState(15);
+  const [search, setSearch] = useState("");
+  const [sheetUser, setSheetUser] = useState<SheetUser | null>(null);
 
   const listFilters = useMemo((): UserListFilters => {
     const f: UserListFilters = {};
-    if (roleFilter !== ALL_FILTER) f.role = roleFilter as UserListFilters["role"];
-    if (statusFilter !== ALL_FILTER) f.status = statusFilter as UserListFilters["status"];
+    if (roleFilter !== ALL) f.role = roleFilter as UserListFilters["role"];
+    if (statusFilter !== ALL) f.status = statusFilter as UserListFilters["status"];
     return f;
   }, [roleFilter, statusFilter]);
 
-  const {
-    users,
-    isLoading,
-    pageNumber,
-    pageSize: rowsPerPage,
-    canGoPrev,
-    canGoNext,
-    goNext,
-    goPrev,
-  } = useUserListPaginated(listFilters, pageSize);
+  const { users, isLoading, pageNumber, pageSize: rowsPerPage, canGoPrev, canGoNext, goNext, goPrev } =
+    useUserListPaginated(listFilters, pageSize);
 
-  const reject = useRejectUser();
-  const disable = useDisableUser();
-  const [approveTarget, setApproveTarget] = useState<PendingUser | null>(null);
-  const [allotmentTarget, setAllotmentTarget] = useState<ListedUser | null>(null);
+  const filteredUsers = useMemo(() => {
+    if (!search.trim()) return users;
+    const q = search.toLowerCase();
+    return users?.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+  }, [users, search]);
 
-  async function onReject(u: PendingUser) {
-    if (!confirm(`Reject ${u.name}? Their account will be disabled.`)) return;
-    try {
-      await reject({ userId: u._id });
-      toast.success("User rejected");
-    } catch (e) {
-      toast.error(parseConvexError(e).message);
-    }
-  }
-  async function onDisable(u: ListedUser) {
-    if (!confirm(`Disable ${u.name}?`)) return;
-    try {
-      await disable(u._id);
-      toast.success("User disabled");
-    } catch (e) {
-      toast.error(parseConvexError(e).message);
-    }
-  }
+  const activeCount = users?.filter((u) => u.status === "active").length ?? 0;
+  const disabledCount = users?.filter((u) => u.status === "disabled").length ?? 0;
 
   return (
     <RoleGate
@@ -108,14 +137,71 @@ export default function UsersPage() {
       fallback={<EmptyState title="Not permitted" description="User management is restricted to administrators." />}
     >
       <div className="space-y-5">
-        <PageHeader title="Users" description="Approve registrations, assign roles & tenancy, and manage access." />
+        <PageHeader
+          title="Users"
+          description="Approve registrations, assign roles & tenancy, and manage access."
+        />
+
+        {/* KPI strip */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Card className="border-l-[3px] border-l-amber-500 bg-amber-500/4 dark:bg-amber-500/8">
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-500/20">
+                <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold tabular-nums">{pending?.length ?? "—"}</p>
+                <p className="text-xs text-muted-foreground">Pending Approval</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-[3px] border-l-primary bg-card">
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold tabular-nums">{users?.length ?? "—"}</p>
+                <p className="text-xs text-muted-foreground">On this page</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-[3px] border-l-emerald-500 bg-emerald-500/4 dark:bg-emerald-500/8">
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-500/20">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold tabular-nums">{users ? activeCount : "—"}</p>
+                <p className="text-xs text-muted-foreground">Active</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-[3px] border-l-rose-500 bg-rose-500/4 dark:bg-rose-500/8">
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-500/20">
+                <Ban className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold tabular-nums">{users ? disabledCount : "—"}</p>
+                <p className="text-xs text-muted-foreground">Disabled</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <Tabs defaultValue="pending">
           <TabsList>
             <TabsTrigger value="pending">
-              Pending Approval{" "}
+              Pending Approval
               {pending?.length ? (
-                <Badge variant={badgeVariantForTone("warning")} className="ml-2">
+                <Badge
+                  variant="outline"
+                  className="ml-2 border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-300"
+                >
                   {pending.length}
                 </Badge>
               ) : null}
@@ -123,10 +209,17 @@ export default function UsersPage() {
             <TabsTrigger value="all">All Users</TabsTrigger>
           </TabsList>
 
+          {/* ── Pending tab ─────────────────────────────────────────────────── */}
           <TabsContent value="pending">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Pending approval queue</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Clock className="h-4 w-4 text-amber-500" />
+                  Approval queue
+                  <span className="text-xs font-normal text-muted-foreground">
+                    — click a row to review and approve
+                  </span>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {pending === undefined ? (
@@ -141,41 +234,61 @@ export default function UsersPage() {
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Requested</TableHead>
+                        <TableRow className="bg-muted/40 hover:bg-muted/40">
+                          <TableHead>User</TableHead>
+                          <TableHead>Requested Role</TableHead>
                           <TableHead>Reason</TableHead>
                           <TableHead>Registered</TableHead>
-                          <TableHead className="w-35"></TableHead>
+                          <TableHead className="w-32 text-right">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {pending.map((u) => (
-                          <TableRow key={u._id}>
-                            <TableCell className="font-medium">{u.name}</TableCell>
-                            <TableCell>{u.email}</TableCell>
+                          <TableRow
+                            key={u._id}
+                            className="cursor-pointer hover:bg-muted/30"
+                            onClick={() => setSheetUser(toPendingSheet(u))}
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar size="sm">
+                                  <AvatarFallback className={avatarColor(u.name)}>
+                                    {initials(u.name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0">
+                                  <p className="font-medium leading-tight">{u.name}</p>
+                                  <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                                </div>
+                              </div>
+                            </TableCell>
                             <TableCell>
                               {u.requestedRole ? (
-                                <Badge variant={badgeVariantForTone("muted")}>{u.requestedRole}</Badge>
+                                <Badge variant="outline" className={ROLE_COLORS[u.requestedRole] ?? ""}>
+                                  {u.requestedRole}
+                                </Badge>
                               ) : (
-                                "—"
+                                <span className="text-muted-foreground">—</span>
                               )}
                             </TableCell>
-                            <TableCell className="max-w-48 truncate text-muted-foreground">
+                            <TableCell className="max-w-48 truncate text-sm text-muted-foreground">
                               {u.requestedReason ?? "—"}
                             </TableCell>
-                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                            <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                               {fmtDate(u.createdAt)}
                             </TableCell>
-                            <TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
                               <RoleGate capability="users.approve">
-                                <div className="flex justify-end gap-1.5">
-                                  <Button size="sm" onClick={() => setApproveTarget(u)}>
-                                    <UserCheck className="h-4 w-4" /> Approve
-                                  </Button>
-                                  <Button size="sm" variant="ghost" onClick={() => onReject(u)}>
-                                    <UserX className="h-4 w-4 text-destructive" />
+                                <div className="flex justify-end">
+                                  <Button
+                                    size="sm"
+                                    className="h-7 bg-emerald-600 text-xs text-white hover:bg-emerald-700"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSheetUser(toPendingSheet(u));
+                                    }}
+                                  >
+                                    <UserCheck className="h-3.5 w-3.5" /> Review
                                   </Button>
                                 </div>
                               </RoleGate>
@@ -190,17 +303,33 @@ export default function UsersPage() {
             </Card>
           </TabsContent>
 
+          {/* ── All users tab ────────────────────────────────────────────────── */}
           <TabsContent value="all">
             <Card>
               <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <CardTitle className="text-base">Directory</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  Directory
+                  <span className="text-xs font-normal text-muted-foreground">
+                    — click a row to edit
+                  </span>
+                </CardTitle>
                 <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search name or email…"
+                      className="h-8 w-52 pl-8"
+                    />
+                  </div>
                   <Select value={roleFilter} onValueChange={setRoleFilter}>
                     <SelectTrigger className="h-8 w-32.5" aria-label="Filter by role">
                       <SelectValue placeholder="Role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={ALL_FILTER}>All roles</SelectItem>
+                      <SelectItem value={ALL}>All roles</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="supervisor">Supervisor</SelectItem>
                       <SelectItem value="surveyor">Surveyor</SelectItem>
@@ -212,7 +341,7 @@ export default function UsersPage() {
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={ALL_FILTER}>All statuses</SelectItem>
+                      <SelectItem value={ALL}>All statuses</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="pending_approval">Pending approval</SelectItem>
                       <SelectItem value="disabled">Disabled</SelectItem>
@@ -220,10 +349,11 @@ export default function UsersPage() {
                   </Select>
                 </div>
               </CardHeader>
+
               <CardContent className="space-y-0">
                 {isLoading ? (
                   <TableSkeleton rows={6} />
-                ) : users?.length === 0 ? (
+                ) : filteredUsers?.length === 0 ? (
                   <EmptyState
                     title="No users match"
                     description="Try clearing filters or check back after new registrations."
@@ -234,50 +364,64 @@ export default function UsersPage() {
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Email</TableHead>
+                          <TableRow className="bg-muted/40 hover:bg-muted/40">
+                            <TableHead>User</TableHead>
                             <TableHead>Role</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Municipality</TableHead>
                             <TableHead>Wards</TableHead>
-                            <TableHead className="w-30"></TableHead>
+                            <TableHead>Joined</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {users?.map((u) => (
-                            <TableRow key={u._id}>
-                              <TableCell className="font-medium">{u.name}</TableCell>
-                              <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                          {filteredUsers?.map((u) => (
+                            <TableRow
+                              key={u._id}
+                              className="cursor-pointer hover:bg-muted/30"
+                              onClick={() => setSheetUser(toListedSheet(u))}
+                            >
                               <TableCell>
-                                <Badge variant={badgeVariantForTone(ROLE_TONE[u.role] ?? "muted")}>{u.role}</Badge>
+                                <div className="flex items-center gap-3">
+                                  <Avatar size="sm">
+                                    <AvatarFallback className={avatarColor(u.name)}>
+                                      {initials(u.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="min-w-0">
+                                    <p className="font-medium leading-tight">{u.name}</p>
+                                    <p className="max-w-44 truncate text-xs text-muted-foreground">
+                                      {u.email}
+                                    </p>
+                                  </div>
+                                </div>
                               </TableCell>
                               <TableCell>
-                                <Badge variant={badgeVariantForTone(STATUS_TONE[u.status] ?? "muted")}>
-                                  {u.status.replace("_", " ")}
+                                <Badge variant="outline" className={ROLE_COLORS[u.role] ?? ""}>
+                                  {u.role}
                                 </Badge>
                               </TableCell>
-                              <TableCell>{u.municipalityName ?? "—"}</TableCell>
-                              <TableCell className="max-w-40 truncate text-muted-foreground">
-                                {u.wardAssignments?.length ? u.wardAssignments.join(", ") : "all"}
+                              <TableCell>
+                                <Badge variant="outline" className={STATUS_COLORS[u.status] ?? ""}>
+                                  {u.status === "pending_approval" ? "pending" : u.status}
+                                </Badge>
                               </TableCell>
                               <TableCell>
-                                <div className="flex justify-end gap-1">
-                                  <RoleGate capability="users.assignTenant">
-                                    {(u.role === "supervisor" || u.role === "surveyor") && u.status === "active" ? (
-                                      <Button size="sm" variant="outline" onClick={() => setAllotmentTarget(u)}>
-                                        Allotments
-                                      </Button>
-                                    ) : null}
-                                  </RoleGate>
-                                  <RoleGate capability="users.disable">
-                                    {u.status !== "disabled" && u.role !== "admin" && (
-                                      <Button size="sm" variant="ghost" onClick={() => onDisable(u)}>
-                                        <Ban className="h-4 w-4 text-destructive" />
-                                      </Button>
-                                    )}
-                                  </RoleGate>
-                                </div>
+                                {u.role !== "admin" && u.municipalityName ? (
+                                  <div className="flex items-center gap-1.5 text-sm">
+                                    <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                    {u.municipalityName}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="max-w-36 truncate text-sm text-muted-foreground">
+                                {u.role !== "admin" && u.wardAssignments?.length
+                                  ? u.wardAssignments.join(", ")
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                                {fmtDate(u.createdAt)}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -287,7 +431,7 @@ export default function UsersPage() {
                     <TablePagination
                       pageNumber={pageNumber}
                       pageSize={rowsPerPage}
-                      itemCount={users?.length ?? 0}
+                      itemCount={filteredUsers?.length ?? 0}
                       canGoPrev={canGoPrev}
                       canGoNext={canGoNext}
                       onPrev={goPrev}
@@ -301,16 +445,8 @@ export default function UsersPage() {
           </TabsContent>
         </Tabs>
 
-        <ApproveUserDialog
-          open={!!approveTarget}
-          onOpenChange={(o) => !o && setApproveTarget(null)}
-          user={approveTarget}
-        />
-        <UserAllotmentsDialog
-          open={!!allotmentTarget}
-          onOpenChange={(o) => !o && setAllotmentTarget(null)}
-          user={allotmentTarget}
-        />
+        {/* slide-in edit / approve panel */}
+        <UserEditSheet user={sheetUser} onClose={() => setSheetUser(null)} />
       </div>
     </RoleGate>
   );

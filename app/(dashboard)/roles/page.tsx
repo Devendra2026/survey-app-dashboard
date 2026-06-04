@@ -1,62 +1,568 @@
 "use client";
 
-import { PermissionPicker } from "@/components/rbac/permission-picker";
-import { RolesList } from "@/components/rbac/roles-list";
+import { PermissionPicker, type PermissionOption } from "@/components/rbac/permission-picker";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { useCreateRole, usePermissions, useRoles, useSeedRbac, useUpdateRole } from "@/hooks/rbac/useRbac";
+import { useCreateRole, usePermissions, useSeedRbac, useUpdateRole } from "@/hooks/rbac/useRbac";
 import { parseConvexError } from "@/lib/errors";
-import { Plus, RefreshCw, Shield } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useQuery } from "convex/react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ChevronRight,
+  Edit2,
+  Key,
+  Lock,
+  Plus,
+  RefreshCw,
+  Search,
+  Shield,
+  ShieldOff,
+  Sparkles,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+// ─── types ────────────────────────────────────────────────────────────────────
+
+type RoleRow = {
+  _id: Id<"roles">;
+  key: string;
+  name: string;
+  isSystem: boolean;
+  isActive: boolean;
+  permissionKeys: string[];
+  description?: string;
+};
+
+// ─── constants ────────────────────────────────────────────────────────────────
+
+const ROLE_ACCENT: Record<string, { border: string; icon: string }> = {
+  admin: {
+    border: "border-l-violet-500",
+    icon: "bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-400",
+  },
+  supervisor: {
+    border: "border-l-blue-500",
+    icon: "bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400",
+  },
+  surveyor: {
+    border: "border-l-emerald-500",
+    icon: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400",
+  },
+  pending: {
+    border: "border-l-amber-500",
+    icon: "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
+  },
+};
+
+const DEFAULT_ACCENT = {
+  border: "border-l-slate-400",
+  icon: "bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-400",
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  admin:
+    "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30",
+  masters:
+    "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/30",
+  qc: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30",
+  surveys:
+    "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
+  reports:
+    "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30",
+  users:
+    "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-500/20 dark:text-pink-300 dark:border-pink-500/30",
+};
+
+function catColor(cat: string) {
+  return CATEGORY_COLORS[cat.toLowerCase()] ?? "bg-muted text-muted-foreground border-border";
+}
+
+// ─── sidebar item ─────────────────────────────────────────────────────────────
+
+function RoleItem({
+  role,
+  selected,
+  onClick,
+}: {
+  role: RoleRow;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const accent = ROLE_ACCENT[role.key] ?? DEFAULT_ACCENT;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group w-full rounded-lg border border-l-[3px] px-3 py-2.5 text-left transition-all",
+        accent.border,
+        selected
+          ? "border-primary/30 bg-primary/5 shadow-sm ring-1 ring-primary/20 dark:bg-primary/10"
+          : "border-border bg-card hover:bg-muted/40 hover:shadow-sm",
+        !role.isActive && "opacity-55",
+      )}
+    >
+      <div className="flex items-center gap-2.5">
+        <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md", accent.icon)}>
+          {role.isSystem ? <Lock className="h-3.5 w-3.5" /> : <Shield className="h-3.5 w-3.5" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className={cn("truncate text-sm font-semibold", selected && "text-primary")}>{role.name}</span>
+            {!role.isActive && (
+              <Badge variant="outline" className="h-4 shrink-0 px-1 text-[10px] text-muted-foreground">
+                off
+              </Badge>
+            )}
+          </div>
+          <p className="font-mono text-[10px] text-muted-foreground">
+            {role.key}
+            <span className="ml-1.5 not-italic font-sans">· {role.permissionKeys.length} perms</span>
+          </p>
+        </div>
+        <ChevronRight
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-all",
+            selected && "text-primary opacity-100",
+          )}
+        />
+      </div>
+    </button>
+  );
+}
+
+// ─── permission view ──────────────────────────────────────────────────────────
+
+function PermissionMatrix({
+  role,
+  permissionLabels,
+  permissionCategories,
+}: {
+  role: RoleRow;
+  permissionLabels: Map<string, string>;
+  permissionCategories: Map<string, string>;
+}) {
+  const byCategory = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const key of role.permissionKeys) {
+      const cat = permissionCategories.get(key) ?? "other";
+      map.set(cat, [...(map.get(cat) ?? []), key]);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [role.permissionKeys, permissionCategories]);
+
+  if (byCategory.length === 0) {
+    return <p className="text-sm text-muted-foreground">No permissions assigned.</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {byCategory.map(([cat, keys]) => (
+        <div key={cat}>
+          <div className="mb-2 flex items-center gap-2">
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                catColor(cat),
+              )}
+            >
+              {cat}
+            </span>
+            <span className="text-xs text-muted-foreground">{keys.length}</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {keys.sort().map((key) => (
+              <Badge key={key} variant="outline" className="h-6 text-xs font-normal">
+                {permissionLabels.get(key) ?? key}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── role detail view panel ────────────────────────────────────────────────────
+
+function RoleDetailView({
+  role,
+  permissionLabels,
+  permissionCategories,
+  onEdit,
+  onToggleActive,
+}: {
+  role: RoleRow;
+  permissionLabels: Map<string, string>;
+  permissionCategories: Map<string, string>;
+  onEdit: () => void;
+  onToggleActive: () => void;
+}) {
+  const accent = ROLE_ACCENT[role.key] ?? DEFAULT_ACCENT;
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* role header */}
+      <div className={cn("rounded-t-lg border-l-4 bg-muted/30 px-5 py-4", accent.border)}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl font-bold">{role.name}</h2>
+              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+                {role.key}
+              </code>
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {role.isSystem && (
+                <Badge variant="secondary" className="text-xs">
+                  <Lock className="mr-1 h-2.5 w-2.5" /> System
+                </Badge>
+              )}
+              <Badge
+                variant="outline"
+                className={
+                  role.isActive
+                    ? "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-300"
+                    : "text-muted-foreground"
+                }
+              >
+                {role.isActive ? (
+                  <>
+                    <CheckCircle2 className="mr-1 h-2.5 w-2.5" /> Active
+                  </>
+                ) : (
+                  <>
+                    <ShieldOff className="mr-1 h-2.5 w-2.5" /> Inactive
+                  </>
+                )}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {role.permissionKeys.length} permission{role.permissionKeys.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+          </div>
+
+          {/* actions — only for custom roles */}
+          {!role.isSystem && (
+            <div className="flex shrink-0 gap-2">
+              <Button size="sm" variant="outline" onClick={onEdit}>
+                <Edit2 className="h-3.5 w-3.5" /> Edit permissions
+              </Button>
+              <Button
+                size="sm"
+                variant={role.isActive ? "outline" : "default"}
+                onClick={onToggleActive}
+                className={
+                  role.isActive
+                    ? "border-destructive/40 text-destructive hover:bg-destructive/10"
+                    : ""
+                }
+              >
+                {role.isActive ? (
+                  <>
+                    <ShieldOff className="h-3.5 w-3.5" /> Deactivate
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-3.5 w-3.5" /> Activate
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {role.description && <p className="mt-2 text-sm text-muted-foreground">{role.description}</p>}
+      </div>
+
+      {/* permissions body */}
+      <ScrollArea className="flex-1 px-5 py-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Permissions
+        </p>
+        <PermissionMatrix
+          role={role}
+          permissionLabels={permissionLabels}
+          permissionCategories={permissionCategories}
+        />
+
+        {role.isSystem && (
+          <p className="mt-6 text-xs text-muted-foreground">
+            System roles are managed via &ldquo;Refresh system RBAC&rdquo; and cannot be edited here.
+          </p>
+        )}
+      </ScrollArea>
+    </div>
+  );
+}
+
+// ─── role edit panel ──────────────────────────────────────────────────────────
+
+function RoleEditPanel({
+  role,
+  permissionOptions,
+  onSave,
+  onCancel,
+}: {
+  role: RoleRow;
+  permissionOptions: PermissionOption[];
+  onSave: (patch: { name: string; description: string; permissionKeys: string[] }) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(role.name);
+  const [description, setDescription] = useState(role.description ?? "");
+  const [perms, setPerms] = useState<string[]>(role.permissionKeys);
+  const [busy, setBusy] = useState(false);
+
+  async function handleSave() {
+    setBusy(true);
+    try {
+      await onSave({ name, description, permissionKeys: perms });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const dirty =
+    name !== role.name || description !== (role.description ?? "") || perms.join() !== [...role.permissionKeys].sort().join();
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* edit header */}
+      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-3">
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <p className="text-sm font-semibold">Editing: {role.name}</p>
+            <p className="font-mono text-[11px] text-muted-foreground">{role.key}</p>
+          </div>
+        </div>
+        <Button size="sm" onClick={handleSave} disabled={busy || !name.trim() || perms.length === 0 || !dirty}>
+          {busy ? "Saving…" : "Save changes"}
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1 px-5 py-4">
+        <div className="space-y-5">
+          {/* name & description */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name">Display name</Label>
+              <Input
+                id="edit-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="QC Lead"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs">Key (read-only)</Label>
+              <Input value={role.key} readOnly className="font-mono text-sm bg-muted/50 text-muted-foreground" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-desc">Description (optional)</Label>
+            <Textarea
+              id="edit-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief description of this role's responsibilities"
+              rows={2}
+            />
+          </div>
+
+          {/* permission picker */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Permissions</Label>
+              {perms.length > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  {perms.length} selected
+                </Badge>
+              )}
+            </div>
+            <PermissionPicker permissions={permissionOptions} selected={perms} onChange={setPerms} />
+          </div>
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+// ─── create role panel ────────────────────────────────────────────────────────
+
+function CreateRolePanel({
+  permissionOptions,
+  onCreate,
+  onCancel,
+}: {
+  permissionOptions: PermissionOption[];
+  onCreate: (data: { key: string; name: string; description: string; permissionKeys: string[] }) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [key, setKey] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [perms, setPerms] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  async function handleCreate() {
+    setBusy(true);
+    try {
+      await onCreate({ key, name, description, permissionKeys: perms });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const canCreate = key.trim().length >= 2 && name.trim().length > 0 && perms.length > 0;
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* create header */}
+      <div className="flex items-center justify-between border-b border-border bg-violet-500/5 px-5 py-3">
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <p className="flex items-center gap-1.5 text-sm font-semibold">
+              <Sparkles className="h-3.5 w-3.5 text-violet-500" /> New Custom Role
+            </p>
+            <p className="text-[11px] text-muted-foreground">Assign a slug, name and permissions</p>
+          </div>
+        </div>
+        <Button size="sm" onClick={handleCreate} disabled={busy || !canCreate}>
+          {busy ? "Creating…" : "Create role"}
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1 px-5 py-4">
+        <div className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-key">
+                Key (slug){" "}
+                <span className="text-[10px] text-muted-foreground font-normal">lowercase, underscores OK</span>
+              </Label>
+              <Input
+                id="new-key"
+                value={key}
+                onChange={(e) => setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                placeholder="qc_lead"
+                autoComplete="off"
+                className="font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-name">Display name</Label>
+              <Input
+                id="new-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="QC Lead"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="new-desc">Description (optional)</Label>
+            <Textarea
+              id="new-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief description of this role's responsibilities"
+              rows={2}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Permissions</Label>
+              {perms.length > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  {perms.length} selected
+                </Badge>
+              )}
+            </div>
+            <PermissionPicker permissions={permissionOptions} selected={perms} onChange={setPerms} />
+          </div>
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+// ─── main page ────────────────────────────────────────────────────────────────
+
 export default function RolesPage() {
-  const roles = useRoles();
+  const roles = useQuery(api.rbac.listRoles, { includeInactive: true }) as RoleRow[] | undefined;
   const permissions = usePermissions();
-  const seed = useSeedRbac();
+  const seedFn = useSeedRbac();
   const createRole = useCreateRole();
   const updateRole = useUpdateRole();
 
-  const [newKey, setNewKey] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newPerms, setNewPerms] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [selectedId, setSelectedId] = useState<Id<"roles"> | null>(null);
+  const [mode, setMode] = useState<"view" | "edit" | "create">("view");
+  const [search, setSearch] = useState("");
   const [seeding, setSeeding] = useState(false);
 
-  const permissionOptions = useMemo(
-    () =>
-      (permissions ?? []).map((p) => ({
-        key: p.key,
-        label: p.label,
-        category: p.category,
-      })),
+  const permissionOptions = useMemo<PermissionOption[]>(
+    () => (permissions ?? []).map((p) => ({ key: p.key, label: p.label, category: p.category })),
     [permissions],
   );
-
   const permissionLabels = useMemo(
     () => new Map((permissions ?? []).map((p) => [p.key, p.label] as const)),
     [permissions],
   );
-
   const permissionCategories = useMemo(
     () => new Map((permissions ?? []).map((p) => [p.key, p.category] as const)),
     [permissions],
   );
 
-  const roleCount = roles?.length ?? 0;
-  const permCount = permissions?.length ?? 0;
+  const sorted = useMemo(() => {
+    if (!roles) return undefined;
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? roles.filter((r) => r.name.toLowerCase().includes(q) || r.key.toLowerCase().includes(q))
+      : roles;
+    return [...filtered].sort((a, b) => Number(b.isSystem) - Number(a.isSystem) || a.name.localeCompare(b.name));
+  }, [roles, search]);
+
+  const systemRoles = sorted?.filter((r) => r.isSystem) ?? [];
+  const customRoles = sorted?.filter((r) => !r.isSystem) ?? [];
+  const selectedRole = roles?.find((r) => r._id === selectedId);
+
+  function selectRole(id: Id<"roles">) {
+    setSelectedId(id);
+    setMode("view");
+  }
+
+  function startCreate() {
+    setSelectedId(null);
+    setMode("create");
+  }
 
   async function onSeed() {
     setSeeding(true);
     try {
-      await seed({});
+      await seedFn({});
       toast.success("System roles and permissions refreshed");
     } catch (e) {
       toast.error(parseConvexError(e).message);
@@ -65,144 +571,225 @@ export default function RolesPage() {
     }
   }
 
-  async function onCreate() {
-    setBusy(true);
+  async function onToggleActive(role: RoleRow) {
     try {
-      await createRole({ key: newKey, name: newName, permissionKeys: newPerms });
-      toast.success("Role created — mobile and web pick it up on next sync");
-      setNewKey("");
-      setNewName("");
-      setNewPerms([]);
+      await updateRole({ roleId: role._id, isActive: !role.isActive });
+      toast.success(role.isActive ? "Role deactivated" : "Role activated");
     } catch (e) {
       toast.error(parseConvexError(e).message);
-    } finally {
-      setBusy(false);
     }
   }
 
-  async function toggleRoleActive(roleId: Id<"roles">, isActive: boolean) {
+  async function onSaveEdit(patch: { name: string; description: string; permissionKeys: string[] }) {
+    if (!selectedRole) return;
     try {
-      await updateRole({ roleId, isActive: !isActive });
-      toast.success(isActive ? "Role deactivated" : "Role activated");
+      await updateRole({
+        roleId: selectedRole._id,
+        name: patch.name,
+        description: patch.description || undefined,
+        permissionKeys: patch.permissionKeys,
+      });
+      toast.success("Role updated");
+      setMode("view");
     } catch (e) {
       toast.error(parseConvexError(e).message);
+      throw e;
     }
   }
+
+  async function onCreateRole(data: { key: string; name: string; description: string; permissionKeys: string[] }) {
+    try {
+      const newId = await createRole({
+        key: data.key,
+        name: data.name,
+        description: data.description || undefined,
+        permissionKeys: data.permissionKeys,
+      }) as Id<"roles">;
+      toast.success("Role created");
+      setSelectedId(newId);
+      setMode("view");
+    } catch (e) {
+      toast.error(parseConvexError(e).message);
+      throw e;
+    }
+  }
+
+  const roleCount = roles?.length ?? 0;
+  const activeCount = roles?.filter((r) => r.isActive).length ?? 0;
+  const customCount = roles?.filter((r) => !r.isSystem).length ?? 0;
+  const permCount = permissions?.length ?? 0;
 
   return (
     <RoleGate
       capability="roles.manage"
       fallback={<EmptyState title="Not permitted" description="Only administrators can manage roles." />}
     >
-      <div className="space-y-6">
+      <div className="space-y-4">
         <PageHeader
-          title="Roles & permissions"
+          title="Roles & Permissions"
           description="Define who can do what on web and mobile. Changes apply after the next capability sync."
           actions={
             <Button variant="outline" size="sm" onClick={onSeed} disabled={seeding}>
-              <RefreshCw className={`h-4 w-4 ${seeding ? "animate-spin" : ""}`} />
+              <RefreshCw className={cn("h-4 w-4", seeding && "animate-spin")} />
               Refresh system RBAC
             </Button>
           }
         />
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="flex items-center gap-3 pt-5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Shield className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold tabular-nums">{roles === undefined ? "—" : roleCount}</p>
-                <p className="text-sm text-muted-foreground">Roles</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-3 pt-5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <Shield className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold tabular-nums">{permissions === undefined ? "—" : permCount}</p>
-                <p className="text-sm text-muted-foreground">Permission keys</p>
-              </div>
-            </CardContent>
-          </Card>
+        {/* compact stats row */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: "Roles", value: roleCount, color: "text-primary" },
+            { label: "Active", value: activeCount, color: "text-emerald-600 dark:text-emerald-400" },
+            { label: "Custom", value: customCount, color: "text-violet-600 dark:text-violet-400" },
+            { label: "Permission keys", value: permCount, color: "text-blue-600 dark:text-blue-400" },
+          ].map((s) => (
+            <Card key={s.label} className="border-border">
+              <CardContent className="flex items-center gap-2 px-4 py-2.5">
+                <span className={cn("text-xl font-bold tabular-nums", s.color)}>
+                  {roles === undefined ? "—" : s.value}
+                </span>
+                <span className="text-xs text-muted-foreground">{s.label}</span>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-5">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Plus className="h-4 w-4" />
-                Create custom role
-              </CardTitle>
-              <CardDescription>
-                Use a short slug for the key. Pick permissions below — grouped by module.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-                <div className="space-y-1.5">
-                  <Label htmlFor="role-key">Key (slug)</Label>
-                  <Input
-                    id="role-key"
-                    value={newKey}
-                    onChange={(e) => setNewKey(e.target.value)}
-                    placeholder="qc_lead"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="role-name">Display name</Label>
-                  <Input
-                    id="role-name"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="QC Lead"
-                  />
-                </div>
-              </div>
+        {/* master-detail panel */}
+        <div className="flex gap-4 rounded-xl border border-border bg-card shadow-sm" style={{ minHeight: 600 }}>
+          {/* ── LEFT: role sidebar ───────────────────────────────────────── */}
+          <div className="flex w-72 shrink-0 flex-col border-r border-border">
+            {/* sidebar header */}
+            <div className="flex items-center justify-between border-b border-border px-3 py-3">
+              <p className="text-sm font-semibold text-foreground">Roles</p>
+              <Button size="sm" className="h-7 gap-1 text-xs" onClick={startCreate}>
+                <Plus className="h-3.5 w-3.5" /> New role
+              </Button>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Permissions</Label>
-                {permissions === undefined ? (
-                  <p className="text-sm text-muted-foreground">Loading permissions…</p>
+            {/* search */}
+            <div className="border-b border-border px-3 py-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-1/2 left-2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter roles…"
+                  className="h-7 pl-7 text-xs"
+                />
+              </div>
+            </div>
+
+            <ScrollArea className="flex-1 px-3 py-2">
+              {/* system roles */}
+              {systemRoles.length > 0 && (
+                <div className="mb-3">
+                  <div className="mb-1.5 flex items-center gap-1.5 px-1">
+                    <Lock className="h-3 w-3 text-muted-foreground" />
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      System
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    {systemRoles.map((r) => (
+                      <RoleItem
+                        key={r._id}
+                        role={r}
+                        selected={selectedId === r._id && mode !== "create"}
+                        onClick={() => selectRole(r._id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* custom roles */}
+              <div>
+                <div className="mb-1.5 flex items-center gap-1.5 px-1">
+                  <Sparkles className="h-3 w-3 text-muted-foreground" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Custom
+                  </p>
+                </div>
+                {customRoles.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={startCreate}
+                    className="w-full rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/30 hover:text-primary"
+                  >
+                    <Plus className="mx-auto mb-1 h-3.5 w-3.5" />
+                    Create your first custom role
+                  </button>
                 ) : (
-                  <PermissionPicker permissions={permissionOptions} selected={newPerms} onChange={setNewPerms} />
+                  <div className="space-y-1">
+                    {customRoles.map((r) => (
+                      <RoleItem
+                        key={r._id}
+                        role={r}
+                        selected={selectedId === r._id && mode !== "create"}
+                        onClick={() => selectRole(r._id)}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
+            </ScrollArea>
 
-              <Button
-                className="w-full sm:w-auto"
-                onClick={onCreate}
-                disabled={busy || !newKey.trim() || !newName.trim() || newPerms.length === 0}
-              >
-                {busy ? "Creating…" : "Create role"}
-              </Button>
-            </CardContent>
-          </Card>
+            {/* sidebar footer */}
+            <div className="border-t border-border px-3 py-2">
+              <p className="text-[11px] text-muted-foreground">
+                {roleCount} role{roleCount !== 1 ? "s" : ""} · {permCount} permission key
+                {permCount !== 1 ? "s" : ""}
+              </p>
+            </div>
+          </div>
 
-          <Card className="lg:col-span-3">
-            <CardHeader>
-              <CardTitle className="text-base">Role directory</CardTitle>
-              <CardDescription>
-                Expand a role to review its permission set. System roles are seeded from the catalog.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RolesList
-                roles={roles}
-                permissionLabels={permissionLabels}
-                permissionCategories={permissionCategories}
-                onToggleActive={toggleRoleActive}
+          {/* ── RIGHT: detail / create panel ────────────────────────────── */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            {mode === "create" ? (
+              <CreateRolePanel
+                permissionOptions={permissionOptions}
+                onCreate={onCreateRole}
+                onCancel={() => setMode("view")}
               />
-            </CardContent>
-          </Card>
+            ) : selectedRole ? (
+              mode === "edit" ? (
+                <RoleEditPanel
+                  key={selectedRole._id}
+                  role={selectedRole}
+                  permissionOptions={permissionOptions}
+                  onSave={onSaveEdit}
+                  onCancel={() => setMode("view")}
+                />
+              ) : (
+                <RoleDetailView
+                  role={selectedRole}
+                  permissionLabels={permissionLabels}
+                  permissionCategories={permissionCategories}
+                  onEdit={() => setMode("edit")}
+                  onToggleActive={() => onToggleActive(selectedRole)}
+                />
+              )
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                  <Key className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-semibold">Select a role</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Pick a role from the left to view or manage its permissions,
+                    <br />
+                    or create a new custom role.
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={startCreate}>
+                  <Plus className="h-3.5 w-3.5" /> New custom role
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-
-        <Separator />
 
         <p className="text-center text-xs text-muted-foreground">
           Surveyors and supervisors receive capabilities from their assigned role on the next app session.
