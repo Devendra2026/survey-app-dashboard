@@ -1,5 +1,6 @@
 "use client";
 
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { convex } from "@/lib/convex";
 import { ClerkProvider, useAuth } from "@clerk/nextjs";
 import { ConvexQueryClient } from "@convex-dev/react-query";
@@ -34,7 +35,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <div className="flex h-full min-h-0 flex-col overflow-hidden">
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-                {children}
+                <TooltipProvider>
+                  {children}
+                </TooltipProvider>
               </ThemeProvider>
             </div>
             <Toaster position="top-right" richColors closeButton />

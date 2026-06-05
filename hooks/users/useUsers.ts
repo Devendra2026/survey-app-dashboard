@@ -13,7 +13,7 @@ export function usePendingApprovals() {
 }
 
 export type UserListFilters = {
-  role?: "admin" | "supervisor" | "surveyor" | "pending";
+  role?: string;
   status?: "pending_approval" | "active" | "disabled";
 };
 

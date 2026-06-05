@@ -19,11 +19,23 @@ import {
 } from "@/hooks/users/useUsers";
 import { parseConvexError } from "@/lib/errors";
 import { cn, fmtDate } from "@/lib/utils";
-import { Ban, Building2, CheckCircle2, Clock, MessageSquare, ShieldCheck, UserCheck, UserX } from "lucide-react";
+import {
+  Ban,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  Layers,
+  MessageSquare,
+  ShieldCheck,
+  UserCheck,
+  UserX,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { UserAllotmentsDialog } from "./user-allotments-dialog";
 
-// ─── shared color maps ────────────────────────────────────────────────────────
+// ─── color maps ────────────────────────────────────────────────────────────────
 
 const AVATAR_PALETTE = [
   "bg-violet-100 text-violet-700",
@@ -45,6 +57,13 @@ const ROLE_COLORS: Record<string, string> = {
     "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
   pending:
     "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30",
+};
+
+const ROLE_HEADER_BG: Record<string, string> = {
+  admin: "from-violet-500/10 to-transparent dark:from-violet-500/20",
+  supervisor: "from-blue-500/10 to-transparent dark:from-blue-500/20",
+  surveyor: "from-emerald-500/10 to-transparent dark:from-emerald-500/20",
+  pending: "from-amber-500/10 to-transparent dark:from-amber-500/20",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -115,7 +134,9 @@ function WardPicker({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label className="text-sm">Ward assignments</Label>
+        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Ward assignments
+        </Label>
         {selected.length > 0 && (
           <button
             type="button"
@@ -135,7 +156,7 @@ function WardPicker({
               type="button"
               onClick={() => toggle(w.wardNo)}
               className={cn(
-                "rounded-full border px-2.5 py-1 text-xs font-medium transition-all",
+                "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all",
                 on
                   ? "border-primary bg-primary/10 text-primary shadow-sm"
                   : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
@@ -155,10 +176,26 @@ function WardPicker({
   );
 }
 
-// ─── section label ─────────────────────────────────────────────────────────────
+// ─── section block ─────────────────────────────────────────────────────────────
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{children}</p>;
+function Section({
+  label,
+  children,
+  action,
+}: {
+  label: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
 }
 
 // ─── approve pending panel ────────────────────────────────────────────────────
@@ -214,17 +251,17 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
 
   return (
     <>
-      <ScrollArea className="flex-1 px-4">
-        <div className="space-y-5 py-4">
+      <ScrollArea className="flex-1 px-5">
+        <div className="space-y-5 py-5">
           {/* request context */}
           {(user.requestedRole || user.requestedReason) && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+              <p className="mb-2.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
                 <MessageSquare className="h-3.5 w-3.5" /> Sign-up request
               </p>
               {user.requestedRole && (
-                <div className="mb-1 flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Requested:</span>
+                <div className="mb-2 flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Requested role:</span>
                   <Badge variant="outline" className={ROLE_COLORS[user.requestedRole] ?? ""}>
                     {user.requestedRole}
                   </Badge>
@@ -236,9 +273,7 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
             </div>
           )}
 
-          {/* role selector */}
-          <div className="space-y-2">
-            <SectionLabel>Assign role</SectionLabel>
+          <Section label="Assign role">
             <Select
               value={role}
               onValueChange={(v) => {
@@ -258,14 +293,12 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Section>
 
-          {/* municipality — skipped for admin */}
           {needsMuni && (
             <>
               <Separator />
-              <div className="space-y-2">
-                <SectionLabel>Assign municipality</SectionLabel>
+              <Section label="Municipality (ULB)">
                 <Select
                   value={municipalityId}
                   onValueChange={(v) => {
@@ -288,34 +321,38 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </Section>
 
               {municipalityId && wardsForMuni.length > 0 && (
-                <WardPicker wards={wardsForMuni} selected={wards} onChange={setWards} />
+                <>
+                  <Separator />
+                  <WardPicker wards={wardsForMuni} selected={wards} onChange={setWards} />
+                </>
               )}
             </>
           )}
         </div>
       </ScrollArea>
 
-      <Separator />
-      <div className="flex items-center justify-between gap-2 px-4 py-3">
-        <Button
-          variant="outline"
-          className="border-destructive/40 text-destructive hover:bg-destructive/10"
-          onClick={onReject}
-          disabled={busy}
-        >
-          <UserX className="h-4 w-4" /> Reject
-        </Button>
-        <Button
-          className="bg-emerald-600 text-white hover:bg-emerald-700"
-          onClick={onApprove}
-          disabled={busy || !canApprove}
-        >
-          <UserCheck className="h-4 w-4" />
-          {busy ? "Approving…" : "Approve"}
-        </Button>
+      <div className="border-t border-border bg-muted/20 px-5 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            variant="outline"
+            className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={onReject}
+            disabled={busy}
+          >
+            <UserX className="h-4 w-4" /> Reject
+          </Button>
+          <Button
+            className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+            onClick={onApprove}
+            disabled={busy || !canApprove}
+          >
+            <UserCheck className="h-4 w-4" />
+            {busy ? "Approving…" : "Approve user"}
+          </Button>
+        </div>
       </div>
     </>
   );
@@ -335,6 +372,7 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
   );
   const [wards, setWards] = useState<string[]>(user.role !== "admin" ? (user.wardAssignments ?? []) : []);
   const [busy, setBusy] = useState(false);
+  const [allotDialogOpen, setAllotDialogOpen] = useState(false);
 
   const munis = catalog?.flatMap((d) => d.ulbs) ?? [];
   const wardsForMuni = munis.find((m) => m._id === municipalityId)?.wards ?? [];
@@ -391,24 +429,27 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
 
   return (
     <>
-      <ScrollArea className="flex-1 px-4">
-        <div className="space-y-5 py-4">
+      <ScrollArea className="flex-1 px-5">
+        <div className="space-y-5 py-5">
           {/* status row */}
-          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2.5">
-            <div className="flex items-center gap-2">
-              <SectionLabel>Status</SectionLabel>
-              <Badge variant="outline" className={STATUS_COLORS[user.status] ?? ""}>
-                {user.status === "active" ? (
-                  <>
-                    <CheckCircle2 className="mr-1 h-3 w-3" /> Active
-                  </>
-                ) : (
-                  <>
-                    <Ban className="mr-1 h-3 w-3" />
-                    {user.status.replace("_", " ")}
-                  </>
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <div
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-lg",
+                  user.status === "active"
+                    ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
+                    : "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400",
                 )}
-              </Badge>
+              >
+                {user.status === "active" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</p>
+                <Badge variant="outline" className={cn("mt-0.5 text-xs", STATUS_COLORS[user.status] ?? "")}>
+                  {user.status === "active" ? "Active" : user.status.replace("_", " ")}
+                </Badge>
+              </div>
             </div>
             {user.role !== "admin" && (
               <Button
@@ -437,8 +478,7 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
           </div>
 
           {/* role */}
-          <div className="space-y-2">
-            <SectionLabel>Role</SectionLabel>
+          <Section label="Role">
             <Select
               value={role}
               onValueChange={(v) => {
@@ -460,14 +500,13 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Section>
 
-          {/* municipality & wards — not for admin */}
+          {/* municipality & wards */}
           {!isAdmin && (
             <>
               <Separator />
-              <div className="space-y-2">
-                <SectionLabel>Municipality (ULB)</SectionLabel>
+              <Section label="Municipality (ULB)">
                 <Select
                   value={municipalityId}
                   onValueChange={(v) => {
@@ -490,31 +529,72 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
                     ))}
                   </SelectContent>
                 </Select>
-
                 {user.role !== "admin" && user.municipalityName && municipalityId === (user.municipalityId ?? "") && (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Building2 className="h-3 w-3" /> Currently: {user.municipalityName}
                   </p>
                 )}
-              </div>
+              </Section>
 
               {municipalityId && wardsForMuni.length > 0 && (
-                <WardPicker wards={wardsForMuni} selected={wards} onChange={setWards} />
+                <>
+                  <Separator />
+                  <WardPicker wards={wardsForMuni} selected={wards} onChange={setWards} />
+                </>
               )}
+            </>
+          )}
+
+          {/* multi-city allotments */}
+          {!isAdmin && (
+            <>
+              <Separator />
+              <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 p-4 dark:border-blue-500/30 dark:bg-blue-500/5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
+                      <Layers className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Multi-city allotments</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Assign this user to multiple districts or ULBs simultaneously
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 shrink-0 border-blue-200 text-xs text-blue-700 hover:bg-blue-100 dark:border-blue-500/40 dark:text-blue-400 dark:hover:bg-blue-500/10"
+                    onClick={() => setAllotDialogOpen(true)}
+                  >
+                    Manage cities
+                  </Button>
+                </div>
+              </div>
             </>
           )}
         </div>
       </ScrollArea>
 
-      <Separator />
-      <div className="flex items-center justify-end gap-2 px-4 py-3">
-        <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>
-          Cancel
-        </Button>
-        <Button size="sm" onClick={onSave} disabled={busy || !dirty}>
-          {busy ? "Saving…" : "Save changes"}
-        </Button>
+      <div className="border-t border-border bg-muted/20 px-5 py-4">
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={onSave} disabled={busy || !dirty}>
+            {busy ? "Saving…" : "Save changes"}
+          </Button>
+        </div>
       </div>
+
+      {!isAdmin && (
+        <UserAllotmentsDialog
+          open={allotDialogOpen}
+          onOpenChange={setAllotDialogOpen}
+          user={{ _id: user._id, name: user.name, role: user.role }}
+        />
+      )}
     </>
   );
 }
@@ -522,25 +602,45 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
 // ─── main exported sheet ──────────────────────────────────────────────────────
 
 export function UserEditSheet({ user, onClose }: { user: SheetUser | null; onClose: () => void }) {
+  const role = user?.kind === "listed" ? user.role : user?.kind === "pending" ? "pending" : null;
+  const headerBg = role ? (ROLE_HEADER_BG[role] ?? "from-muted/50 to-transparent") : "";
+
   return (
     <Sheet open={!!user} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md" showCloseButton>
         {user && (
           <>
-            {/* user identity header */}
-            <SheetHeader className="border-b border-border px-4 py-4">
-              <div className="flex items-start gap-3 pr-8">
-                <Avatar>
-                  <AvatarFallback className={avatarColor(user.name)}>{initials(user.name)}</AvatarFallback>
-                </Avatar>
+            {/* identity header with role-tinted gradient */}
+            <SheetHeader
+              className={cn(
+                "border-b border-border bg-linear-to-b px-5 py-5",
+                headerBg,
+              )}
+            >
+              <div className="flex items-start gap-4 pr-8">
+                <div className="relative">
+                  <Avatar className="h-12 w-12">
+                    <AvatarFallback className={cn("text-sm font-bold", avatarColor(user.name))}>
+                      {initials(user.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {user.kind === "listed" && (
+                    <span
+                      className={cn(
+                        "absolute -right-0.5 -bottom-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background",
+                        user.status === "active" ? "bg-emerald-500" : "bg-red-500",
+                      )}
+                    />
+                  )}
+                </div>
                 <div className="min-w-0 flex-1">
-                  <SheetTitle className="leading-tight">{user.name}</SheetTitle>
+                  <SheetTitle className="text-base leading-tight">{user.name}</SheetTitle>
                   <p className="truncate text-sm text-muted-foreground">{user.email}</p>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     {user.kind === "pending" ? (
                       <Badge
                         variant="outline"
-                        className="border-amber-200 bg-amber-100 text-amber-700 text-xs dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300"
+                        className="border-amber-200 bg-amber-100 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300"
                       >
                         <Clock className="mr-1 h-3 w-3" /> Awaiting approval
                       </Badge>
@@ -550,17 +650,18 @@ export function UserEditSheet({ user, onClose }: { user: SheetUser | null; onClo
                           {user.role}
                         </Badge>
                         <Badge variant="outline" className={cn("text-xs", STATUS_COLORS[user.status] ?? "")}>
-                          {user.status === "active" ? "active" : user.status.replace("_", " ")}
+                          {user.status === "active" ? "Active" : user.status.replace("_", " ")}
                         </Badge>
                       </>
                     )}
-                    <span className="text-xs text-muted-foreground">Joined {fmtDate(user.createdAt)}</span>
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <CalendarDays className="h-3 w-3" /> {fmtDate(user.createdAt)}
+                    </span>
                   </div>
                 </div>
               </div>
             </SheetHeader>
 
-            {/* body — switches on kind */}
             {user.kind === "pending" ? (
               <ApprovePendingPanel user={user} onClose={onClose} />
             ) : (
