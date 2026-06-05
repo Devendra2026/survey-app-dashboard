@@ -60,10 +60,7 @@ export default function MastersPage() {
   }
 
   return (
-    <RoleGate
-      capability="masters.manage"
-      fallback={<EmptyState title="Not permitted" description="Master data management is admin-only." />}
-    >
+    <RoleGate mode="page" capability="masters.manage" deniedDescription="Master data management is admin-only.">
       <div className="space-y-5">
         <PageHeader
           title="Master Data"

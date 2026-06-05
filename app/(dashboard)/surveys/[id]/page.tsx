@@ -107,7 +107,7 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
             >
               <Download className="h-4 w-4" /> PDF
             </Button>
-            <RoleGate capability="surveys.editDraft">
+            <RoleGate capability="surveys.editDraft" fallback={null}>
               {survey.qcStatus !== "approved" && (
                 <Button
                   asChild
@@ -120,7 +120,7 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
                 </Button>
               )}
             </RoleGate>
-            <RoleGate capability="surveys.delete">
+            <RoleGate capability="surveys.delete" fallback={null}>
               {survey.qcStatus !== "approved" && (
                 <Button
                   variant="outline"

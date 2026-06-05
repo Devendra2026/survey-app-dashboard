@@ -13,7 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { type SheetListedUser, type SheetPendingUser, type SheetUser, UserEditSheet } from "@/components/users/user-edit-sheet";
+import {
+  UserEditSheet,
+  type SheetListedUser,
+  type SheetPendingUser,
+  type SheetUser,
+} from "@/components/users/user-edit-sheet";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { usePendingApprovals, useUserListPaginated, type UserListFilters } from "@/hooks/users/useUsers";
@@ -54,8 +59,7 @@ const STATUS_COLORS: Record<string, string> = {
     "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
   pending_approval:
     "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30",
-  disabled:
-    "bg-red-100 text-red-600 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30",
+  disabled: "bg-red-100 text-red-600 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30",
 };
 
 function avatarColor(name: string) {
@@ -119,8 +123,16 @@ export default function UsersPage() {
     return f;
   }, [roleFilter, statusFilter]);
 
-  const { users, isLoading, pageNumber, pageSize: rowsPerPage, canGoPrev, canGoNext, goNext, goPrev } =
-    useUserListPaginated(listFilters, pageSize);
+  const {
+    users,
+    isLoading,
+    pageNumber,
+    pageSize: rowsPerPage,
+    canGoPrev,
+    canGoNext,
+    goNext,
+    goPrev,
+  } = useUserListPaginated(listFilters, pageSize);
 
   const filteredUsers = useMemo(() => {
     if (!search.trim()) return users;
@@ -133,14 +145,12 @@ export default function UsersPage() {
 
   return (
     <RoleGate
+      mode="page"
       capability="users.view"
-      fallback={<EmptyState title="Not permitted" description="User management is restricted to administrators." />}
+      deniedDescription="User management is restricted to supervisors and administrators."
     >
       <div className="space-y-5">
-        <PageHeader
-          title="Users"
-          description="Approve registrations, assign roles & tenancy, and manage access."
-        />
+        <PageHeader title="Users" description="Approve registrations, assign roles & tenancy, and manage access." />
 
         {/* KPI strip */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -216,9 +226,7 @@ export default function UsersPage() {
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Clock className="h-4 w-4 text-amber-500" />
                   Approval queue
-                  <span className="text-xs font-normal text-muted-foreground">
-                    — click a row to review and approve
-                  </span>
+                  <span className="text-xs font-normal text-muted-foreground">— click a row to review and approve</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -252,9 +260,7 @@ export default function UsersPage() {
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <Avatar size="sm">
-                                  <AvatarFallback className={avatarColor(u.name)}>
-                                    {initials(u.name)}
-                                  </AvatarFallback>
+                                  <AvatarFallback className={avatarColor(u.name)}>{initials(u.name)}</AvatarFallback>
                                 </Avatar>
                                 <div className="min-w-0">
                                   <p className="font-medium leading-tight">{u.name}</p>
@@ -278,7 +284,7 @@ export default function UsersPage() {
                               {fmtDate(u.createdAt)}
                             </TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
-                              <RoleGate capability="users.approve">
+                              <RoleGate capability="users.approve" fallback={null}>
                                 <div className="flex justify-end">
                                   <Button
                                     size="sm"
@@ -310,9 +316,7 @@ export default function UsersPage() {
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   Directory
-                  <span className="text-xs font-normal text-muted-foreground">
-                    — click a row to edit
-                  </span>
+                  <span className="text-xs font-normal text-muted-foreground">— click a row to edit</span>
                 </CardTitle>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative">
@@ -383,15 +387,11 @@ export default function UsersPage() {
                               <TableCell>
                                 <div className="flex items-center gap-3">
                                   <Avatar size="sm">
-                                    <AvatarFallback className={avatarColor(u.name)}>
-                                      {initials(u.name)}
-                                    </AvatarFallback>
+                                    <AvatarFallback className={avatarColor(u.name)}>{initials(u.name)}</AvatarFallback>
                                   </Avatar>
                                   <div className="min-w-0">
                                     <p className="font-medium leading-tight">{u.name}</p>
-                                    <p className="max-w-44 truncate text-xs text-muted-foreground">
-                                      {u.email}
-                                    </p>
+                                    <p className="max-w-44 truncate text-xs text-muted-foreground">{u.email}</p>
                                   </div>
                                 </div>
                               </TableCell>
@@ -416,9 +416,7 @@ export default function UsersPage() {
                                 )}
                               </TableCell>
                               <TableCell className="max-w-36 truncate text-sm text-muted-foreground">
-                                {u.role !== "admin" && u.wardAssignments?.length
-                                  ? u.wardAssignments.join(", ")
-                                  : "—"}
+                                {u.role !== "admin" && u.wardAssignments?.length ? u.wardAssignments.join(", ") : "—"}
                               </TableCell>
                               <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                                 {fmtDate(u.createdAt)}

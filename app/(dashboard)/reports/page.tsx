@@ -3,7 +3,6 @@
 import { exportBreakdownExcel } from "@/components/reports/queries/exporters";
 import { generateMunicipalitySummaryPdf, generateSurveyorPerformancePdf } from "@/components/reports/queries/pdf";
 import { ReportCard } from "@/components/reports/report-card";
-import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { CardsSkeleton } from "@/components/shared/loading";
 import { PageHeader } from "@/components/shared/page-header";
@@ -31,8 +30,9 @@ export default function ReportsPage() {
 
   return (
     <RoleGate
+      mode="page"
       capability="reports.export"
-      fallback={<EmptyState title="Not permitted" description="Reporting is available to supervisors and admins." />}
+      deniedDescription="Reporting is available to supervisors and administrators."
     >
       <div className="space-y-5">
         <PageHeader title="Reports" description="Generate and export survey, QC, municipality and surveyor reports." />

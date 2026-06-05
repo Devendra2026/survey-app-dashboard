@@ -76,7 +76,7 @@ export function SurveyEditor({
 
   /* ── Submit bar (shown above tabs) ──────────────────────────────── */
   const submitBar = showSubmitBar && onSubmit && canEditSections && (
-    <RoleGate capability="surveys.submit">
+    <RoleGate capability="surveys.submit" fallback={null}>
       <div className="flex items-center justify-between gap-4 rounded-2xl border border-indigo-200/70 bg-linear-to-r from-indigo-50 via-blue-50 to-sky-50 px-5 py-4 shadow-sm dark:border-indigo-800/40 dark:from-indigo-950/60 dark:via-blue-950/50 dark:to-sky-950/40">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/60">
@@ -99,11 +99,7 @@ export function SurveyEditor({
           className="shrink-0 rounded-full bg-linear-to-r from-indigo-600 to-blue-600 px-6 text-white shadow-sm hover:from-indigo-500 hover:to-blue-500 dark:from-indigo-500 dark:to-blue-600 dark:hover:from-indigo-400 dark:hover:to-blue-500"
         >
           <Send className="h-4 w-4" />
-          {isWorking
-            ? saving
-              ? "Saving…"
-              : "Submitting…"
-            : (submitLabel ?? "Submit for QC")}
+          {isWorking ? (saving ? "Saving…" : "Submitting…") : (submitLabel ?? "Submit for QC")}
         </Button>
       </div>
     </RoleGate>
@@ -171,7 +167,10 @@ export function SurveyEditor({
           {canEditSections && surveyId ? (
             <FloorsEditor surveyId={surveyId} plotSqft={survey?.plotSqft} plinthSqft={survey?.plinthSqft} />
           ) : (
-            <LockedTab title="Area details" description="Plot area, floor rows, plinth, built-up and open land areas." />
+            <LockedTab
+              title="Area details"
+              description="Plot area, floor rows, plinth, built-up and open land areas."
+            />
           )}
         </TabsContent>
 

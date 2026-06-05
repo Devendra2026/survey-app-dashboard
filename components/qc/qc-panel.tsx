@@ -46,7 +46,7 @@ export function QcPanel({ survey }: { survey: any }) {
 
   return (
     <div className="space-y-4">
-      <RoleGate capability="qc.decide">
+      <RoleGate capability="qc.decide" fallback={null}>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Quality Control Decision</CardTitle>
@@ -163,7 +163,7 @@ export function QcPanel({ survey }: { survey: any }) {
               </div>
               <p className="text-sm">{r.message}</p>
               {r.status === "open" && (
-                <RoleGate capability="qc.decide">
+                <RoleGate capability="qc.decide" fallback={null}>
                   <Button
                     variant="link"
                     size="sm"

@@ -3,9 +3,8 @@
  *  NOTE: the existing upsert/delete do NOT write audit rows (see docs). We use
  *  them as-is to honour "reuse existing / don't fork business logic". */
 import { api } from "@/convex/_generated/api";
-import { useMutation } from "convex/react";
-
-import { useQuery } from "convex/react";
+import { useHasCapability } from "@/hooks/use-capability";
+import { useMutation, useQuery } from "convex/react";
 
 export function useUpsertMaster() {
   return useMutation(api.admin.upsertMaster);
@@ -15,5 +14,6 @@ export function useDeleteMaster() {
 }
 /** Raw rows for one category (incl. inactive + position) — additive admin read. */
 export function useMasterCategory(category: string | undefined) {
-  return useQuery(api.masterCatalog.listByCategory, category ? { category } : "skip");
+  const allowed = useHasCapability("masters.manage");
+  return useQuery(api.masterCatalog.listByCategory, allowed && category ? { category } : "skip");
 }

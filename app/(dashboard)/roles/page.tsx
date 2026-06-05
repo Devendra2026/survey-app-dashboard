@@ -1,7 +1,6 @@
 "use client";
 
 import { PermissionPicker, type PermissionOption } from "@/components/rbac/permission-picker";
-import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { Badge } from "@/components/ui/badge";
@@ -11,12 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { useCreateRole, usePermissions, useSeedRbac, useUpdateRole } from "@/hooks/rbac/useRbac";
+import { useCreateRole, usePermissions, useRoles, useSeedRbac, useUpdateRole } from "@/hooks/rbac/useRbac";
 import { parseConvexError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
-import { useQuery } from "convex/react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -75,15 +72,12 @@ const DEFAULT_ACCENT = {
 const CATEGORY_COLORS: Record<string, string> = {
   admin:
     "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30",
-  masters:
-    "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/30",
+  masters: "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/30",
   qc: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30",
   surveys:
     "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
-  reports:
-    "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30",
-  users:
-    "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-500/20 dark:text-pink-300 dark:border-pink-500/30",
+  reports: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30",
+  users: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-500/20 dark:text-pink-300 dark:border-pink-500/30",
 };
 
 function catColor(cat: string) {
@@ -92,15 +86,7 @@ function catColor(cat: string) {
 
 // ─── sidebar item ─────────────────────────────────────────────────────────────
 
-function RoleItem({
-  role,
-  selected,
-  onClick,
-}: {
-  role: RoleRow;
-  selected: boolean;
-  onClick: () => void;
-}) {
+function RoleItem({ role, selected, onClick }: { role: RoleRow; selected: boolean; onClick: () => void }) {
   const accent = ROLE_ACCENT[role.key] ?? DEFAULT_ACCENT;
   return (
     <button
@@ -221,9 +207,7 @@ function RoleDetailView({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-bold">{role.name}</h2>
-              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
-                {role.key}
-              </code>
+              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{role.key}</code>
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {role.isSystem && (
@@ -265,11 +249,7 @@ function RoleDetailView({
                 size="sm"
                 variant={role.isActive ? "outline" : "default"}
                 onClick={onToggleActive}
-                className={
-                  role.isActive
-                    ? "border-destructive/40 text-destructive hover:bg-destructive/10"
-                    : ""
-                }
+                className={role.isActive ? "border-destructive/40 text-destructive hover:bg-destructive/10" : ""}
               >
                 {role.isActive ? (
                   <>
@@ -290,14 +270,8 @@ function RoleDetailView({
 
       {/* permissions body */}
       <ScrollArea className="flex-1 px-5 py-4">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Permissions
-        </p>
-        <PermissionMatrix
-          role={role}
-          permissionLabels={permissionLabels}
-          permissionCategories={permissionCategories}
-        />
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Permissions</p>
+        <PermissionMatrix role={role} permissionLabels={permissionLabels} permissionCategories={permissionCategories} />
 
         {role.isSystem && (
           <p className="mt-6 text-xs text-muted-foreground">
@@ -337,7 +311,9 @@ function RoleEditPanel({
   }
 
   const dirty =
-    name !== role.name || description !== (role.description ?? "") || perms.join() !== [...role.permissionKeys].sort().join();
+    name !== role.name ||
+    description !== (role.description ?? "") ||
+    perms.join() !== [...role.permissionKeys].sort().join();
 
   return (
     <div className="flex h-full flex-col">
@@ -363,12 +339,7 @@ function RoleEditPanel({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="edit-name">Display name</Label>
-              <Input
-                id="edit-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="QC Lead"
-              />
+              <Input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="QC Lead" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-muted-foreground text-xs">Key (read-only)</Label>
@@ -472,12 +443,7 @@ function CreateRolePanel({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="new-name">Display name</Label>
-              <Input
-                id="new-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="QC Lead"
-              />
+              <Input id="new-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="QC Lead" />
             </div>
           </div>
 
@@ -512,7 +478,7 @@ function CreateRolePanel({
 // ─── main page ────────────────────────────────────────────────────────────────
 
 export default function RolesPage() {
-  const roles = useQuery(api.rbac.listRoles, { includeInactive: true }) as RoleRow[] | undefined;
+  const roles = useRoles({ includeInactive: true }) as RoleRow[] | undefined;
   const permissions = usePermissions();
   const seedFn = useSeedRbac();
   const createRole = useCreateRole();
@@ -599,12 +565,12 @@ export default function RolesPage() {
 
   async function onCreateRole(data: { key: string; name: string; description: string; permissionKeys: string[] }) {
     try {
-      const newId = await createRole({
+      const newId = (await createRole({
         key: data.key,
         name: data.name,
         description: data.description || undefined,
         permissionKeys: data.permissionKeys,
-      }) as Id<"roles">;
+      })) as Id<"roles">;
       toast.success("Role created");
       setSelectedId(newId);
       setMode("view");
@@ -621,8 +587,9 @@ export default function RolesPage() {
 
   return (
     <RoleGate
+      mode="page"
       capability="roles.manage"
-      fallback={<EmptyState title="Not permitted" description="Only administrators can manage roles." />}
+      deniedDescription="Only administrators can manage roles and permissions."
     >
       <div className="space-y-4">
         <PageHeader
@@ -686,9 +653,7 @@ export default function RolesPage() {
                 <div className="mb-3">
                   <div className="mb-1.5 flex items-center gap-1.5 px-1">
                     <Lock className="h-3 w-3 text-muted-foreground" />
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      System
-                    </p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">System</p>
                   </div>
                   <div className="space-y-1">
                     {systemRoles.map((r) => (
@@ -707,9 +672,7 @@ export default function RolesPage() {
               <div>
                 <div className="mb-1.5 flex items-center gap-1.5 px-1">
                   <Sparkles className="h-3 w-3 text-muted-foreground" />
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Custom
-                  </p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Custom</p>
                 </div>
                 {customRoles.length === 0 ? (
                   <button

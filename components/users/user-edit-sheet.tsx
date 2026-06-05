@@ -7,12 +7,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useRoles } from "@/hooks/rbac/useRbac";
 import {
@@ -24,16 +19,7 @@ import {
 } from "@/hooks/users/useUsers";
 import { parseConvexError } from "@/lib/errors";
 import { cn, fmtDate } from "@/lib/utils";
-import {
-  Ban,
-  Building2,
-  CheckCircle2,
-  Clock,
-  MessageSquare,
-  ShieldCheck,
-  UserCheck,
-  UserX,
-} from "lucide-react";
+import { Ban, Building2, CheckCircle2, Clock, MessageSquare, ShieldCheck, UserCheck, UserX } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -64,8 +50,7 @@ const ROLE_COLORS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   active:
     "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
-  disabled:
-    "bg-red-100 text-red-600 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30",
+  disabled: "bg-red-100 text-red-600 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30",
   pending_approval:
     "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30",
 };
@@ -173,9 +158,7 @@ function WardPicker({
 // ─── section label ─────────────────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{children}</p>
-  );
+  return <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{children}</p>;
 }
 
 // ─── approve pending panel ────────────────────────────────────────────────────
@@ -183,7 +166,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClose: () => void }) {
   const approve = useApproveUser();
   const reject = useRejectUser();
-  const roleCatalog = useRoles();
+  const roleCatalog = useRoles({ requireCapability: "users.approve" });
   const catalog = useTenantCatalog();
 
   const [role, setRole] = useState<string>(user.requestedRole ?? "surveyor");
@@ -343,16 +326,14 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
 function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: () => void }) {
   const updateUserMut = useUpdateUser();
   const assignTenantMut = useAssignTenant();
-  const roleCatalog = useRoles();
+  const roleCatalog = useRoles({ requireCapability: "users.approve" });
   const catalog = useTenantCatalog();
 
   const [role, setRole] = useState(user.role);
   const [municipalityId, setMunicipalityId] = useState<string>(
     user.role !== "admin" ? (user.municipalityId ?? "") : "",
   );
-  const [wards, setWards] = useState<string[]>(
-    user.role !== "admin" ? (user.wardAssignments ?? []) : [],
-  );
+  const [wards, setWards] = useState<string[]>(user.role !== "admin" ? (user.wardAssignments ?? []) : []);
   const [busy, setBusy] = useState(false);
 
   const munis = catalog?.flatMap((d) => d.ulbs) ?? [];
@@ -362,8 +343,7 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
 
   const roleChanged = role !== user.role;
   const muniChanged = municipalityId !== (user.municipalityId ?? "");
-  const wardsChanged =
-    [...wards].sort().join() !== [...(user.wardAssignments ?? [])].sort().join();
+  const wardsChanged = [...wards].sort().join() !== [...(user.wardAssignments ?? [])].sort().join();
   const dirty = roleChanged || muniChanged || wardsChanged;
 
   async function onToggleStatus() {
@@ -511,12 +491,11 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
                   </SelectContent>
                 </Select>
 
-                {user.role !== "admin" && user.municipalityName &&
-                  municipalityId === (user.municipalityId ?? "") && (
-                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Building2 className="h-3 w-3" /> Currently: {user.municipalityName}
-                    </p>
-                  )}
+                {user.role !== "admin" && user.municipalityName && municipalityId === (user.municipalityId ?? "") && (
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Building2 className="h-3 w-3" /> Currently: {user.municipalityName}
+                  </p>
+                )}
               </div>
 
               {municipalityId && wardsForMuni.length > 0 && (
@@ -542,29 +521,17 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
 
 // ─── main exported sheet ──────────────────────────────────────────────────────
 
-export function UserEditSheet({
-  user,
-  onClose,
-}: {
-  user: SheetUser | null;
-  onClose: () => void;
-}) {
+export function UserEditSheet({ user, onClose }: { user: SheetUser | null; onClose: () => void }) {
   return (
     <Sheet open={!!user} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
-        showCloseButton
-      >
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md" showCloseButton>
         {user && (
           <>
             {/* user identity header */}
             <SheetHeader className="border-b border-border px-4 py-4">
               <div className="flex items-start gap-3 pr-8">
                 <Avatar>
-                  <AvatarFallback className={avatarColor(user.name)}>
-                    {initials(user.name)}
-                  </AvatarFallback>
+                  <AvatarFallback className={avatarColor(user.name)}>{initials(user.name)}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <SheetTitle className="leading-tight">{user.name}</SheetTitle>
@@ -579,23 +546,15 @@ export function UserEditSheet({
                       </Badge>
                     ) : (
                       <>
-                        <Badge
-                          variant="outline"
-                          className={cn("text-xs", ROLE_COLORS[user.role] ?? "")}
-                        >
+                        <Badge variant="outline" className={cn("text-xs", ROLE_COLORS[user.role] ?? "")}>
                           {user.role}
                         </Badge>
-                        <Badge
-                          variant="outline"
-                          className={cn("text-xs", STATUS_COLORS[user.status] ?? "")}
-                        >
+                        <Badge variant="outline" className={cn("text-xs", STATUS_COLORS[user.status] ?? "")}>
                           {user.status === "active" ? "active" : user.status.replace("_", " ")}
                         </Badge>
                       </>
                     )}
-                    <span className="text-xs text-muted-foreground">
-                      Joined {fmtDate(user.createdAt)}
-                    </span>
+                    <span className="text-xs text-muted-foreground">Joined {fmtDate(user.createdAt)}</span>
                   </div>
                 </div>
               </div>

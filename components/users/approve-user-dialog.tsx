@@ -30,7 +30,7 @@ export function ApproveUserDialog({
 }) {
   const approve = useApproveUser();
   const catalog = useTenantCatalog();
-  const roleCatalog = useRoles();
+  const roleCatalog = useRoles({ requireCapability: "users.approve" });
   const [role, setRole] = useState<string>("surveyor");
   const [municipalityId, setMunicipalityId] = useState<string>("");
   const [wards, setWards] = useState<string[]>([]);

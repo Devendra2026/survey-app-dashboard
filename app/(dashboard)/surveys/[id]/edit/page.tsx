@@ -54,10 +54,7 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <RoleGate
-      capability="surveys.editDraft"
-      fallback={<EmptyState title="Not permitted" description="You don't have permission to edit surveys." />}
-    >
+    <RoleGate mode="page" capability="surveys.editDraft" deniedDescription="You don't have permission to edit surveys.">
       <div className="space-y-5">
         <Button
           asChild

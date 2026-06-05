@@ -1,6 +1,5 @@
 "use client";
 
-import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { SurveyEditor } from "@/components/surveys/survey-editor";
@@ -22,8 +21,9 @@ export default function NewSurveyPage() {
 
   return (
     <RoleGate
+      mode="page"
       capability="surveys.editDraft"
-      fallback={<EmptyState title="Not permitted" description="Only surveyors and admins can create surveys." />}
+      deniedDescription="Only surveyors and administrators can create surveys."
     >
       <div className="space-y-5">
         <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">

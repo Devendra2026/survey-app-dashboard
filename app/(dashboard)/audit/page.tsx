@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardContent } from "@/components/ui/card";
 import { AuditTable } from "@/components/audit/audit-table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { EmptyState } from "@/components/shared/empty-state";
-import { useAuditLog, useAuditFacets } from "@/hooks/audit/useAudit";
+import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuditFacets, useAuditLog } from "@/hooks/audit/useAudit";
+import { useState } from "react";
 
 const ALL = "__all__";
 
@@ -17,10 +16,7 @@ export default function AuditPage() {
   const rows = useAuditLog({ action, limit: 200 });
 
   return (
-    <RoleGate
-      capability="audit.view"
-      fallback={<EmptyState title="Not permitted" description="The audit log is restricted to administrators." />}
-    >
+    <RoleGate mode="page" capability="audit.view" deniedDescription="The audit log is restricted to administrators.">
       <div className="space-y-5">
         <PageHeader title="Audit Log" description="Append-only trail of every mutation across the system." />
 

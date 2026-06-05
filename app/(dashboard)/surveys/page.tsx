@@ -12,16 +12,7 @@ import { useMasters } from "@/hooks/masters/useMasters";
 import { searchSurveys, useSurveyList } from "@/hooks/surveys/useSurveys";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
-import {
-  BarChart3,
-  CalendarDays,
-  CheckCircle2,
-  Clock3,
-  Filter,
-  ListChecks,
-  Plus,
-  TrendingDown,
-} from "lucide-react";
+import { BarChart3, CalendarDays, CheckCircle2, Clock3, Filter, ListChecks, Plus, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -39,15 +30,11 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon, border, gradient, iconRing, textColor, sub }: StatCardProps) {
   return (
-    <Card
-      className={`relative overflow-hidden ${border} ${gradient} shadow-sm transition-shadow hover:shadow-md`}
-    >
+    <Card className={`relative overflow-hidden ${border} ${gradient} shadow-sm transition-shadow hover:shadow-md`}>
       <div className="pointer-events-none absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/10 dark:bg-white/5" />
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-1 pt-4">
         <CardTitle className={`text-[11px] font-bold uppercase tracking-widest ${textColor}`}>{title}</CardTitle>
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${iconRing}`}>
-          {icon}
-        </div>
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${iconRing}`}>{icon}</div>
       </CardHeader>
       <CardContent className="pb-4 pt-1">
         <p className={`text-4xl font-black tabular-nums leading-none ${textColor}`}>{value}</p>
@@ -136,7 +123,9 @@ export default function SurveysPage() {
     return rows;
   }, [filteredByDate, activeTab]);
 
-  useEffect(() => { setPageNumber(1); }, [filters, activeTab, pageSize]);
+  useEffect(() => {
+    setPageNumber(1);
+  }, [filters, activeTab, pageSize]);
 
   const pageStart = (pageNumber - 1) * pageSize;
   const pagedRows = useMemo(
@@ -163,7 +152,6 @@ export default function SurveysPage() {
 
   return (
     <div className="space-y-6 text-foreground">
-
       {/* ── Hero header ─────────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-2xl border border-indigo-200/60 bg-linear-to-r from-indigo-50 via-blue-50 to-sky-50 px-6 py-6 shadow-sm dark:border-indigo-800/30 dark:from-indigo-950/60 dark:via-blue-950/50 dark:to-sky-950/40">
         <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-indigo-300/20 blur-3xl dark:bg-indigo-500/10" />
@@ -189,7 +177,7 @@ export default function SurveysPage() {
             >
               <SurveyExcelActions filters={listFilters} canImport disabled={isLoading} />
             </RoleGate>
-            <RoleGate capability="surveys.editDraft">
+            <RoleGate capability="surveys.editDraft" fallback={null}>
               <Button
                 asChild
                 className="rounded-full bg-linear-to-r from-indigo-600 to-blue-600 px-5 text-white shadow-sm hover:from-indigo-500 hover:to-blue-500 dark:from-indigo-500 dark:to-blue-600"
@@ -287,12 +275,42 @@ export default function SurveysPage() {
         <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5 dark:bg-muted/10">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
-              <TabsPill value="all"       label="All"         count={filteredByDate.length}                                              activeColor="data-[state=active]:bg-slate-700  data-[state=active]:text-white  dark:data-[state=active]:bg-slate-600" />
-              <TabsPill value="qcPending" label="QC Pending"  count={stats.qcPending}                                                    activeColor="data-[state=active]:bg-amber-500  data-[state=active]:text-white  dark:data-[state=active]:bg-amber-500" />
-              <TabsPill value="qcApproved"label="Approved"    count={stats.approved}                                                     activeColor="data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-500" />
-              <TabsPill value="qcRejected"label="Rejected"    count={stats.rejected}                                                     activeColor="data-[state=active]:bg-rose-600   data-[state=active]:text-white  dark:data-[state=active]:bg-rose-500" />
-              <TabsPill value="draft"     label="Draft"       count={stats.draft}                                                        activeColor="data-[state=active]:bg-slate-500  data-[state=active]:text-white  dark:data-[state=active]:bg-slate-500" />
-              <TabsPill value="submitted" label="Submitted"   count={stats.submitted}                                                    activeColor="data-[state=active]:bg-indigo-600 data-[state=active]:text-white dark:data-[state=active]:bg-indigo-500" />
+              <TabsPill
+                value="all"
+                label="All"
+                count={filteredByDate.length}
+                activeColor="data-[state=active]:bg-slate-700  data-[state=active]:text-white  dark:data-[state=active]:bg-slate-600"
+              />
+              <TabsPill
+                value="qcPending"
+                label="QC Pending"
+                count={stats.qcPending}
+                activeColor="data-[state=active]:bg-amber-500  data-[state=active]:text-white  dark:data-[state=active]:bg-amber-500"
+              />
+              <TabsPill
+                value="qcApproved"
+                label="Approved"
+                count={stats.approved}
+                activeColor="data-[state=active]:bg-emerald-600 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-500"
+              />
+              <TabsPill
+                value="qcRejected"
+                label="Rejected"
+                count={stats.rejected}
+                activeColor="data-[state=active]:bg-rose-600   data-[state=active]:text-white  dark:data-[state=active]:bg-rose-500"
+              />
+              <TabsPill
+                value="draft"
+                label="Draft"
+                count={stats.draft}
+                activeColor="data-[state=active]:bg-slate-500  data-[state=active]:text-white  dark:data-[state=active]:bg-slate-500"
+              />
+              <TabsPill
+                value="submitted"
+                label="Submitted"
+                count={stats.submitted}
+                activeColor="data-[state=active]:bg-indigo-600 data-[state=active]:text-white dark:data-[state=active]:bg-indigo-500"
+              />
             </TabsList>
           </Tabs>
         </div>

@@ -2,6 +2,7 @@
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useHasCapability } from "@/hooks/use-capability";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { useQuery } from "convex/react";
 
@@ -12,9 +13,10 @@ export function useDashboardCounts() {
 
 export function useStatsBreakdown(filters: { districtId?: string; municipalityId?: string; surveyorId?: string } = {}) {
   const ready = useConvexAuthReady();
+  const allowed = useHasCapability("analytics.view");
   return useQuery(
     api.analytics.surveyStatsBreakdown,
-    ready
+    ready && allowed
       ? {
           districtId: filters.districtId as Id<"districts"> | undefined,
           municipalityId: filters.municipalityId as Id<"municipalities"> | undefined,
@@ -27,9 +29,10 @@ export function useStatsBreakdown(filters: { districtId?: string; municipalityId
 /** Additive (analyticsTrends.ts) — daily survey/approval trend. */
 export function useDailyTrend(days = 30, filters: { districtId?: string; municipalityId?: string } = {}) {
   const ready = useConvexAuthReady();
+  const allowed = useHasCapability("analytics.view");
   return useQuery(
     api.analyticsTrends.dailyTrend,
-    ready
+    ready && allowed
       ? {
           days,
           districtId: filters.districtId as Id<"districts"> | undefined,
@@ -42,9 +45,10 @@ export function useDailyTrend(days = 30, filters: { districtId?: string; municip
 /** Additive (analyticsTrends.ts) — ward coverage. */
 export function useWardCoverage(filters: { districtId?: string; municipalityId?: string } = {}) {
   const ready = useConvexAuthReady();
+  const allowed = useHasCapability("analytics.view");
   return useQuery(
     api.analyticsTrends.wardCoverage,
-    ready
+    ready && allowed
       ? {
           districtId: filters.districtId as Id<"districts"> | undefined,
           municipalityId: filters.municipalityId as Id<"municipalities"> | undefined,

@@ -2,12 +2,14 @@
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useHasCapability } from "@/hooks/use-capability";
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { useMutation, useQuery } from "convex/react";
 import { useMemo } from "react";
 
 export function usePendingApprovals() {
-  return useQuery(api.admin.listPendingApprovals);
+  const allowed = useHasCapability("users.approve");
+  return useQuery(api.admin.listPendingApprovals, allowed ? {} : "skip");
 }
 
 export type UserListFilters = {
@@ -16,6 +18,7 @@ export type UserListFilters = {
 };
 
 export function useUserListPaginated(filters: UserListFilters = {}, pageSize = 15) {
+  const allowed = useHasCapability("users.view");
   const resetKey = `${filters.role ?? ""}|${filters.status ?? ""}`;
   const {
     cursor,
@@ -27,11 +30,10 @@ export function useUserListPaginated(filters: UserListFilters = {}, pageSize = 1
     pageNumber,
   } = useCursorPagination(resetKey, pageSize);
 
-  const result = useQuery(api.admin.listUsers, {
-    paginationOpts: { numItems: size, cursor },
-    role: filters.role,
-    status: filters.status,
-  });
+  const result = useQuery(
+    api.admin.listUsers,
+    allowed ? { paginationOpts: { numItems: size, cursor }, role: filters.role, status: filters.status } : "skip",
+  );
 
   const users = result?.page;
   const canGoNext = result ? !result.isDone : false;
@@ -73,5 +75,6 @@ export function useDisableUser() {
 }
 /** Catalog of districts/ULBs/wards for the approval & assignment forms. */
 export function useTenantCatalog() {
-  return useQuery(api.tenants.listForAdmin);
+  const allowed = useHasCapability("users.assignTenant");
+  return useQuery(api.tenants.listForAdmin, allowed ? {} : "skip");
 }
