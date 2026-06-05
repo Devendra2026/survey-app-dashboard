@@ -36,7 +36,8 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   }
 
   const locked = survey.qcStatus === "approved";
-  const canSubmit = survey.status === "draft" || survey.status === "rejected";
+  const canSubmit = survey.status === "draft" || survey.status === "rejected" || survey.status === "submitted";
+  const isResubmit = survey.status === "submitted";
 
   async function onSubmit() {
     if (!confirm("Submit this survey for QC review? You won't be able to edit it until it's reviewed.")) return;
@@ -58,27 +59,42 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
       fallback={<EmptyState title="Not permitted" description="You don't have permission to edit surveys." />}
     >
       <div className="space-y-5">
-        <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit">
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="w-fit rounded-full border-primary/30 bg-primary/5 px-4 text-primary hover:bg-primary/10"
+        >
           <Link href={`/surveys/${id}`}>
             <ArrowLeft className="h-4 w-4" /> Back to detail
           </Link>
         </Button>
 
-        <PageHeader
-          title={`Edit — ${survey.propertyId || `Parcel ${survey.parcelNo}`}`}
-          description={`${survey.city} · Ward ${survey.wardNo} · Use the tabs below to complete all sections before submitting.`}
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <SurveyStatusBadge status={survey.status} />
-              <QcStatusBadge status={survey.qcStatus} />
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/surveys/${id}`}>
-                  <Eye className="h-4 w-4" /> View detail
-                </Link>
-              </Button>
-            </div>
-          }
-        />
+        <div className="relative overflow-hidden rounded-2xl border border-amber-200/60 bg-linear-to-r from-amber-50 via-orange-50 to-yellow-50 px-6 py-5 shadow-sm dark:border-amber-800/30 dark:from-amber-950/50 dark:via-orange-950/40 dark:to-yellow-950/30">
+          {/* Decorative blobs */}
+          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-amber-300/20 blur-2xl dark:bg-amber-500/10" />
+          <div className="pointer-events-none absolute -bottom-8 left-1/3 h-24 w-24 rounded-full bg-orange-300/20 blur-2xl dark:bg-orange-500/10" />
+          <PageHeader
+            title={`Edit — ${survey.propertyId || `Parcel ${survey.parcelNo}`}`}
+            description={`${survey.city} · Ward ${survey.wardNo} · Complete all tabs before submitting.`}
+            actions={
+              <div className="flex flex-wrap items-center gap-2">
+                <SurveyStatusBadge status={survey.status} />
+                <QcStatusBadge status={survey.qcStatus} />
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full border-amber-300 bg-white/80 text-amber-800 shadow-sm hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                >
+                  <Link href={`/surveys/${id}`}>
+                    <Eye className="h-4 w-4" /> View detail
+                  </Link>
+                </Button>
+              </div>
+            }
+          />
+        </div>
 
         {locked ? (
           <EmptyState
@@ -98,6 +114,7 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
             showSubmitBar={canSubmit}
             onSubmit={onSubmit}
             submitting={submitting}
+            submitLabel={isResubmit ? "Save & Re-submit to QC" : undefined}
           />
         )}
       </div>

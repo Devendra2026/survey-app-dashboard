@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePhotos, useRemovePhotoSlot, useUploadPhoto } from "@/hooks/surveys/usePhotos";
-import { PHOTO_SLOTS, PHOTO_SLOT_LABEL, type PhotoSlot } from "@/lib/domain";
+import { PHOTO_SLOT_LABEL, type PhotoSlot } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
 import type { PhotoRow } from "@/schema/surveys/index";
 import { ImageOff, Loader2, Trash2, Upload } from "lucide-react";
@@ -12,6 +12,9 @@ import { toast } from "sonner";
 
 /** front + side are required at submit (see surveys.submit). */
 const REQUIRED: PhotoSlot[] = ["front", "side"];
+
+/** Only front and side are captured on the edit page; inside/document are legacy slots. */
+const EDIT_SLOTS: PhotoSlot[] = ["front", "side"];
 
 export function PhotoUploader({ surveyId }: { surveyId: string }) {
   const photos = usePhotos(surveyId) as PhotoRow[] | undefined;
@@ -34,8 +37,8 @@ export function PhotoUploader({ surveyId }: { surveyId: string }) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      {PHOTO_SLOTS.map((slot) => {
+    <div className="grid grid-cols-2 gap-4">
+      {EDIT_SLOTS.map((slot) => {
         const photo = photos?.find((p) => p.slot === slot);
         const required = REQUIRED.includes(slot);
         return (

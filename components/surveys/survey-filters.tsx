@@ -44,15 +44,15 @@ export function SurveyFilters({
     }
     const [yearRaw, monthRaw] = month.split("-");
     const year = Number(yearRaw);
-    const monthIndex = Number(monthRaw) - 1;
-    if (!year || Number.isNaN(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+    const monthNum = Number(monthRaw);
+    if (!year || Number.isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
       set({ month: undefined, fromDate: undefined, toDate: undefined });
       return;
     }
-    const from = new Date(year, monthIndex, 1);
-    const to = new Date(year, monthIndex + 1, 0);
-    const fromDate = from.toISOString().slice(0, 10);
-    const toDate = to.toISOString().slice(0, 10);
+    const mm = String(monthNum).padStart(2, "0");
+    const lastDay = new Date(year, monthNum, 0).getDate();
+    const fromDate = `${year}-${mm}-01`;
+    const toDate = `${year}-${mm}-${String(lastDay).padStart(2, "0")}`;
     set({ month, fromDate, toDate });
   };
 

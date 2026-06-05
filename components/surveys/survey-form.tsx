@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,15 +12,64 @@ import { formatPropertyId } from "@/lib/survey/area";
 import type { SurveyListItem } from "@/schema/surveys/index";
 import { surveyDraftSchema, type SurveyDraftValues } from "@/schema/surveys/surveySchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Save } from "lucide-react";
+import { Building2, Droplets, MapPinHouse, Receipt, Users } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/* ─── Section card colours ─────────────────────────────────────────── */
+const SECTION_STYLES = {
+  blue: {
+    border: "border-l-[3px] border-l-blue-500 dark:border-l-blue-400",
+    bg: "bg-blue-50/50 dark:bg-blue-950/20",
+    title: "text-blue-800 dark:text-blue-300",
+    icon: "text-blue-500 dark:text-blue-400",
+  },
+  violet: {
+    border: "border-l-[3px] border-l-violet-500 dark:border-l-violet-400",
+    bg: "bg-violet-50/50 dark:bg-violet-950/20",
+    title: "text-violet-800 dark:text-violet-300",
+    icon: "text-violet-500 dark:text-violet-400",
+  },
+  emerald: {
+    border: "border-l-[3px] border-l-emerald-500 dark:border-l-emerald-400",
+    bg: "bg-emerald-50/50 dark:bg-emerald-950/20",
+    title: "text-emerald-800 dark:text-emerald-300",
+    icon: "text-emerald-500 dark:text-emerald-400",
+  },
+  amber: {
+    border: "border-l-[3px] border-l-amber-500 dark:border-l-amber-400",
+    bg: "bg-amber-50/50 dark:bg-amber-950/20",
+    title: "text-amber-800 dark:text-amber-300",
+    icon: "text-amber-500 dark:text-amber-400",
+  },
+  cyan: {
+    border: "border-l-[3px] border-l-cyan-500 dark:border-l-cyan-400",
+    bg: "bg-cyan-50/50 dark:bg-cyan-950/20",
+    title: "text-cyan-800 dark:text-cyan-300",
+    icon: "text-cyan-500 dark:text-cyan-400",
+  },
+} as const;
+
+function Section({
+  title,
+  children,
+  color,
+  icon,
+}: {
+  title: string;
+  children: React.ReactNode;
+  color: keyof typeof SECTION_STYLES;
+  icon: React.ReactNode;
+}) {
+  const s = SECTION_STYLES[color];
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
+    <Card className={`${s.border} ${s.bg} shadow-sm`}>
+      <CardHeader className="pb-3">
+        <CardTitle className={`flex items-center gap-2 text-base font-semibold ${s.title}`}>
+          <span className={s.icon}>{icon}</span>
+          {title}
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</CardContent>
     </Card>
@@ -37,11 +85,13 @@ export function SurveyForm({
   municipalityId,
   existing,
   onSaved,
+  onRegisterSave,
 }: {
   localId: string;
   municipalityId?: string;
   existing?: SurveyListItem | null;
   onSaved?: (surveyId: string) => void;
+  onRegisterSave?: (fn: () => Promise<boolean>) => void;
 }) {
   const { masters } = useMasters();
   const saveDraft = useSaveDraft();
@@ -52,7 +102,7 @@ export function SurveyForm({
     control,
     watch,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<SurveyDraftValues>({
     resolver: zodResolver(surveyDraftSchema),
     defaultValues: {
@@ -92,6 +142,51 @@ export function SurveyForm({
     } as Partial<SurveyDraftValues> as SurveyDraftValues,
   });
 
+  /* Keep refs fresh so the registered save fn never has a stale closure */
+  const saveDraftRef = useRef(saveDraft);
+  saveDraftRef.current = saveDraft;
+  const setErrorRef = useRef(setError);
+  setErrorRef.current = setError;
+  const onSavedRef = useRef(onSaved);
+  onSavedRef.current = onSaved;
+
+  /* Expose an imperative save() to the parent editor */
+  useEffect(() => {
+    if (!onRegisterSave) return;
+    onRegisterSave(
+      () =>
+        new Promise<boolean>((resolve) => {
+          handleSubmit(
+            async (values) => {
+              try {
+                const id = await saveDraftRef.current({ ...values, clientUpdatedAt: Date.now() } as any);
+                toast.success("Details saved");
+                onSavedRef.current?.(id as unknown as string);
+                resolve(true);
+              } catch (e) {
+                const parsed = applyServerFieldErrors(e, setErrorRef.current as any);
+                toast.error(parsed.message);
+                resolve(false);
+              }
+            },
+            () => resolve(false),
+          )();
+        }),
+    );
+  }, [onRegisterSave, handleSubmit]);
+
+  /* Called when the user presses Enter inside a field (form's own submit) */
+  async function onSubmit(values: SurveyDraftValues) {
+    try {
+      const id = await saveDraftRef.current({ ...values, clientUpdatedAt: Date.now() } as any);
+      toast.success("Details saved");
+      onSavedRef.current?.(id as unknown as string);
+    } catch (e) {
+      const parsed = applyServerFieldErrors(e, setErrorRef.current as any);
+      toast.error(parsed.message);
+    }
+  }
+
   const muniId = watch("municipalityId");
   const wards = useWardsForMunicipality(muniId);
   const propertyUse = watch("propertyUse");
@@ -106,17 +201,6 @@ export function SurveyForm({
       parcelNo: parcelNo ?? "",
       propertyUse: propertyUse ?? "",
     }) ?? existing?.propertyId;
-
-  async function onSubmit(values: SurveyDraftValues) {
-    try {
-      const id = await saveDraft({ ...values, clientUpdatedAt: Date.now() } as any);
-      toast.success("Draft saved");
-      onSaved?.(id as unknown as string);
-    } catch (e) {
-      const parsed = applyServerFieldErrors(e, setError as any);
-      toast.error(parsed.message);
-    }
-  }
 
   const sel = (name: keyof SurveyDraftValues, options: { value: string; label: string }[], placeholder: string) => (
     <Controller
@@ -141,7 +225,7 @@ export function SurveyForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <Section title="Tenant & Property">
+      <Section title="Tenant & Property" color="blue" icon={<Building2 className="h-4 w-4" />}>
         <div className="space-y-1.5">
           <Label>Municipality (ULB)</Label>
           {sel(
@@ -166,7 +250,7 @@ export function SurveyForm({
             readOnly
             value={previewPropertyId ?? ""}
             placeholder="Auto-generated after ward, parcel & property use"
-            className="font-mono bg-muted/50"
+            className="bg-muted/50 font-mono"
           />
           <p className="text-xs text-muted-foreground">
             Format: ULB (6 digits) – Ward (3 digits) – Parcel (5 digits) – Use code, e.g. 800828-001-00001-P
@@ -205,7 +289,7 @@ export function SurveyForm({
         </div>
       </Section>
 
-      <Section title="Owner">
+      <Section title="Owner" color="violet" icon={<Users className="h-4 w-4" />}>
         <div className="space-y-1.5">
           <Label>Respondent name</Label>
           <Input {...register("respondentName")} />
@@ -227,11 +311,10 @@ export function SurveyForm({
         <div className="space-y-1.5">
           <Label>Alt mobile</Label>
           <Input {...register("altMobileNo")} />
-          <FieldErr msg={errors.altMobileNo?.message} />
         </div>
       </Section>
 
-      <Section title="Address">
+      <Section title="Address" color="emerald" icon={<MapPinHouse className="h-4 w-4" />}>
         <div className="space-y-1.5">
           <Label>House No</Label>
           <Input {...register("houseNo")} />
@@ -244,16 +327,14 @@ export function SurveyForm({
         <div className="space-y-1.5">
           <Label>Colony name</Label>
           <Input {...register("colonyName")} />
-          <FieldErr msg={errors.colonyName?.message} />
         </div>
         <div className="space-y-1.5">
           <Label>PIN code</Label>
           <Input {...register("pinCode")} />
-          <FieldErr msg={errors.pinCode?.message} />
         </div>
       </Section>
 
-      <Section title="Taxation">
+      <Section title="Taxation" color="amber" icon={<Receipt className="h-4 w-4" />}>
         <div className="space-y-1.5">
           <Label>Assessment year</Label>
           {sel("assessmentYear", masters?.assessmentYears ?? [], "Select")}
@@ -262,36 +343,30 @@ export function SurveyForm({
         <div className="space-y-1.5">
           <Label>Ownership type</Label>
           {sel("ownershipType", masters?.ownershipTypes ?? [], "Select")}
-          <FieldErr msg={errors.ownershipType?.message} />
         </div>
         <div className="space-y-1.5">
           <Label>Property use</Label>
           {sel("propertyUse", masters?.propertyUses ?? [], "Select")}
-          <FieldErr msg={errors.propertyUse?.message} />
         </div>
         <div className="space-y-1.5">
           <Label>Property type / subcategory</Label>
           {sel("propertyType", subcats, subcats.length ? "Select" : "Pick a property use first")}
-          <FieldErr msg={errors.propertyType?.message} />
         </div>
         <div className="space-y-1.5">
           <Label>Situation</Label>
           {sel("situation", masters?.situations ?? [], "Select")}
-          <FieldErr msg={errors.situation?.message} />
         </div>
         <div className="space-y-1.5">
           <Label>Road type</Label>
           {sel("roadType", masters?.roadTypes ?? [], "Select")}
-          <FieldErr msg={errors.roadType?.message} />
         </div>
         <div className="space-y-1.5">
           <Label>Tax rate zone</Label>
           {sel("taxRateZone", masters?.taxRateZones ?? [], "Select")}
-          <FieldErr msg={errors.taxRateZone?.message} />
         </div>
       </Section>
 
-      <Section title="Services">
+      <Section title="Services" color="cyan" icon={<Droplets className="h-4 w-4" />}>
         <div className="flex items-center gap-2 pt-6">
           <Controller
             control={control}
@@ -308,7 +383,6 @@ export function SurveyForm({
         <div className="space-y-1.5">
           <Label>Sanitation type</Label>
           {sel("sanitationType", masters?.sanitationTypes ?? [], "Select")}
-          <FieldErr msg={errors.sanitationType?.message} />
         </div>
         <div className="flex items-center gap-2 pt-6">
           <Controller
@@ -320,11 +394,7 @@ export function SurveyForm({
         </div>
       </Section>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isSubmitting}>
-          <Save className="h-4 w-4" /> {isSubmitting ? "Saving…" : "Save draft"}
-        </Button>
-      </div>
+      {/* No visible save button — parent editor triggers save via onRegisterSave */}
     </form>
   );
 }

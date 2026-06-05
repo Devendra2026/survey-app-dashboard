@@ -49,7 +49,7 @@ export type Capability =
 const MATRIX: Record<Role, Capability[]> = {
   pending: [],
 
-  surveyor: ["surveys.viewOwn", "surveys.editDraft", "surveys.submit", "surveys.uploadPhotos", "surveys.delete"],
+  surveyor: ["surveys.viewOwn", "surveys.editDraft", "surveys.submit", "surveys.uploadPhotos"],
 
   supervisor: [
     "surveys.viewAssigned",
