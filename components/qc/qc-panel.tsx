@@ -9,12 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAddRemark, useDecide, useQcRemarks, useReopen } from "@/hooks/qc/useQc";
 import { parseConvexError } from "@/lib/errors";
 import { QC_TAGGABLE_SECTIONS } from "@/schema/qc/index";
+import type { SurveyListItem } from "@/schema/surveys/index";
 import { CheckCircle2, Lock, MessageSquarePlus, Pencil, Unlock, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export function QcPanel({ survey }: { survey: { _id: string; status: string; qcStatus: string } }) {
+export function QcPanel({ survey }: { survey: Pick<SurveyListItem, "_id" | "status" | "qcStatus"> }) {
   const remarks = useQcRemarks(survey._id);
   const decide = useDecide();
   const addRemark = useAddRemark();
@@ -94,7 +95,7 @@ export function QcPanel({ survey }: { survey: { _id: string; status: string; qcS
               placeholder="Comment / correction note (required for reject & correction)…"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="min-h-[88px] rounded-xl border-amber-200/60 bg-background dark:border-amber-800/40"
+              className="min-h-22 rounded-xl border-amber-200/60 bg-background dark:border-amber-800/40"
             />
             <div className="flex flex-col gap-2">
               {isPending && (
