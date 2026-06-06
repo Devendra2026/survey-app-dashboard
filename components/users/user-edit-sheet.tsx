@@ -372,7 +372,7 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
 
   const roleChanged = role !== user.role;
   const muniChanged = municipalityId !== (user.municipalityId ?? "");
-  const wardsChanged = [...wards].sort().join() !== [...(user.wardAssignments ?? [])].sort().join();
+  const wardsChanged = wards.toSorted().join() !== (user.wardAssignments ?? []).toSorted().join();
   const dirty = roleChanged || muniChanged || wardsChanged;
 
   async function onToggleStatus() {

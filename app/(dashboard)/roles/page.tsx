@@ -201,7 +201,7 @@ function PermissionMatrix({
       const cat = permissionCategories.get(key) ?? "other";
       map.set(cat, [...(map.get(cat) ?? []), key]);
     }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+    return Array.from(map.entries()).toSorted(([a], [b]) => a.localeCompare(b));
   }, [role.permissionKeys, permissionCategories]);
 
   if (byCategory.length === 0) {
@@ -389,7 +389,7 @@ function RoleEditPanel({
   const dirty =
     name !== role.name ||
     description !== (role.description ?? "") ||
-    perms.join() !== [...role.permissionKeys].sort().join();
+    perms.join() !== role.permissionKeys.toSorted().join();
 
   return (
     <div className="flex h-full flex-col">
@@ -597,7 +597,7 @@ export default function RolesPage() {
     const filtered = q
       ? roles.filter((r) => r.name.toLowerCase().includes(q) || r.key.toLowerCase().includes(q))
       : roles;
-    return [...filtered].sort((a, b) => Number(b.isSystem) - Number(a.isSystem) || a.name.localeCompare(b.name));
+    return filtered.toSorted((a, b) => Number(b.isSystem) - Number(a.isSystem) || a.name.localeCompare(b.name));
   }, [roles, search]);
 
   const systemRoles = sorted?.filter((r) => r.isSystem) ?? [];

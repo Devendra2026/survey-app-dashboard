@@ -73,7 +73,7 @@ function RoleCard({
       const cat = permissionCategories.get(key) ?? "other";
       map.set(cat, [...(map.get(cat) ?? []), key]);
     }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+    return Array.from(map.entries()).toSorted(([a], [b]) => a.localeCompare(b));
   }, [role.permissionKeys, permissionCategories]);
 
   const accent = ROLE_ACCENT[role.key] ?? "border-l-muted-foreground/40 bg-muted/20";
@@ -188,7 +188,7 @@ export function RolesList({ roles, permissionLabels, permissionCategories, onTog
   const sorted = useMemo(
     () =>
       roles
-        ? [...roles].sort((a, b) => Number(b.isSystem) - Number(a.isSystem) || a.name.localeCompare(b.name))
+        ? roles.toSorted((a, b) => Number(b.isSystem) - Number(a.isSystem) || a.name.localeCompare(b.name))
         : undefined,
     [roles],
   );

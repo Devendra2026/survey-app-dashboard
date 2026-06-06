@@ -42,6 +42,16 @@ const PHOTO_LABEL: Record<PhotoSlot, string> = {
   document: "Document",
 };
 
+const DETAIL_PHOTO_SLOT_ORDER: PhotoSlot[] = ["front", "side", "inside", "document"];
+
+const AREA_METRIC_CARD_STYLES = {
+  blue: "border-blue-200/60   bg-blue-50/60   text-blue-800   dark:border-blue-800/40   dark:bg-blue-950/30   dark:text-blue-300",
+  violet:
+    "border-violet-200/60 bg-violet-50/60 text-violet-800 dark:border-violet-800/40 dark:bg-violet-950/30 dark:text-violet-300",
+  emerald:
+    "border-emerald-200/60 bg-emerald-50/60 text-emerald-800 dark:border-emerald-800/40 dark:bg-emerald-950/30 dark:text-emerald-300",
+} as const;
+
 /* ─── Section colour palette ────────────────────────────────────── */
 const SC = {
   blue: {
@@ -230,15 +240,8 @@ function AreaMetricCard({
   sqm: string;
   color: "blue" | "violet" | "emerald";
 }) {
-  const styles = {
-    blue: "border-blue-200/60   bg-blue-50/60   text-blue-800   dark:border-blue-800/40   dark:bg-blue-950/30   dark:text-blue-300",
-    violet:
-      "border-violet-200/60 bg-violet-50/60 text-violet-800 dark:border-violet-800/40 dark:bg-violet-950/30 dark:text-violet-300",
-    emerald:
-      "border-emerald-200/60 bg-emerald-50/60 text-emerald-800 dark:border-emerald-800/40 dark:bg-emerald-950/30 dark:text-emerald-300",
-  };
   return (
-    <div className={`rounded-xl border p-3 ${styles[color]}`}>
+    <div className={`rounded-xl border p-3 ${AREA_METRIC_CARD_STYLES[color]}`}>
       <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">{label}</p>
       <p className="mt-1.5 text-xl font-black tabular-nums leading-none">
         {sqft > 0 ? sqft.toLocaleString("en-IN") : "—"}
@@ -383,8 +386,7 @@ function AuditTable({ audit, propertyId }: { audit: any[]; propertyId?: string }
 
 /* ─── Photo slots ───────────────────────────────────────────────── */
 function DetailPhotoSlots({ photos, uploaderName }: { photos: SurveyDetail["photos"]; uploaderName?: string }) {
-  const slots: PhotoSlot[] = ["front", "side", "inside", "document"];
-  const uploadedCount = slots.filter((s) => photos.find((p) => p.slot === s)?.url).length;
+  const uploadedCount = DETAIL_PHOTO_SLOT_ORDER.filter((s) => photos.find((p) => p.slot === s)?.url).length;
   return (
     <div className="space-y-4">
       {/* Progress bar */}
@@ -395,20 +397,20 @@ function DetailPhotoSlots({ photos, uploaderName }: { photos: SurveyDetail["phot
               Photos uploaded
             </p>
             <span className="text-xs font-bold text-purple-700 dark:text-purple-300">
-              {uploadedCount}/{slots.length}
+              {uploadedCount}/{DETAIL_PHOTO_SLOT_ORDER.length}
             </span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-purple-100 dark:bg-purple-900/30">
             <div
               className="h-full rounded-full bg-linear-to-r from-purple-500 to-violet-500 transition-all"
-              style={{ width: `${(uploadedCount / slots.length) * 100}%` }}
+              style={{ width: `${(uploadedCount / DETAIL_PHOTO_SLOT_ORDER.length) * 100}%` }}
             />
           </div>
         </div>
       </div>
       {/* Photo grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {slots.map((slot) => {
+        {DETAIL_PHOTO_SLOT_ORDER.map((slot) => {
           const photo = photos.find((p) => p.slot === slot);
           const required = slot === "front" || slot === "side";
           return (
@@ -531,7 +533,10 @@ export function SurveyDetailView({
             value={survey.mobileNo ? `+91 ${survey.mobileNo.replace(/^\+?91/, "")}` : undefined}
           />
           <DetailField label="Family Size" value={survey.familySize} />
-          <DetailField label="Relationship w/ Owner" value={labelFromOptions(masters?.relationships, survey.relationship)} />
+          <DetailField
+            label="Relationship w/ Owner"
+            value={labelFromOptions(masters?.relationships, survey.relationship)}
+          />
           <DetailField label="Alt Mobile" value={survey.altMobileNo} />
           <DetailField label="Father / Husband Name" value={owners[0]?.fatherOrHusbandName} />
         </FieldGrid>
@@ -635,7 +640,10 @@ export function SurveyDetailView({
         <FieldGrid cols={2}>
           <DetailField label="Water Connection" value={survey.municipalWaterConnection ? "Yes" : "No"} />
           <DetailField label="Source of Water" value={labelFromOptions(masters?.waterSources, survey.waterSource)} />
-          <DetailField label="Sanitation Type" value={labelFromOptions(masters?.sanitationTypes, survey.sanitationType)} />
+          <DetailField
+            label="Sanitation Type"
+            value={labelFromOptions(masters?.sanitationTypes, survey.sanitationType)}
+          />
           <DetailField label="Door-to-door Collection" value={survey.municipalWasteCollection ? "Yes" : "No"} />
           <DetailField label="Electricity Consumer No" value={survey.electricityNo} />
         </FieldGrid>

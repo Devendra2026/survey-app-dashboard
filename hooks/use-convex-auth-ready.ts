@@ -1,9 +1,12 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useConvexAuth } from "convex/react";
 
-/** True when Clerk is loaded and the user is signed in — use to skip Convex queries until JWT is available. */
+/**
+ * True when Convex has a valid auth token — use to skip queries/mutations until
+ * the Clerk JWT is synced (Clerk `isSignedIn` alone can be true slightly earlier).
+ */
 export function useConvexAuthReady(): boolean {
-  const { isLoaded, isSignedIn } = useAuth();
-  return isLoaded === true && isSignedIn === true;
+  const { isLoading, isAuthenticated } = useConvexAuth();
+  return !isLoading && isAuthenticated;
 }

@@ -27,7 +27,7 @@ export async function permissionsForRole(ctx: Ctx, roleKey: string): Promise<Set
 
 export async function userCapabilities(ctx: Ctx, user: Doc<"users">): Promise<string[]> {
   const perms = await permissionsForRole(ctx, user.role);
-  return [...perms].sort();
+  return Array.from(perms).toSorted();
 }
 
 export async function hasCapability(ctx: Ctx, user: Doc<"users">, capability: string): Promise<boolean> {

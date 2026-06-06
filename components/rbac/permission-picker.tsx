@@ -49,7 +49,7 @@ export function PermissionPicker({
       list.push(p);
       byCategory.set(p.category, list);
     }
-    return [...byCategory.entries()].sort(([a], [b]) => a.localeCompare(b));
+    return Array.from(byCategory.entries()).toSorted(([a], [b]) => a.localeCompare(b));
   }, [permissions, search]);
 
   function toggle(key: string) {
