@@ -34,19 +34,21 @@ export const bundle = query({
   handler: async (ctx) => {
     const me = await requireUser(ctx);
 
-    // Dropdown masters — by_category_position index for grouped iteration
-    const masters = await ctx.db
-      .query("masters")
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .collect();
+    const [masters, { districts: visibleDistricts, municipalities: visibleMunis }, wards] = await Promise.all([
+      // Dropdown masters — by_category_position index for grouped iteration
+      ctx.db
+        .query("masters")
+        .filter((q) => q.eq(q.field("isActive"), true))
+        .collect(),
+      resolveTenantScope(ctx, me),
+      ctx.db.query("wards").collect(),
+    ]);
     const groupedRaw: Record<string, Option[]> = {};
     for (const m of masters.sort((a, b) => a.position - b.position)) {
       groupedRaw[m.category] = groupedRaw[m.category] ?? [];
       groupedRaw[m.category]!.push({ value: m.value, label: m.label });
     }
     const grouped = groupedRaw;
-
-    const { districts: visibleDistricts, municipalities: visibleMunis } = await resolveTenantScope(ctx, me);
     const districtsById = new Map(visibleDistricts.map((d) => [d._id, d]));
 
     const districtsOut = visibleDistricts.map((d) => ({
@@ -71,7 +73,6 @@ export const bundle = query({
       };
     });
 
-    const wards = await ctx.db.query("wards").collect();
     const wardsForUser = wards.filter((w) => visibleMunis.some((m) => m._id === w.municipalityId));
     const muniById = new Map(visibleMunis.map((m) => [m._id, m]));
 
@@ -120,8 +121,10 @@ export const wardsForMunicipality = query({
   args: { municipalityId: v.id("municipalities") },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    const muni = await assertMunicipalityInScope(ctx, me, args.municipalityId);
-    const rows = await ctx.db.query("wards").collect();
+    const [muni, rows] = await Promise.all([
+      assertMunicipalityInScope(ctx, me, args.municipalityId),
+      ctx.db.query("wards").collect(),
+    ]);
     return rows
       .filter((w) => w.municipalityId === args.municipalityId)
       .sort((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }))
@@ -166,8 +169,7 @@ export const unreadCount = query({
 export const markRead = mutation({
   args: { id: v.id("notifications") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const n = await ctx.db.get(args.id);
+    const [me, n] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
     if (!n || n.userId !== me._id) return;
     if (n.readAt) return;
     await ctx.db.patch(args.id, { readAt: Date.now() });

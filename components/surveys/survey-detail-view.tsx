@@ -32,6 +32,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import Image from "next/image";
 
 /* ─── Photo slot labels ─────────────────────────────────────────── */
 const PHOTO_LABEL: Record<PhotoSlot, string> = {
@@ -172,25 +173,27 @@ function OccupancyBadge({ usageType }: { usageType: string }) {
 function GisPanel({ gps }: { gps: NonNullable<SurveyDetail["gps"]> }) {
   const lat = gps.latitude;
   const lng = gps.longitude;
-  const googleEmbedUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=18&output=embed`;
   const accuracyOk = gps.accuracyMeters <= GPS_ACCEPT_MAX_ACCURACY_METERS;
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/60">
-      <div className="relative aspect-video w-full overflow-hidden bg-muted">
-        <iframe
-          title="Property location map"
-          src={googleEmbedUrl}
-          className="h-full w-full border-0"
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-        />
+      <a
+        href={`https://www.google.com/maps?q=${lat},${lng}`}
+        target="_blank"
+        rel="noreferrer"
+        className="relative flex aspect-video w-full flex-col items-center justify-center gap-2 bg-muted/50 transition-colors hover:bg-muted"
+      >
+        <MapPin className="h-10 w-10 text-primary/70" />
+        <span className="text-sm font-semibold text-primary">Open location in Google Maps</span>
+        <span className="font-mono text-xs text-muted-foreground">
+          {lat.toFixed(6)}, {lng.toFixed(6)}
+        </span>
         <div className="absolute left-3 top-3">
           <Badge variant={accuracyOk ? "default" : "destructive"} className="font-mono text-[10px] uppercase shadow-sm">
             ±{gps.accuracyMeters.toFixed(1)} m
           </Badge>
         </div>
-      </div>
+      </a>
       <div className="grid grid-cols-3 divide-x divide-border/50 border-t border-border/50 bg-card">
         <div className="px-3 py-2.5">
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Latitude</p>
@@ -421,11 +424,13 @@ function DetailPhotoSlots({ photos, uploaderName }: { photos: SurveyDetail["phot
             >
               <div className="relative aspect-4/3 w-full overflow-hidden bg-muted/50">
                 {photo?.url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={photo.url}
                     alt={PHOTO_LABEL[slot]}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    fill
+                    unoptimized
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -486,7 +491,6 @@ export function SurveyDetailView({
     (d: { _id: string }) => d._id === (survey as { districtId?: string }).districtId,
   );
   const progress = surveyCompletionPercent(survey);
-  const lbl = (opts: { value: string; label: string }[] | undefined, v?: string) => labelFromOptions(opts, v);
   const propertyTypeOptions = survey.propertyUse ? masters?.propertyUseSubcategories?.[survey.propertyUse] : undefined;
 
   return (
@@ -527,7 +531,7 @@ export function SurveyDetailView({
             value={survey.mobileNo ? `+91 ${survey.mobileNo.replace(/^\+?91/, "")}` : undefined}
           />
           <DetailField label="Family Size" value={survey.familySize} />
-          <DetailField label="Relationship w/ Owner" value={lbl(masters?.relationships, survey.relationship)} />
+          <DetailField label="Relationship w/ Owner" value={labelFromOptions(masters?.relationships, survey.relationship)} />
           <DetailField label="Alt Mobile" value={survey.altMobileNo} />
           <DetailField label="Father / Husband Name" value={owners[0]?.fatherOrHusbandName} />
         </FieldGrid>
@@ -552,8 +556,11 @@ export function SurveyDetailView({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {owners.map((o, i) => (
-                  <TableRow key={i} className="border-b border-border/40 last:border-b-0">
+                {owners.map((o) => (
+                  <TableRow
+                    key={`${o.name}-${o.mobileNo}-${o.fatherOrHusbandName}`}
+                    className="border-b border-border/40 last:border-b-0"
+                  >
                     <PropertyIdTableCell propertyId={propertyId} />
                     <TableCell className="font-medium">{o.name || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{o.fatherOrHusbandName || "—"}</TableCell>
@@ -595,12 +602,12 @@ export function SurveyDetailView({
       <SectionCard title="Taxation & Usage" icon={<Receipt className="h-4 w-4" />} color="amber">
         <FieldGrid>
           <DetailField label="Assessment Year" value={survey.assessmentYear} />
-          <DetailField label="Ownership Type" value={lbl(masters?.ownershipTypes, survey.ownershipType)} />
-          <DetailField label="Property Use" value={lbl(masters?.propertyUses, survey.propertyUse)} />
-          <DetailField label="Property Type" value={lbl(propertyTypeOptions, survey.propertyType)} />
-          <DetailField label="Situation" value={lbl(masters?.situations, survey.situation)} />
-          <DetailField label="Road Type" value={lbl(masters?.roadTypes, survey.roadType)} />
-          <DetailField label="Tax Rate Zone" value={lbl(masters?.taxRateZones, survey.taxRateZone)} />
+          <DetailField label="Ownership Type" value={labelFromOptions(masters?.ownershipTypes, survey.ownershipType)} />
+          <DetailField label="Property Use" value={labelFromOptions(masters?.propertyUses, survey.propertyUse)} />
+          <DetailField label="Property Type" value={labelFromOptions(propertyTypeOptions, survey.propertyType)} />
+          <DetailField label="Situation" value={labelFromOptions(masters?.situations, survey.situation)} />
+          <DetailField label="Road Type" value={labelFromOptions(masters?.roadTypes, survey.roadType)} />
+          <DetailField label="Tax Rate Zone" value={labelFromOptions(masters?.taxRateZones, survey.taxRateZone)} />
         </FieldGrid>
       </SectionCard>
 
@@ -627,8 +634,8 @@ export function SurveyDetailView({
       <SectionCard title="Municipal Services" icon={<Zap className="h-4 w-4" />} color="cyan">
         <FieldGrid cols={2}>
           <DetailField label="Water Connection" value={survey.municipalWaterConnection ? "Yes" : "No"} />
-          <DetailField label="Source of Water" value={lbl(masters?.waterSources, survey.waterSource)} />
-          <DetailField label="Sanitation Type" value={lbl(masters?.sanitationTypes, survey.sanitationType)} />
+          <DetailField label="Source of Water" value={labelFromOptions(masters?.waterSources, survey.waterSource)} />
+          <DetailField label="Sanitation Type" value={labelFromOptions(masters?.sanitationTypes, survey.sanitationType)} />
           <DetailField label="Door-to-door Collection" value={survey.municipalWasteCollection ? "Yes" : "No"} />
           <DetailField label="Electricity Consumer No" value={survey.electricityNo} />
         </FieldGrid>

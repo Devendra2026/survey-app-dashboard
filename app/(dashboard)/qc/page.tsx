@@ -10,7 +10,7 @@ import { useMasters } from "@/hooks/masters/useMasters";
 import { searchSurveys, useSurveyList } from "@/hooks/surveys/useSurveys";
 import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
 import { BarChart3, CheckCircle2, ClipboardCheck, Clock3, Filter, TrendingDown } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 interface StatCardProps {
   title: string;
@@ -71,6 +71,19 @@ export default function QcQueuePage() {
   const [activeTab, setActiveTab] = useState("pending");
   const [pageNumber, setPageNumber] = useState(1);
 
+  const handleFiltersChange = (next: FilterState) => {
+    setFilters(next);
+    setPageNumber(1);
+  };
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setPageNumber(1);
+  };
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setPageNumber(1);
+  };
+
   const listFilters = useMemo(
     () => ({
       wardNo: filters.wardNo,
@@ -98,19 +111,14 @@ export default function QcQueuePage() {
     [filters.toDate],
   );
 
-  const inDateRange = (ts: number) => {
-    if (fromDateMs !== undefined && ts < fromDateMs) return false;
-    if (toDateMs !== undefined && ts > toDateMs) return false;
-    return true;
-  };
-
   const filteredByDate = useMemo(
     () =>
       (filtered ?? []).filter((r) => {
         const ts = r.submittedAt ?? r._creationTime;
-        return inDateRange(ts);
+        if (fromDateMs !== undefined && ts < fromDateMs) return false;
+        if (toDateMs !== undefined && ts > toDateMs) return false;
+        return true;
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [filtered, fromDateMs, toDateMs],
   );
 
@@ -121,10 +129,6 @@ export default function QcQueuePage() {
     if (activeTab === "rejected") return rows.filter((r) => r.qcStatus === "rejected");
     return rows.filter((r) => r.status !== "draft" || r.qcStatus !== "pending");
   }, [filteredByDate, activeTab]);
-
-  useEffect(() => {
-    setPageNumber(1);
-  }, [filters, activeTab, pageSize]);
 
   const pageStart = (pageNumber - 1) * pageSize;
   const pagedRows = useMemo(
@@ -243,7 +247,7 @@ export default function QcQueuePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <SurveyFilters value={filters} onChange={setFilters} showStatus={false} showQcStatus={false} />
+            <SurveyFilters value={filters} onChange={handleFiltersChange} showStatus={false} showQcStatus={false} />
           </CardContent>
         </Card>
 
@@ -260,7 +264,7 @@ export default function QcQueuePage() {
           </div>
 
           <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5 dark:bg-muted/10">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
                 <TabPill
                   value="pending"
@@ -306,7 +310,7 @@ export default function QcQueuePage() {
           onPrev={() => setPageNumber((p) => Math.max(1, p - 1))}
           onNext={() => setPageNumber((p) => (canGoNext ? p + 1 : p))}
           pageSizeOptions={[10, 20, 50, 100]}
-          onPageSizeChange={setPageSize}
+          onPageSizeChange={handlePageSizeChange}
         />
       </div>
     </RoleGate>

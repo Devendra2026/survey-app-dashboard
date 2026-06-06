@@ -68,6 +68,7 @@ export function Topbar() {
               )}
               {notifications?.map((n: any) => (
                 <button
+                  type="button"
                   key={n._id}
                   onClick={() => !n.readAt && markRead({ id: n._id })}
                   className={`block w-full px-3 py-2.5 text-left hover:bg-accent ${n.readAt ? "opacity-60" : ""}`}

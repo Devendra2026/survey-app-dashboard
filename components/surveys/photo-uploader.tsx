@@ -7,6 +7,7 @@ import { PHOTO_SLOT_LABEL, type PhotoSlot } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
 import type { PhotoRow } from "@/schema/surveys/index";
 import { ImageOff, Loader2, Trash2, Upload } from "lucide-react";
+import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -49,8 +50,14 @@ export function PhotoUploader({ surveyId }: { surveyId: string }) {
             </div>
             <div className="relative mb-2 aspect-4/3 w-full overflow-hidden rounded-md bg-muted">
               {photo?.url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={photo.url} alt={slot} className="h-full w-full object-cover" />
+                <Image
+                  src={photo.url}
+                  alt={slot}
+                  fill
+                  unoptimized
+                  sizes="(max-width: 640px) 50vw, 50vw"
+                  className="object-cover"
+                />
               ) : (
                 <div className="flex h-full items-center justify-center text-muted-foreground">
                   <ImageOff className="h-5 w-5" />

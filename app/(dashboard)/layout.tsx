@@ -6,8 +6,6 @@ import { useCurrentUser } from "@/lib/session";
 import { useAuth } from "@clerk/nextjs";
 import { Authenticated, AuthLoading } from "convex/react";
 import { Clock, Loader2, ShieldX } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 
 function AccountGate({ children }: { children: React.ReactNode }) {
   const { user, isLoading, isPending, isDisabled } = useCurrentUser();
@@ -87,13 +85,6 @@ function AuthSpinner() {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace("/sign-in");
-    }
-  }, [isLoaded, isSignedIn, router]);
 
   if (!isLoaded || !isSignedIn) {
     return <AuthSpinner />;

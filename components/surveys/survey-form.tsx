@@ -153,6 +153,7 @@ export function SurveyForm({
   /* Expose an imperative save() to the parent editor */
   useEffect(() => {
     if (!onRegisterSave) return;
+    // react-doctor-disable-next-line react-doctor/no-pass-data-to-parent, react-doctor/no-prop-callback-in-effect -- parent registers save handler once on mount
     onRegisterSave(
       () =>
         new Promise<boolean>((resolve) => {

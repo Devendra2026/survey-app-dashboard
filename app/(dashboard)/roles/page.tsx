@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -111,9 +110,7 @@ function RoleItem({ role, selected, onClick }: { role: RoleRow; selected: boolea
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {role.name}
-              </span>
+              <span className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{role.name}</span>
               <span className="shrink-0 rounded bg-slate-200 px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                 SYS
               </span>
@@ -128,7 +125,12 @@ function RoleItem({ role, selected, onClick }: { role: RoleRow; selected: boolea
               <span className="ml-1.5 font-sans not-italic">· {role.permissionKeys.length} perms</span>
             </p>
           </div>
-          <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600", selected && "text-slate-500 dark:text-slate-400")} />
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600",
+              selected && "text-slate-500 dark:text-slate-400",
+            )}
+          />
         </div>
       </button>
     );
@@ -152,7 +154,12 @@ function RoleItem({ role, selected, onClick }: { role: RoleRow; selected: boolea
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className={cn("truncate text-sm font-semibold", selected ? "text-violet-700 dark:text-violet-300" : "text-foreground")}>
+            <span
+              className={cn(
+                "truncate text-sm font-semibold",
+                selected ? "text-violet-700 dark:text-violet-300" : "text-foreground",
+              )}
+            >
               {role.name}
             </span>
             <span className="shrink-0 rounded bg-violet-100 px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-600 dark:bg-violet-500/20 dark:text-violet-400">
@@ -169,7 +176,9 @@ function RoleItem({ role, selected, onClick }: { role: RoleRow; selected: boolea
             <span className="ml-1.5 font-sans not-italic">· {role.permissionKeys.length} perms</span>
           </p>
         </div>
-        <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/40", selected && "text-violet-500 opacity-100")} />
+        <ChevronRight
+          className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/40", selected && "text-violet-500 opacity-100")}
+        />
       </div>
     </button>
   );
@@ -206,10 +215,7 @@ function PermissionMatrix({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {byCategory.map(([cat, keys]) => (
-        <div
-          key={cat}
-          className="rounded-xl border border-border bg-muted/20 p-3"
-        >
+        <div key={cat} className="rounded-xl border border-border bg-muted/20 p-3">
           <div className="mb-2.5 flex items-center justify-between">
             <span
               className={cn(
@@ -285,9 +291,13 @@ function RoleDetailView({
                   }
                 >
                   {role.isActive ? (
-                    <><CheckCircle2 className="mr-1 h-2.5 w-2.5" /> Active</>
+                    <>
+                      <CheckCircle2 className="mr-1 h-2.5 w-2.5" /> Active
+                    </>
                   ) : (
-                    <><ShieldOff className="mr-1 h-2.5 w-2.5" /> Inactive</>
+                    <>
+                      <ShieldOff className="mr-1 h-2.5 w-2.5" /> Inactive
+                    </>
                   )}
                 </Badge>
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -307,12 +317,19 @@ function RoleDetailView({
                 size="sm"
                 variant={role.isActive ? "outline" : "default"}
                 onClick={onToggleActive}
-                className={cn("gap-1.5", role.isActive && "border-destructive/40 text-destructive hover:bg-destructive/10")}
+                className={cn(
+                  "gap-1.5",
+                  role.isActive && "border-destructive/40 text-destructive hover:bg-destructive/10",
+                )}
               >
                 {role.isActive ? (
-                  <><ShieldOff className="h-3.5 w-3.5" /> Deactivate</>
+                  <>
+                    <ShieldOff className="h-3.5 w-3.5" /> Deactivate
+                  </>
                 ) : (
-                  <><ShieldCheck className="h-3.5 w-3.5" /> Activate</>
+                  <>
+                    <ShieldCheck className="h-3.5 w-3.5" /> Activate
+                  </>
                 )}
               </Button>
             )}
@@ -329,8 +346,8 @@ function RoleDetailView({
           <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-500/30 dark:bg-amber-500/10">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
             <p className="text-xs text-amber-700 dark:text-amber-300">
-              This is a <strong>system role</strong>. You can customize its permissions, but running
-              &ldquo;Refresh system RBAC&rdquo; will reset them to defaults.
+              This is a <strong>system role</strong>. You can customize its permissions, but running &ldquo;Refresh
+              system RBAC&rdquo; will reset them to defaults.
             </p>
           </div>
         )}
@@ -352,8 +369,11 @@ function RoleEditPanel({
   onSave: (patch: { name: string; description: string; permissionKeys: string[] }) => Promise<void>;
   onCancel: () => void;
 }) {
+  // react-doctor-disable-next-line react-doctor/no-derived-useState -- remounted via key={selectedRole._id}
   const [name, setName] = useState(role.name);
+  // react-doctor-disable-next-line react-doctor/no-derived-useState -- remounted via key={selectedRole._id}
   const [description, setDescription] = useState(role.description ?? "");
+  // react-doctor-disable-next-line react-doctor/no-derived-useState -- remounted via key={selectedRole._id}
   const [perms, setPerms] = useState<string[]>(role.permissionKeys);
   const [busy, setBusy] = useState(false);
 
@@ -685,9 +705,7 @@ export default function RolesPage() {
               className="flex items-center gap-2.5 rounded-full border border-border bg-card px-4 py-2 shadow-sm"
             >
               <span className={cn("h-2 w-2 rounded-full", s.dot)} />
-              <span className="text-lg font-bold tabular-nums leading-none">
-                {roles === undefined ? "—" : s.value}
-              </span>
+              <span className="text-lg font-bold tabular-nums leading-none">{roles === undefined ? "—" : s.value}</span>
               <span className="text-xs text-muted-foreground">{s.label}</span>
             </div>
           ))}

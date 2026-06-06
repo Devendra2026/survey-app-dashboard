@@ -14,7 +14,7 @@ import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
 import { BarChart3, CalendarDays, CheckCircle2, Clock3, Filter, ListChecks, Plus, TrendingDown } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 /* ─── KPI stat card ──────────────────────────────────────────────── */
 interface StatCardProps {
@@ -78,6 +78,19 @@ export default function SurveysPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [pageNumber, setPageNumber] = useState(1);
 
+  const handleFiltersChange = (next: FilterState) => {
+    setFilters(next);
+    setPageNumber(1);
+  };
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setPageNumber(1);
+  };
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setPageNumber(1);
+  };
+
   const listFilters = useMemo(
     () => ({
       status: filters.status as SurveyStatus | undefined,
@@ -103,14 +116,14 @@ export default function SurveysPage() {
     () => (filters.toDate ? new Date(`${filters.toDate}T23:59:59.999`).getTime() : undefined),
     [filters.toDate],
   );
-  const inDateRange = (createdAt: number) => {
-    if (fromDateMs !== undefined && createdAt < fromDateMs) return false;
-    if (toDateMs !== undefined && createdAt > toDateMs) return false;
-    return true;
-  };
   const filteredByDate = useMemo(
-    () => (filtered ?? []).filter((r: any) => inDateRange(r._creationTime)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () =>
+      (filtered ?? []).filter((r: any) => {
+        const createdAt = r._creationTime;
+        if (fromDateMs !== undefined && createdAt < fromDateMs) return false;
+        if (toDateMs !== undefined && createdAt > toDateMs) return false;
+        return true;
+      }),
     [filtered, fromDateMs, toDateMs],
   );
   const filteredByTab = useMemo(() => {
@@ -122,10 +135,6 @@ export default function SurveysPage() {
     if (activeTab === "submitted") return rows.filter((r: any) => r.status === "submitted");
     return rows;
   }, [filteredByDate, activeTab]);
-
-  useEffect(() => {
-    setPageNumber(1);
-  }, [filters, activeTab, pageSize]);
 
   const pageStart = (pageNumber - 1) * pageSize;
   const pagedRows = useMemo(
@@ -254,7 +263,7 @@ export default function SurveysPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SurveyFilters value={filters} onChange={setFilters} />
+          <SurveyFilters value={filters} onChange={handleFiltersChange} />
         </CardContent>
       </Card>
 
@@ -273,7 +282,7 @@ export default function SurveysPage() {
 
         {/* Status tab pills */}
         <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5 dark:bg-muted/10">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
               <TabsPill
                 value="all"
@@ -333,7 +342,7 @@ export default function SurveysPage() {
         onPrev={() => setPageNumber((p) => Math.max(1, p - 1))}
         onNext={() => setPageNumber((p) => (canGoNext ? p + 1 : p))}
         pageSizeOptions={[10, 20, 50, 100]}
-        onPageSizeChange={setPageSize}
+        onPageSizeChange={handlePageSizeChange}
       />
     </div>
   );

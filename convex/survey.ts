@@ -355,13 +355,12 @@ export const listPaginated = query({
 export const get = query({
   args: { id: v.id("surveys") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.id);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
     if (!survey) return null;
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
 
-    const [floors, photos, qcRemarks, surveyor] = await Promise.all([
+    const [floors, photos, qcRemarks, surveyor, muni] = await Promise.all([
       ctx.db
         .query("floors")
         .withIndex("by_survey", (q) => q.eq("surveyId", args.id))
@@ -377,6 +376,7 @@ export const get = query({
         .order("desc")
         .collect(),
       ctx.db.get(survey.surveyorId),
+      ctx.db.get(survey.municipalityId),
     ]);
 
     // Hydrate photo URLs from Convex storage so the client can display them directly.
@@ -386,8 +386,6 @@ export const get = query({
         url: await ctx.storage.getUrl(p.storageId),
       })),
     );
-
-    const muni = await ctx.db.get(survey.municipalityId);
     const propertyId = resolvePropertyId(survey, muni?.code ?? "") ?? survey.propertyId;
 
     return {
@@ -450,12 +448,13 @@ export const saveDraft = mutation({
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
     requireRole(me, "surveyor", "supervisor", "admin");
-    const muni = await assertMunicipalityInScope(ctx, me, args.municipalityId);
-
-    const existing = await ctx.db
-      .query("surveys")
-      .withIndex("by_surveyor_localId", (q) => q.eq("surveyorId", me._id).eq("localId", args.localId))
-      .unique();
+    const [muni, existing] = await Promise.all([
+      assertMunicipalityInScope(ctx, me, args.municipalityId),
+      ctx.db
+        .query("surveys")
+        .withIndex("by_surveyor_localId", (q) => q.eq("surveyorId", me._id).eq("localId", args.localId))
+        .unique(),
+    ]);
 
     if (existing?.qcStatus === "approved" && me.role === "surveyor") {
       clientError("LOCKED", "This survey is locked — request your supervisor to re-open it");
@@ -615,8 +614,7 @@ export const upsert = mutation({
 export const setGps = mutation({
   args: { id: v.id("surveys"), gps: gpsCapture },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.id);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
     if (survey.surveyorId !== me._id && me.role === "surveyor") {
       clientError("FORBIDDEN", "Not your survey");
@@ -645,8 +643,7 @@ export const setGps = mutation({
 export const submit = mutation({
   args: { id: v.id("surveys") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.id);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
     if (survey.surveyorId !== me._id && me.role === "surveyor") {
       clientError("FORBIDDEN", "Not your survey");
@@ -712,8 +709,7 @@ export const submit = mutation({
 export const remove = mutation({
   args: { id: v.id("surveys") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.id);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
     if (!survey) return;
     if (survey.surveyorId !== me._id && me.role !== "admin") {
       clientError("FORBIDDEN", "Not your survey");

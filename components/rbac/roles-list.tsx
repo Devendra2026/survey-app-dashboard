@@ -64,7 +64,8 @@ function RoleCard({
   permissionCategories: Map<string, string>;
   onToggleActive: (roleId: Id<"roles">, isActive: boolean) => void;
 }) {
-  const [open, setOpen] = useState(role.isSystem);
+  const [expandedOverride, setExpandedOverride] = useState<boolean | null>(null);
+  const isOpen = expandedOverride ?? role.isSystem;
 
   const byCategory = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -83,7 +84,7 @@ function RoleCard({
       <button
         type="button"
         className="flex w-full items-center gap-3 px-4 py-3 text-left"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setExpandedOverride(!isOpen)}
       >
         <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md", iconColor)}>
           <Shield className="h-4 w-4" />
@@ -120,12 +121,12 @@ function RoleCard({
         <ChevronDown
           className={cn(
             "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
-            open && "rotate-180",
+            isOpen && "rotate-180",
           )}
         />
       </button>
 
-      {open && (
+      {isOpen && (
         <div className="border-t border-border px-4 pb-4 pt-3">
           {role.description && <p className="mb-3 text-sm text-muted-foreground">{role.description}</p>}
           {byCategory.length === 0 ? (

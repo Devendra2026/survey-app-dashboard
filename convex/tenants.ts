@@ -26,9 +26,11 @@ export const listForAdmin = query({
     const me = await requireUser(ctx);
     requireRole(me, "admin");
 
-    const districts = await ctx.db.query("districts").collect();
-    const municipalities = await ctx.db.query("municipalities").collect();
-    const wards = await ctx.db.query("wards").collect();
+    const [districts, municipalities, wards] = await Promise.all([
+      ctx.db.query("districts").collect(),
+      ctx.db.query("municipalities").collect(),
+      ctx.db.query("wards").collect(),
+    ]);
 
     return districts
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -286,15 +288,16 @@ export const upsertAssessmentYear = mutation({
     if (!value) clientError("BAD_REQUEST", "Assessment year value is required");
     if (!label) clientError("BAD_REQUEST", "Assessment year label is required");
 
-    const existing = await ctx.db
-      .query("masters")
-      .withIndex("by_category_value", (q) => q.eq("category", "assessment_year").eq("value", value))
-      .unique();
-
-    const activeYears = await ctx.db
-      .query("masters")
-      .withIndex("by_category_position", (q) => q.eq("category", "assessment_year").eq("isActive", true))
-      .collect();
+    const [existing, activeYears] = await Promise.all([
+      ctx.db
+        .query("masters")
+        .withIndex("by_category_value", (q) => q.eq("category", "assessment_year").eq("value", value))
+        .unique(),
+      ctx.db
+        .query("masters")
+        .withIndex("by_category_position", (q) => q.eq("category", "assessment_year").eq("isActive", true))
+        .collect(),
+    ]);
     const position =
       args.position ?? (activeYears.length > 0 ? Math.max(...activeYears.map((r) => r.position)) + 1 : 1);
     const isActive = args.isActive ?? true;

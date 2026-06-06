@@ -44,8 +44,10 @@ export function useUploadPhoto() {
 
   return useCallback(
     async (surveyId: string, slot: PhotoSlot, file: File) => {
-      const { blob, width, height } = await compressImage(file);
-      const uploadUrl = await generateUploadUrl({});
+      const [{ blob, width, height }, uploadUrl] = await Promise.all([
+        compressImage(file),
+        generateUploadUrl({}),
+      ]);
       const res = await fetch(uploadUrl, {
         method: "POST",
         headers: { "Content-Type": "image/jpeg" },

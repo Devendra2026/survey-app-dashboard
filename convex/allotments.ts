@@ -197,15 +197,16 @@ export async function upsertAllotmentForUser(
     isActive?: boolean;
   },
 ): Promise<void> {
-  const normalized = await validateAllotmentTarget(ctx, {
-    municipalityId: opts.municipalityId,
-    districtId: opts.districtId,
-  });
-
-  const existing = await ctx.db
-    .query("userAllotments")
-    .withIndex("by_user", (q) => q.eq("userId", opts.userId))
-    .collect();
+  const [normalized, existing] = await Promise.all([
+    validateAllotmentTarget(ctx, {
+      municipalityId: opts.municipalityId,
+      districtId: opts.districtId,
+    }),
+    ctx.db
+      .query("userAllotments")
+      .withIndex("by_user", (q) => q.eq("userId", opts.userId))
+      .collect(),
+  ]);
 
   const match = existing.find((r) => {
     if (normalized.municipalityId) {

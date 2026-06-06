@@ -42,8 +42,7 @@ export const linkPhoto = mutation({
     capturedAt: v.number(),
   },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.surveyId);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) {
       await ctx.storage.delete(args.storageId);
       clientError("NOT_FOUND", "Survey not found");
@@ -159,8 +158,7 @@ export const removeBySurveySlot = mutation({
     slot: photoSlot,
   },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.surveyId);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) return;
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
     if (survey.qcStatus === "approved" && me.role === "surveyor") {
@@ -188,8 +186,7 @@ export const removeBySurveySlot = mutation({
 export const list = query({
   args: { surveyId: v.id("surveys") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.surveyId);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) return [];
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
 
@@ -209,8 +206,7 @@ export const list = query({
 export const remove = mutation({
   args: { id: v.id("photos") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const photo = await ctx.db.get(args.id);
+    const [me, photo] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
     if (!photo) return;
     const survey = await ctx.db.get(photo.surveyId);
     if (!survey) return;

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PHOTO_SLOTS, PHOTO_SLOT_LABEL, type PhotoSlot } from "@/lib/domain";
 import { fmtDate } from "@/lib/utils";
 import { ImageOff } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 
 interface Photo {
@@ -37,17 +38,20 @@ export function PhotoGallery({ photos, uploaderName }: { photos: Photo[]; upload
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                   {inSlot.map((p) => (
                     <button
+                      type="button"
                       key={p._id}
                       onClick={() => setActive(p)}
                       className="group overflow-hidden rounded-lg border border-border bg-muted text-left"
                     >
                       <div className="relative aspect-4/3 w-full bg-muted">
                         {p.url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
+                          <Image
                             src={p.url}
                             alt={slot}
-                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                            fill
+                            unoptimized
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                            className="object-cover transition-transform group-hover:scale-105"
                           />
                         ) : (
                           <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -72,8 +76,14 @@ export function PhotoGallery({ photos, uploaderName }: { photos: Photo[]; upload
         <DialogContent className="max-w-3xl">
           <DialogTitle>{active ? PHOTO_SLOT_LABEL[active.slot] : ""} photo</DialogTitle>
           {active?.url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={active.url} alt={active.slot} className="max-h-[70vh] w-full rounded-md object-contain" />
+            <Image
+              src={active.url}
+              alt={active.slot}
+              width={1200}
+              height={800}
+              unoptimized
+              className="max-h-[70vh] w-full rounded-md object-contain"
+            />
           )}
           {active && (
             <p className="text-xs text-muted-foreground">

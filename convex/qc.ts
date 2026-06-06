@@ -14,8 +14,7 @@ import { assertCanReadWard, clientError, requireRole, requireUser, writeAudit } 
 export const listRemarks = query({
   args: { surveyId: v.id("surveys") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.surveyId);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) return [];
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
 
@@ -97,8 +96,7 @@ export const addRemark = mutation({
 export const resolveRemark = mutation({
   args: { id: v.id("qcRemarks") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const remark = await ctx.db.get(args.id);
+    const [me, remark] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
     if (!remark) clientError("NOT_FOUND", "Remark not found");
     await ctx.db.patch(args.id, { status: "resolved" });
     await writeAudit(ctx, {

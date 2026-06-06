@@ -1,35 +1,56 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+
+type PaginationState = {
+  pageIndex: number;
+  cursors: (string | null)[];
+};
+
+const defaultState = (): PaginationState => ({
+  pageIndex: 0,
+  cursors: [null],
+});
 
 /** Cursor stack for Convex `.paginate()` — reset when `resetKey` changes. */
 export function useCursorPagination(resetKey: string, pageSize: number) {
-  const [pageIndex, setPageIndex] = useState(0);
-  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [stateByKey, setStateByKey] = useState<Record<string, PaginationState>>({});
+  const paginationKey = `${resetKey}:${pageSize}`;
+  const state = stateByKey[paginationKey] ?? defaultState();
 
-  useEffect(() => {
-    setPageIndex(0);
-    setCursors([null]);
-  }, [resetKey, pageSize]);
+  const setState = useCallback(
+    (updater: PaginationState | ((prev: PaginationState) => PaginationState)) => {
+      setStateByKey((prev) => {
+        const current = prev[paginationKey] ?? defaultState();
+        const next = typeof updater === "function" ? updater(current) : updater;
+        return { ...prev, [paginationKey]: next };
+      });
+    },
+    [paginationKey],
+  );
 
+  const { pageIndex, cursors } = state;
   const cursor = cursors[pageIndex] ?? null;
 
   const goNext = useCallback(
     (continueCursor: string | null, isDone: boolean) => {
       if (isDone || continueCursor === null) return;
-      setCursors((prev) => {
-        const next = [...prev];
-        next[pageIndex + 1] = continueCursor;
-        return next;
+      setState((prev) => {
+        const nextCursors = [...prev.cursors];
+        nextCursors[prev.pageIndex + 1] = continueCursor;
+        return {
+          ...prev,
+          cursors: nextCursors,
+          pageIndex: prev.pageIndex + 1,
+        };
       });
-      setPageIndex((i) => i + 1);
     },
-    [pageIndex],
+    [setState],
   );
 
   const goPrev = useCallback(() => {
-    setPageIndex((i) => Math.max(0, i - 1));
-  }, []);
+    setState((prev) => ({ ...prev, pageIndex: Math.max(0, prev.pageIndex - 1) }));
+  }, [setState]);
 
   return {
     pageIndex,

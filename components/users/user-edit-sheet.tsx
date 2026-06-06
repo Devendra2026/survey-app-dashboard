@@ -134,9 +134,7 @@ function WardPicker({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Ward assignments
-        </Label>
+        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ward assignments</Label>
         {selected.length > 0 && (
           <button
             type="button"
@@ -178,15 +176,7 @@ function WardPicker({
 
 // ─── section block ─────────────────────────────────────────────────────────────
 
-function Section({
-  label,
-  children,
-  action,
-}: {
-  label: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
+function Section({ label, children, action }: { label: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="space-y-2.5">
       <div className="flex items-center justify-between">
@@ -366,6 +356,7 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
   const roleCatalog = useRoles({ requireCapability: "users.approve" });
   const catalog = useTenantCatalog();
 
+  // react-doctor-disable-next-line react-doctor/no-derived-useState -- remounted via key={user._id}
   const [role, setRole] = useState(user.role);
   const [municipalityId, setMunicipalityId] = useState<string>(
     user.role !== "admin" ? (user.municipalityId ?? "") : "",
@@ -611,12 +602,7 @@ export function UserEditSheet({ user, onClose }: { user: SheetUser | null; onClo
         {user && (
           <>
             {/* identity header with role-tinted gradient */}
-            <SheetHeader
-              className={cn(
-                "border-b border-border bg-linear-to-b px-5 py-5",
-                headerBg,
-              )}
-            >
+            <SheetHeader className={cn("border-b border-border bg-linear-to-b px-5 py-5", headerBg)}>
               <div className="flex items-start gap-4 pr-8">
                 <div className="relative">
                   <Avatar className="h-12 w-12">
@@ -665,7 +651,7 @@ export function UserEditSheet({ user, onClose }: { user: SheetUser | null; onClo
             {user.kind === "pending" ? (
               <ApprovePendingPanel user={user} onClose={onClose} />
             ) : (
-              <EditListedPanel user={user} onClose={onClose} />
+              <EditListedPanel key={user._id} user={user} onClose={onClose} />
             )}
           </>
         )}

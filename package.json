@@ -14,7 +14,8 @@
     "convex:export:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/export-dev.ps1",
     "convex:export:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/export-prod.ps1",
     "convex:import:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/import-dev.ps1",
-    "convex:import:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/import-prod.ps1"
+    "convex:import:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/import-prod.ps1",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -38,6 +39,7 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.7",
     "react-day-picker": "^10.0.1",
+    "react-doctor": "^0.4.0",
     "react-dom": "19.2.7",
     "react-hook-form": "^7.77.0",
     "react-resizable-panels": "^4.11.2",

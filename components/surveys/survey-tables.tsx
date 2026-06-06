@@ -39,6 +39,14 @@ export interface SurveyRow {
 
 const col = createColumnHelper<SurveyRow>();
 
+function surveyRowTone(row: SurveyRow) {
+  if (row.qcStatus === "approved") return "bg-emerald-500/5 hover:bg-emerald-500/10";
+  if (row.qcStatus === "rejected") return "bg-rose-500/5 hover:bg-rose-500/10";
+  if (row.qcStatus === "pending") return "bg-amber-500/5 hover:bg-amber-500/10";
+  if (row.status === "submitted") return "bg-indigo-500/5 hover:bg-indigo-500/10";
+  return "hover:bg-muted/40";
+}
+
 export function SurveyTable({
   rows,
   hrefBase = "/surveys",
@@ -133,14 +141,6 @@ export function SurveyTable({
     return <EmptyState title="No surveys found" description="Adjust your filters or search term to see results." />;
   }
 
-  const rowTone = (row: SurveyRow) => {
-    if (row.qcStatus === "approved") return "bg-emerald-500/5 hover:bg-emerald-500/10";
-    if (row.qcStatus === "rejected") return "bg-rose-500/5 hover:bg-rose-500/10";
-    if (row.qcStatus === "pending") return "bg-amber-500/5 hover:bg-amber-500/10";
-    if (row.status === "submitted") return "bg-indigo-500/5 hover:bg-indigo-500/10";
-    return "hover:bg-muted/40";
-  };
-
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
       <Table className="min-w-full">
@@ -157,6 +157,7 @@ export function SurveyTable({
                 >
                   {h.isPlaceholder ? null : h.column.getCanSort() ? (
                     <button
+                      type="button"
                       className="flex items-center gap-1 transition-colors hover:text-foreground"
                       onClick={h.column.getToggleSortingHandler()}
                     >
@@ -175,7 +176,7 @@ export function SurveyTable({
           {table.getRowModel().rows.map((r) => (
             <TableRow
               key={r.id}
-              className={`h-12 border-b border-border/40 text-sm transition-colors last:border-b-0 ${rowTone(r.original)}`}
+              className={`h-12 border-b border-border/40 text-sm transition-colors last:border-b-0 ${surveyRowTone(r.original)}`}
             >
               {r.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id} className="py-2.5 align-middle">

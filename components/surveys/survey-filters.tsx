@@ -23,6 +23,10 @@ export interface FilterState {
 
 const ALL = "__all__";
 
+function pickFilterValue(v: string) {
+  return v === ALL ? undefined : v;
+}
+
 export function SurveyFilters({
   value,
   onChange,
@@ -36,7 +40,6 @@ export function SurveyFilters({
 }) {
   const { masters } = useMasters();
   const set = (patch: Partial<FilterState>) => onChange({ ...value, ...patch });
-  const pick = (v: string) => (v === ALL ? undefined : v);
   const setMonth = (month: string | undefined) => {
     if (!month) {
       set({ month: undefined, fromDate: undefined, toDate: undefined });
@@ -134,7 +137,7 @@ export function SurveyFilters({
           <Label className="text-xs text-muted-foreground">District</Label>
           <Select
             value={value.districtId ?? ALL}
-            onValueChange={(v) => set({ districtId: pick(v), municipalityId: undefined, wardNo: undefined })}
+            onValueChange={(v) => set({ districtId: pickFilterValue(v), municipalityId: undefined, wardNo: undefined })}
           >
             <SelectTrigger className="h-10 w-full rounded-lg border-primary/20">
               <SelectValue placeholder="District" />
@@ -154,7 +157,7 @@ export function SurveyFilters({
           <Label className="text-xs text-muted-foreground">ULB</Label>
           <Select
             value={value.municipalityId ?? ALL}
-            onValueChange={(v) => set({ municipalityId: pick(v), wardNo: undefined })}
+            onValueChange={(v) => set({ municipalityId: pickFilterValue(v), wardNo: undefined })}
           >
             <SelectTrigger className="h-10 w-full rounded-lg border-primary/20">
               <SelectValue placeholder="ULB" />
@@ -172,7 +175,7 @@ export function SurveyFilters({
 
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Ward</Label>
-          <Select value={value.wardNo ?? ALL} onValueChange={(v) => set({ wardNo: pick(v) })}>
+          <Select value={value.wardNo ?? ALL} onValueChange={(v) => set({ wardNo: pickFilterValue(v) })}>
             <SelectTrigger className="h-10 w-full rounded-lg border-primary/20">
               <SelectValue placeholder="Ward" />
             </SelectTrigger>
@@ -190,7 +193,7 @@ export function SurveyFilters({
         {showStatus && (
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Survey Status</Label>
-            <Select value={value.status ?? ALL} onValueChange={(v) => set({ status: pick(v) })}>
+            <Select value={value.status ?? ALL} onValueChange={(v) => set({ status: pickFilterValue(v) })}>
               <SelectTrigger className="h-10 w-full rounded-lg border-primary/20">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -209,7 +212,7 @@ export function SurveyFilters({
         {showQcStatus && (
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">QC Status</Label>
-            <Select value={value.qcStatus ?? ALL} onValueChange={(v) => set({ qcStatus: pick(v) })}>
+            <Select value={value.qcStatus ?? ALL} onValueChange={(v) => set({ qcStatus: pickFilterValue(v) })}>
               <SelectTrigger className="h-10 w-full rounded-lg border-primary/20">
                 <SelectValue placeholder="QC status" />
               </SelectTrigger>

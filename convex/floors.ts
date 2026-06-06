@@ -13,8 +13,7 @@ import { assertCanReadWard, clientError, requireUser, writeAudit } from "./helpe
 export const list = query({
   args: { surveyId: v.id("surveys") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.surveyId);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) return [];
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
     const rows = await ctx.db
@@ -38,8 +37,7 @@ export const upsert = mutation({
     areaSqft: v.number(),
   },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.surveyId);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
     if (survey.qcStatus === "approved" && me.role === "surveyor") {
@@ -107,8 +105,7 @@ export const removeOrphans = mutation({
     keepClientFloorIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.surveyId);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
     if (survey.qcStatus === "approved" && me.role === "surveyor") {
@@ -130,8 +127,7 @@ export const removeOrphans = mutation({
 export const remove = mutation({
   args: { id: v.id("floors") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const floor = await ctx.db.get(args.id);
+    const [me, floor] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
     if (!floor) return;
     const survey = await ctx.db.get(floor.surveyId);
     if (!survey) return;
@@ -153,8 +149,7 @@ export const reorder = mutation({
     order: v.array(v.object({ id: v.id("floors"), position: v.number() })),
   },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.surveyId);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
     for (const o of args.order) {
