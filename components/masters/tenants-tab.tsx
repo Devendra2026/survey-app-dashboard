@@ -3,15 +3,18 @@
 import { TenantDialogs } from "@/components/masters/tenant-dialogs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useTenantAdmin, useUpsertDistrict, useUpsertMunicipality, useUpsertWard } from "@/hooks/tenants/useTenants";
 import { parseConvexError } from "@/lib/errors";
-import { Building2, ChevronDown, ChevronRight, MapPin, Pencil, Plus } from "lucide-react";
-import { useReducer, type Dispatch } from "react";
+import { cn } from "@/lib/utils";
+import { Building2, ChevronDown, ChevronLeft, ChevronRight, MapPin, Pencil, Plus, Search } from "lucide-react";
+import { useMemo, useReducer, useState, type Dispatch } from "react";
 import { toast } from "sonner";
 import type {
   DistrictDraft,
@@ -21,6 +24,82 @@ import type {
   TenantWard,
   WardDraft,
 } from "./tenant-types";
+
+const DEFAULT_DISTRICT_PAGE_SIZE = 10;
+const DEFAULT_ULB_PAGE_SIZE = 10;
+const DEFAULT_WARD_PAGE_SIZE = 24;
+
+function matchesTenantSearch(district: TenantDistrict, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (district.name.toLowerCase().includes(q) || district.code.toLowerCase().includes(q)) return true;
+  if (district.stateName.toLowerCase().includes(q)) return true;
+  return district.ulbs.some(
+    (ulb) =>
+      ulb.name.toLowerCase().includes(q) ||
+      ulb.code.toLowerCase().includes(q) ||
+      ulb.wards.some((w) => w.name.toLowerCase().includes(q) || String(w.wardNo).includes(q)),
+  );
+}
+
+function CompactPagination({
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  noun,
+  className,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  noun: string;
+  className?: string;
+}) {
+  if (total <= pageSize) return null;
+
+  const totalPages = Math.ceil(total / pageSize);
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+  const canPrev = page > 1;
+  const canNext = page < totalPages;
+
+  return (
+    <div className={cn("flex items-center justify-between gap-2 pt-1", className)}>
+      <p className="text-[10px] text-muted-foreground">
+        {start}–{end} of {total} {noun}
+      </p>
+      <div className="flex items-center gap-1">
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          className="h-6 w-6"
+          disabled={!canPrev}
+          onClick={() => onPageChange(page - 1)}
+          aria-label={`Previous ${noun} page`}
+        >
+          <ChevronLeft className="h-3 w-3" />
+        </Button>
+        <span className="min-w-8 text-center text-[10px] font-medium tabular-nums text-muted-foreground">
+          {page}/{totalPages}
+        </span>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          className="h-6 w-6"
+          disabled={!canNext}
+          onClick={() => onPageChange(page + 1)}
+          aria-label={`Next ${noun} page`}
+        >
+          <ChevronRight className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 // ─── UI state (drafts + expand/collapse) ─────────────────────────────────────
 
@@ -77,12 +156,31 @@ function TenantsSummaryBar({ tenants, onAddDistrict }: { tenants: TenantDistrict
   const wardCount = tenants.reduce((acc, d) => acc + d.ulbs.reduce((a, u) => a + u.wards.length, 0), 0);
 
   return (
-    <div className="flex items-center justify-between">
-      <p className="text-sm text-muted-foreground">
-        {tenants.length} district{tenants.length !== 1 ? "s" : ""} · {ulbCount} ULBs · {wardCount} wards
-      </p>
-      <Button size="sm" onClick={onAddDistrict}>
-        <Plus className="h-3.5 w-3.5" /> Add district
+    <div className="flex flex-col gap-4 border-b border-border/60 bg-linear-to-r from-violet-50/80 to-card px-5 py-4 dark:from-violet-950/30 dark:to-card sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20">
+          <MapPin className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+        </div>
+        <div>
+          <h2 className="text-base font-bold tracking-tight">Geographic Hierarchy</h2>
+          <p className="text-xs text-muted-foreground">
+            Districts, ULBs, and wards for supervisor and surveyor assignment
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Badge variant="outline" className="text-[10px] font-semibold">
+              {tenants.length} district{tenants.length !== 1 ? "s" : ""}
+            </Badge>
+            <Badge variant="outline" className="text-[10px] font-semibold">
+              {ulbCount} ULB{ulbCount !== 1 ? "s" : ""}
+            </Badge>
+            <Badge variant="outline" className="text-[10px] font-semibold">
+              {wardCount} ward{wardCount !== 1 ? "s" : ""}
+            </Badge>
+          </div>
+        </div>
+      </div>
+      <Button size="sm" className="h-9 shrink-0 shadow-sm" onClick={onAddDistrict}>
+        <Plus className="h-4 w-4" /> Add district
       </Button>
     </div>
   );
@@ -97,32 +195,40 @@ function WardChips({
   municipalityId: Id<"municipalities">;
   onEditWard: (draft: WardDraft) => void;
 }) {
+  const [page, setPage] = useState(1);
+  const pageSize = DEFAULT_WARD_PAGE_SIZE;
+
   if (wards.length === 0) {
     return <p className="text-xs text-muted-foreground">No wards yet.</p>;
   }
 
+  const pagedWards = wards.slice((page - 1) * pageSize, page * pageSize);
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {wards.map((ward) => (
-        <button
-          key={ward._id}
-          type="button"
-          className="group flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-xs hover:border-primary/40 hover:bg-muted/40 transition-colors"
-          onClick={() =>
-            onEditWard({
-              id: ward._id as Id<"wards">,
-              municipalityId,
-              wardNo: ward.wardNo,
-              wardCode: ward.wardCode ?? "",
-              name: ward.name,
-            })
-          }
-        >
-          <span className="font-medium">W{ward.wardNo}</span>
-          <span className="text-muted-foreground">· {ward.name}</span>
-          <Pencil className="h-2.5 w-2.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-        </button>
-      ))}
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {pagedWards.map((ward) => (
+          <button
+            key={ward._id}
+            type="button"
+            className="group flex items-center gap-1 rounded-full border border-border/80 bg-background px-2.5 py-1 text-xs shadow-sm transition-all hover:border-violet-400/50 hover:bg-violet-500/5 hover:shadow"
+            onClick={() =>
+              onEditWard({
+                id: ward._id as Id<"wards">,
+                municipalityId,
+                wardNo: ward.wardNo,
+                wardCode: ward.wardCode ?? "",
+                name: ward.name,
+              })
+            }
+          >
+            <span className="font-medium">W{ward.wardNo}</span>
+            <span className="text-muted-foreground">· {ward.name}</span>
+            <Pencil className="h-2.5 w-2.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
+        ))}
+      </div>
+      <CompactPagination page={page} pageSize={pageSize} total={wards.length} onPageChange={setPage} noun="wards" />
     </div>
   );
 }
@@ -145,9 +251,9 @@ function UlbRow({
   onEditWard: (draft: WardDraft) => void;
 }) {
   return (
-    <Card className="border-border">
+    <Card className="border-border/60 shadow-sm transition-shadow hover:shadow-md">
       <Collapsible open={isOpen} onOpenChange={onOpenChange}>
-        <div className="flex w-full items-center gap-2 px-3 py-2.5 hover:bg-muted/40 transition-colors rounded-lg">
+        <div className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/40">
           <CollapsibleTrigger asChild>
             <button
               type="button"
@@ -206,7 +312,12 @@ function UlbRow({
                 <Plus className="h-3 w-3" /> Add ward
               </Button>
             </div>
-            <WardChips wards={ulb.wards} municipalityId={ulb._id as Id<"municipalities">} onEditWard={onEditWard} />
+            <WardChips
+              key={`${ulb._id}:${ulb.wards.length}`}
+              wards={ulb.wards}
+              municipalityId={ulb._id as Id<"municipalities">}
+              onEditWard={onEditWard}
+            />
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -238,11 +349,15 @@ function DistrictRow({
   onEditWard: (draft: WardDraft) => void;
 }) {
   const districtId = district._id as Id<"districts">;
+  const [ulbPage, setUlbPage] = useState(1);
+  const ulbPageSize = DEFAULT_ULB_PAGE_SIZE;
+
+  const pagedUlbs = district.ulbs.slice((ulbPage - 1) * ulbPageSize, ulbPage * ulbPageSize);
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-l-4 border-l-violet-500/60 shadow-sm transition-shadow hover:shadow-md">
       <Collapsible open={isOpen} onOpenChange={onDistrictOpenChange}>
-        <div className="flex w-full items-center gap-2 px-4 py-3 hover:bg-muted/40 transition-colors">
+        <div className="flex w-full items-center gap-2 px-4 py-3 transition-colors hover:bg-muted/30">
           <CollapsibleTrigger asChild>
             <button
               type="button"
@@ -291,7 +406,7 @@ function DistrictRow({
               <p className="text-xs text-muted-foreground py-2">No ULBs yet for this district.</p>
             ) : (
               <div className="space-y-1.5">
-                {district.ulbs.map((ulb) => (
+                {pagedUlbs.map((ulb) => (
                   <UlbRow
                     key={ulb._id}
                     ulb={ulb}
@@ -303,6 +418,14 @@ function DistrictRow({
                     onEditWard={onEditWard}
                   />
                 ))}
+                <CompactPagination
+                  page={ulbPage}
+                  pageSize={ulbPageSize}
+                  total={district.ulbs.length}
+                  onPageChange={setUlbPage}
+                  noun="ULBs"
+                  className="px-1"
+                />
               </div>
             )}
           </div>
@@ -327,7 +450,7 @@ function DistrictList({
     <div className="space-y-2">
       {tenants.map((district) => (
         <DistrictRow
-          key={district._id}
+          key={`${district._id}:${district.ulbs.length}`}
           district={district}
           isOpen={expandedDistricts.has(district._id)}
           expandedUlbs={expandedUlbs}
@@ -385,6 +508,30 @@ export function TenantsTab() {
   const upsertMunicipality = useUpsertMunicipality();
   const upsertWard = useUpsertWard();
   const [ui, dispatch] = useReducer(tenantsUiReducer, initialTenantsUiState);
+  const [search, setSearch] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_DISTRICT_PAGE_SIZE);
+
+  const filteredDistricts = useMemo(() => {
+    if (!tenants) return [];
+    return (tenants as TenantDistrict[]).filter((d) => matchesTenantSearch(d, search));
+  }, [tenants, search]);
+
+  const totalDistrictPages = Math.max(1, Math.ceil(filteredDistricts.length / pageSize));
+  const effectivePageNumber = Math.min(Math.max(1, pageNumber), totalDistrictPages);
+
+  const pagedDistricts = useMemo(() => {
+    const start = (effectivePageNumber - 1) * pageSize;
+    return filteredDistricts.slice(start, start + pageSize);
+  }, [filteredDistricts, effectivePageNumber, pageSize]);
+
+  const canGoPrev = effectivePageNumber > 1;
+  const canGoNext = effectivePageNumber < totalDistrictPages;
+
+  function handlePageSizeChange(size: number) {
+    setPageSize(size);
+    setPageNumber(1);
+  }
 
   async function saveDistrict(d: DistrictDraft) {
     try {
@@ -444,7 +591,7 @@ export function TenantsTab() {
   const tenantRows = tenants as TenantDistrict[];
 
   return (
-    <div className="space-y-4">
+    <Card className="overflow-hidden border-border/60 shadow-sm">
       <TenantsSummaryBar
         tenants={tenantRows}
         onAddDistrict={() =>
@@ -455,20 +602,83 @@ export function TenantsTab() {
         }
       />
 
-      {tenantRows.length === 0 ? (
-        <EmptyState
-          title="No districts yet"
-          description="Add a district to start building your tenant hierarchy."
-          icon={MapPin}
-        />
-      ) : (
-        <DistrictList
-          tenants={tenantRows}
-          expandedDistricts={ui.expandedDistricts}
-          expandedUlbs={ui.expandedUlbs}
-          dispatch={dispatch}
-        />
-      )}
+      <div className="p-5 space-y-4">
+        {tenantRows.length > 0 && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative max-w-md flex-1">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search districts, ULBs, or wards…"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPageNumber(1);
+                }}
+                className="h-9 pl-8 text-sm"
+              />
+            </div>
+            {search.trim() && (
+              <p className="text-xs text-muted-foreground">
+                {filteredDistricts.length} of {tenantRows.length} district{tenantRows.length !== 1 ? "s" : ""} match
+              </p>
+            )}
+          </div>
+        )}
+
+        {tenantRows.length === 0 ? (
+          <EmptyState
+            title="No districts yet"
+            description="Add a district to start building your tenant hierarchy."
+            icon={MapPin}
+            action={
+              <Button
+                size="sm"
+                onClick={() =>
+                  dispatch({
+                    type: "setDistrictDraft",
+                    draft: { code: "", name: "", stateName: "Uttar Pradesh", isActive: true },
+                  })
+                }
+              >
+                <Plus className="h-4 w-4" /> Add district
+              </Button>
+            }
+          />
+        ) : filteredDistricts.length === 0 ? (
+          <EmptyState
+            title="No matching districts"
+            description="Try a different search term."
+            icon={Search}
+            action={
+              <Button size="sm" variant="outline" onClick={() => setSearch("")}>
+                Clear search
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <DistrictList
+              tenants={pagedDistricts}
+              expandedDistricts={ui.expandedDistricts}
+              expandedUlbs={ui.expandedUlbs}
+              dispatch={dispatch}
+            />
+
+            <TablePagination
+              pageNumber={effectivePageNumber}
+              pageSize={pageSize}
+              itemCount={pagedDistricts.length}
+              canGoPrev={canGoPrev}
+              canGoNext={canGoNext}
+              onPrev={() => setPageNumber((p) => Math.max(1, p - 1))}
+              onNext={() => setPageNumber((p) => Math.min(totalDistrictPages, p + 1))}
+              pageSizeOptions={[5, 10, 20, 50]}
+              onPageSizeChange={handlePageSizeChange}
+              className="border-t-0 pt-0"
+            />
+          </>
+        )}
+      </div>
 
       <TenantDialogs
         districtDraft={ui.districtDraft}
@@ -481,6 +691,6 @@ export function TenantsTab() {
         onSaveMunicipality={saveMunicipality}
         onSaveWard={saveWard}
       />
-    </div>
+    </Card>
   );
 }
