@@ -1,5 +1,6 @@
 "use client";
 
+import { QcCorrectionBanner } from "@/components/qc/qc-correction-banner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -7,6 +8,7 @@ import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-bad
 import { SurveyEditor } from "@/components/surveys/survey-editor";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useSubmitSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
 import { parseConvexError } from "@/lib/errors";
 import { ArrowLeft, Eye } from "lucide-react";
@@ -19,6 +21,7 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   const { id } = use(params);
   const router = useRouter();
   const survey = useSurvey(id);
+  const remarks = useQcRemarks(id);
   const submitSurvey = useSubmitSurvey();
   const [submitting, setSubmitting] = useState(false);
 
@@ -36,8 +39,8 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   }
 
   const locked = survey.qcStatus === "approved";
-  const canSubmit = survey.status === "draft" || survey.status === "rejected" || survey.status === "submitted";
-  const isResubmit = survey.status === "submitted";
+  const canSubmit = survey.status === "draft" || survey.qcStatus === "rejected" || survey.status === "submitted";
+  const isResubmit = survey.qcStatus === "rejected";
 
   async function onSubmit() {
     if (!confirm("Submit this survey for QC review? You won't be able to edit it until it's reviewed.")) return;
@@ -104,15 +107,18 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
             }
           />
         ) : (
-          <SurveyEditor
-            localId={survey.localId}
-            surveyId={id}
-            existing={survey}
-            showSubmitBar={canSubmit}
-            onSubmit={onSubmit}
-            submitting={submitting}
-            submitLabel={isResubmit ? "Save & Re-submit to QC" : undefined}
-          />
+          <>
+            {isResubmit && <QcCorrectionBanner remarks={remarks} />}
+            <SurveyEditor
+              localId={survey.localId}
+              surveyId={id}
+              existing={survey}
+              showSubmitBar={canSubmit}
+              onSubmit={onSubmit}
+              submitting={submitting}
+              submitLabel={isResubmit ? "Save & Re-submit to QC" : undefined}
+            />
+          </>
         )}
       </div>
     </RoleGate>

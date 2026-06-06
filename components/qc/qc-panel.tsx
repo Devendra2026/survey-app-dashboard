@@ -1,24 +1,23 @@
 "use client";
 
+import { QcRemarksThread } from "@/components/qc/qc-remarks-thread";
 import { RoleGate } from "@/components/shared/role-gate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { useAddRemark, useDecide, useQcRemarks, useReopen, useResolveRemark } from "@/hooks/qc/useQc";
+import { useAddRemark, useDecide, useQcRemarks, useReopen } from "@/hooks/qc/useQc";
 import { parseConvexError } from "@/lib/errors";
-import { fmtDate } from "@/lib/utils";
-import { CheckCircle2, Lock, MessageSquarePlus, Unlock, XCircle } from "lucide-react";
+import { QC_TAGGABLE_SECTIONS } from "@/schema/qc/index";
+import { CheckCircle2, Lock, MessageSquarePlus, Pencil, Unlock, XCircle } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
-const SECTIONS = ["property", "owner", "address", "taxation", "floors", "services", "gis", "photos"];
-
-export function QcPanel({ survey }: { survey: any }) {
+export function QcPanel({ survey }: { survey: { _id: string; status: string; qcStatus: string } }) {
   const remarks = useQcRemarks(survey._id);
   const decide = useDecide();
   const addRemark = useAddRemark();
-  const resolveRemark = useResolveRemark();
   const reopen = useReopen();
 
   const [comment, setComment] = useState("");
@@ -26,6 +25,7 @@ export function QcPanel({ survey }: { survey: any }) {
   const [busy, setBusy] = useState(false);
 
   const isApproved = survey.qcStatus === "approved";
+  const isPending = survey.qcStatus === "pending" && survey.status === "submitted";
   const isDraft = survey.status === "draft";
 
   const toggleTag = (t: string) => setTags((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
@@ -47,28 +47,42 @@ export function QcPanel({ survey }: { survey: any }) {
   return (
     <div className="space-y-4">
       <RoleGate capability="qc.decide" fallback={null}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Quality Control Decision</CardTitle>
+        <Card className="border-l-[3px] border-l-amber-500 bg-amber-50/30 shadow-sm dark:border-l-amber-400 dark:bg-amber-950/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-amber-900 dark:text-amber-100">
+              Quality Control Decision
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {isDraft && (
-              <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
-                This survey is in <strong>draft</strong> — it must be submitted before it can be approved or rejected.
-                You can still leave a correction remark.
+            {isDraft && !isApproved && (
+              <p className="rounded-lg border border-amber-300/50 bg-amber-100/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-700/40 dark:bg-amber-900/30 dark:text-amber-100">
+                This survey is in <strong>draft</strong> — it must be re-submitted before approval. You can leave
+                correction remarks or{" "}
+                <Link href={`/surveys/${survey._id}/edit`} className="font-semibold underline">
+                  edit directly
+                </Link>
+                .
+              </p>
+            )}
+            {isApproved && (
+              <p className="rounded-lg border border-emerald-300/50 bg-emerald-100/60 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-700/40 dark:bg-emerald-900/30 dark:text-emerald-100">
+                Approved and locked against surveyor edits. Use <strong>Reopen</strong> to override if needed.
               </p>
             )}
             <div>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Tag sections (optional)</p>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Tag sections (optional)
+              </p>
               <div className="flex flex-wrap gap-1.5">
-                {SECTIONS.map((s) => (
+                {QC_TAGGABLE_SECTIONS.map((s) => (
                   <button
                     key={s}
+                    type="button"
                     onClick={() => toggleTag(s)}
                     className={`rounded-full border px-2.5 py-0.5 text-xs capitalize transition-colors ${
                       tags.includes(s)
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground"
+                        ? "border-amber-600 bg-amber-600/15 text-amber-800 dark:text-amber-200"
+                        : "border-border text-muted-foreground hover:border-amber-400/50"
                     }`}
                   >
                     {s}
@@ -80,54 +94,64 @@ export function QcPanel({ survey }: { survey: any }) {
               placeholder="Comment / correction note (required for reject & correction)…"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
+              className="min-h-[88px] rounded-xl border-amber-200/60 bg-background dark:border-amber-800/40"
             />
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="default"
-                disabled={busy || isDraft}
-                onClick={() =>
-                  run(
-                    () =>
-                      decide({
-                        surveyId: survey._id,
-                        decision: "approve",
-                        comment: comment || undefined,
-                        taggedSections: tags,
-                      }),
-                    "Survey approved",
-                  )
-                }
-              >
-                <CheckCircle2 className="h-4 w-4" /> Approve
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={busy || isDraft || !comment.trim()}
-                onClick={() =>
-                  run(
-                    () => decide({ surveyId: survey._id, decision: "reject", comment, taggedSections: tags }),
-                    "Survey rejected & returned for revision",
-                  )
-                }
-              >
-                <XCircle className="h-4 w-4" /> Reject
-              </Button>
-              <Button
-                variant="outline"
-                disabled={busy || !comment.trim()}
-                onClick={() =>
-                  run(
-                    () => addRemark({ surveyId: survey._id, message: comment, taggedSections: tags }),
-                    "Correction remark added",
-                  )
-                }
-              >
-                <MessageSquarePlus className="h-4 w-4" /> Request Correction
-              </Button>
+            <div className="flex flex-col gap-2">
+              {isPending && (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    disabled={busy}
+                    className="flex-1 rounded-full bg-linear-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500"
+                    onClick={() =>
+                      run(
+                        () =>
+                          decide({
+                            surveyId: survey._id,
+                            decision: "approve",
+                            comment: comment || undefined,
+                            taggedSections: tags,
+                          }),
+                        "Survey approved",
+                      )
+                    }
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> Approve
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    disabled={busy || !comment.trim()}
+                    className="flex-1 rounded-full"
+                    onClick={() =>
+                      run(
+                        () => decide({ surveyId: survey._id, decision: "reject", comment, taggedSections: tags }),
+                        "Survey returned for revision",
+                      )
+                    }
+                  >
+                    <XCircle className="h-4 w-4" /> Return
+                  </Button>
+                </div>
+              )}
+              <RoleGate capability="qc.requestCorrection" fallback={null}>
+                <Button
+                  variant="outline"
+                  disabled={busy || !comment.trim()}
+                  className="w-full rounded-full border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                  onClick={() =>
+                    run(
+                      () => addRemark({ surveyId: survey._id, message: comment, taggedSections: tags }),
+                      "Correction remark added",
+                    )
+                  }
+                >
+                  <MessageSquarePlus className="h-4 w-4" /> Request Correction
+                </Button>
+              </RoleGate>
               {isApproved && (
                 <Button
                   variant="ghost"
                   disabled={busy}
+                  className="w-full rounded-full"
                   onClick={() =>
                     run(() => reopen({ surveyId: survey._id, reason: comment || undefined }), "Survey reopened")
                   }
@@ -135,47 +159,41 @@ export function QcPanel({ survey }: { survey: any }) {
                   <Unlock className="h-4 w-4" /> Reopen (override)
                 </Button>
               )}
+              {survey.qcStatus !== "approved" && (
+                <RoleGate capability="surveys.editDraft" fallback={null}>
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="w-full rounded-full border-amber-300 text-amber-800 dark:border-amber-700 dark:text-amber-200"
+                  >
+                    <Link href={`/surveys/${survey._id}/edit`}>
+                      <Pencil className="h-4 w-4" /> Edit survey data
+                    </Link>
+                  </Button>
+                </RoleGate>
+              )}
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Reject returns the survey to <strong>draft</strong> so the surveyor can fix and resubmit. Approve locks it
-              ({<Lock className="inline h-3 w-3" />}) against surveyor edits.
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Return sends the survey to <strong>draft</strong> so the surveyor can fix and resubmit. Approve locks it (
+              <Lock className="inline h-3 w-3" />) against surveyor edits.
             </p>
           </CardContent>
         </Card>
       </RoleGate>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">QC Remark Thread</CardTitle>
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            QC Remark Thread
+            {remarks && remarks.length > 0 && (
+              <Badge variant="secondary" className="text-[10px]">
+                {remarks.filter((r) => r.status === "open").length} open
+              </Badge>
+            )}
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {remarks === undefined && <p className="text-sm text-muted-foreground">Loading…</p>}
-          {remarks?.length === 0 && <p className="text-sm text-muted-foreground">No remarks yet.</p>}
-          {remarks?.map((r: any) => (
-            <div key={r._id} className="rounded-md border border-border p-3">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{r.author?.name ?? "Unknown"}</span>
-                  <Badge variant="outline">{r.authorRole.charAt(0).toUpperCase() + r.authorRole.slice(1)}</Badge>
-                  <Badge variant={r.status === "open" ? "outline" : "default"}>{r.status}</Badge>
-                </div>
-                <span className="text-[11px] text-muted-foreground">{fmtDate(r._creationTime)}</span>
-              </div>
-              <p className="text-sm">{r.message}</p>
-              {r.status === "open" && (
-                <RoleGate capability="qc.decide" fallback={null}>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="mt-1 h-auto p-0 text-xs"
-                    onClick={() => resolveRemark({ id: r._id })}
-                  >
-                    Mark resolved
-                  </Button>
-                </RoleGate>
-              )}
-            </div>
-          ))}
+        <CardContent>
+          <QcRemarksThread remarks={remarks} />
         </CardContent>
       </Card>
     </div>

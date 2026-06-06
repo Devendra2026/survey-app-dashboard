@@ -1,5 +1,6 @@
 "use client";
 
+import { QcRemarksThread } from "@/components/qc/qc-remarks-thread";
 import { RoleGate } from "@/components/shared/role-gate";
 import { PropertyIdTableCell, PropertyIdTableHead } from "@/components/surveys/property-id-table";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { surveyCompletionPercent } from "@/lib/survey/progress";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import { fmtDate } from "@/lib/utils";
+import type { QcRemarkWithAuthor } from "@/schema/qc/index";
 import type { FloorRow, OwnerEntry, SurveyDetail } from "@/schema/surveys/index";
 import {
   Building2,
@@ -25,6 +27,7 @@ import {
   Layers,
   MapPin,
   MapPinHouse,
+  MessageSquare,
   Receipt,
   Users,
   Zap,
@@ -465,11 +468,13 @@ function DetailPhotoSlots({ photos, uploaderName }: { photos: SurveyDetail["phot
 export function SurveyDetailView({
   survey,
   surveyId,
-  remarks: _remarks,
+  remarks,
+  hideProgressFooter = false,
 }: {
   survey: SurveyDetail;
   surveyId: string;
-  remarks?: unknown;
+  remarks?: QcRemarkWithAuthor[];
+  hideProgressFooter?: boolean;
 }) {
   const { masters } = useMasters();
   const audit = useAuditLog({ entity: "survey", entityId: surveyId, limit: 100 });
@@ -639,6 +644,18 @@ export function SurveyDetailView({
         <DetailPhotoSlots photos={survey.photos ?? []} uploaderName={survey.surveyor?.name} />
       </SectionCard>
 
+      {/* ── QC Remarks ─────────────────────────────────────────── */}
+      {(remarks === undefined || remarks.length > 0) && (
+        <SectionCard
+          title="QC Remarks & Corrections"
+          description="Feedback from supervisors during quality control review."
+          icon={<MessageSquare className="h-4 w-4" />}
+          color="amber"
+        >
+          <QcRemarksThread remarks={remarks} />
+        </SectionCard>
+      )}
+
       {/* ── Audit History ─────────────────────────────────────── */}
       <SectionCard title="Audit History" icon={<ClipboardList className="h-4 w-4" />} color="slate">
         <RoleGate capability="audit.view" deniedDescription="Audit history is visible to administrators only.">
@@ -655,33 +672,35 @@ export function SurveyDetailView({
       </SectionCard>
 
       {/* ── Sticky progress footer ────────────────────────────── */}
-      <div className="sticky bottom-0 z-10 -mx-1 overflow-hidden rounded-2xl border border-primary/20 bg-card/95 shadow-xl backdrop-blur-sm">
-        <div className="h-1 w-full bg-muted">
-          <div
-            className="h-full bg-linear-to-r from-indigo-500 via-blue-500 to-sky-500 transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <div className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-indigo-500 to-blue-600 text-sm font-black text-white shadow-sm">
-              {progress}
+      {!hideProgressFooter && (
+        <div className="sticky bottom-0 z-10 -mx-1 overflow-hidden rounded-2xl border border-primary/20 bg-card/95 shadow-xl backdrop-blur-sm">
+          <div className="h-1 w-full bg-muted">
+            <div
+              className="h-full bg-linear-to-r from-indigo-500 via-blue-500 to-sky-500 transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-indigo-500 to-blue-600 text-sm font-black text-white shadow-sm">
+                {progress}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-primary">Survey Completion</p>
+                <p className="text-[11px] text-muted-foreground">{progress}% of all fields filled</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-bold text-primary">Survey Completion</p>
-              <p className="text-[11px] text-muted-foreground">{progress}% of all fields filled</p>
+            <div className="flex flex-col items-end gap-0.5">
+              <p className="text-[11px] text-muted-foreground">
+                Updated {fmtDate((survey as { clientUpdatedAt?: number }).clientUpdatedAt ?? survey._creationTime)}
+              </p>
+              {survey.submittedAt && (
+                <p className="text-[11px] font-semibold text-primary/80">Submitted {fmtDate(survey.submittedAt)}</p>
+              )}
             </div>
           </div>
-          <div className="flex flex-col items-end gap-0.5">
-            <p className="text-[11px] text-muted-foreground">
-              Updated {fmtDate((survey as { clientUpdatedAt?: number }).clientUpdatedAt ?? survey._creationTime)}
-            </p>
-            {survey.submittedAt && (
-              <p className="text-[11px] font-semibold text-primary/80">Submitted {fmtDate(survey.submittedAt)}</p>
-            )}
-          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

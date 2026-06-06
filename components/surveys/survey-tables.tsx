@@ -39,7 +39,17 @@ export interface SurveyRow {
 
 const col = createColumnHelper<SurveyRow>();
 
-export function SurveyTable({ rows, hrefBase = "/surveys" }: { rows?: SurveyRow[]; hrefBase?: string }) {
+export function SurveyTable({
+  rows,
+  hrefBase = "/surveys",
+  variant = "default",
+}: {
+  rows?: SurveyRow[];
+  hrefBase?: string;
+  variant?: "default" | "qc";
+}) {
+  const isQc = variant === "qc";
+  const actionLabel = isQc ? "Review" : "View";
   const { masters } = useMasters();
   const ulbCodes = useMemo(() => buildUlbCodeMap(masters?.ulbs), [masters?.ulbs]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "propertyId", desc: false }]);
@@ -69,10 +79,23 @@ export function SurveyTable({ rows, hrefBase = "/surveys" }: { rows?: SurveyRow[
       col.accessor("city", { header: "ULB" }),
       col.accessor("status", { header: "Status", cell: (c) => <SurveyStatusBadge status={c.getValue()} /> }),
       col.accessor("qcStatus", { header: "QC", cell: (c) => <QcStatusBadge status={c.getValue()} /> }),
-      col.accessor("_creationTime", {
-        header: "Created",
-        cell: (c) => <span className="whitespace-nowrap text-muted-foreground">{fmtDay(c.getValue())}</span>,
-      }),
+      ...(isQc
+        ? [
+            col.accessor("submittedAt", {
+              id: "submittedAt",
+              header: "Submitted",
+              cell: (c) => {
+                const ts = c.getValue() ?? c.row.original._creationTime;
+                return <span className="whitespace-nowrap text-muted-foreground">{fmtDay(ts)}</span>;
+              },
+            }),
+          ]
+        : [
+            col.accessor("_creationTime", {
+              header: "Created",
+              cell: (c) => <span className="whitespace-nowrap text-muted-foreground">{fmtDay(c.getValue())}</span>,
+            }),
+          ]),
       col.display({
         id: "open",
         header: "Action",
@@ -80,16 +103,20 @@ export function SurveyTable({ rows, hrefBase = "/surveys" }: { rows?: SurveyRow[
           <Button
             asChild
             size="sm"
-            className="h-7 rounded-full bg-indigo-600/10 px-3 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-300/60 hover:bg-indigo-600 hover:text-white hover:ring-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300 dark:ring-indigo-700/50 dark:hover:bg-indigo-500 dark:hover:text-white"
+            className={
+              isQc
+                ? "h-7 rounded-full bg-amber-600/10 px-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-300/60 hover:bg-amber-600 hover:text-white hover:ring-amber-600 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-700/50 dark:hover:bg-amber-500 dark:hover:text-white"
+                : "h-7 rounded-full bg-indigo-600/10 px-3 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-300/60 hover:bg-indigo-600 hover:text-white hover:ring-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300 dark:ring-indigo-700/50 dark:hover:bg-indigo-500 dark:hover:text-white"
+            }
           >
             <Link href={`${hrefBase}/${c.row.original._id}`}>
-              <Eye className="h-3 w-3" /> View
+              <Eye className="h-3 w-3" /> {actionLabel}
             </Link>
           </Button>
         ),
       }),
     ],
-    [hrefBase, ulbCodes],
+    [hrefBase, ulbCodes, isQc, actionLabel],
   );
 
   const table = useReactTable({

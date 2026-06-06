@@ -112,10 +112,14 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
                 <Button
                   asChild
                   size="sm"
-                  className="rounded-full bg-linear-to-r from-indigo-600 to-blue-600 text-white shadow-sm hover:from-indigo-500 hover:to-blue-500"
+                  className={
+                    survey.qcStatus === "rejected"
+                      ? "rounded-full bg-linear-to-r from-rose-600 to-orange-600 text-white shadow-sm hover:from-rose-500 hover:to-orange-500"
+                      : "rounded-full bg-linear-to-r from-indigo-600 to-blue-600 text-white shadow-sm hover:from-indigo-500 hover:to-blue-500"
+                  }
                 >
                   <Link href={`/surveys/${id}/edit`}>
-                    <Pencil className="h-4 w-4" /> Edit
+                    <Pencil className="h-4 w-4" /> {survey.qcStatus === "rejected" ? "Fix & Re-submit" : "Edit"}
                   </Link>
                 </Button>
               )}
