@@ -240,22 +240,22 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
                   <Table>
                     <TableHeader>
                       <TableRow className="border-b border-brand-navy/10 bg-brand-navy/5 hover:bg-brand-navy/5 dark:border-primary/15 dark:bg-primary/10">
-                        <TableHead className="text-[10px] font-bold uppercase tracking-[0.1em]">
+                        <TableHead className="text-[10px] font-bold uppercase tracking-widest">
                           <BilingualLabel en="Floor" hi="तल" />
                         </TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-[0.1em]">
+                        <TableHead className="text-[10px] font-bold uppercase tracking-widest">
                           <BilingualLabel en="Usage" hi="उपयोग" />
                         </TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-[0.1em]">
+                        <TableHead className="text-[10px] font-bold uppercase tracking-widest">
                           <BilingualLabel en="Construction" hi="निर्माण" />
                         </TableHead>
-                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-[0.1em]">
+                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">
                           Area (SqFt)
                         </TableHead>
-                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-[0.1em]">
+                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">
                           ALV (₹)
                         </TableHead>
-                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-[0.1em]">
+                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">
                           Tax (10%)
                         </TableHead>
                       </TableRow>

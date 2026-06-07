@@ -18,7 +18,7 @@ export default function DemandNoticePage({ params }: { params: Promise<{ id: str
         <Skeleton className="h-9 w-44 rounded-xl" />
         <Skeleton className="h-36 w-full rounded-2xl" />
         <CardsSkeleton count={5} />
-        <Skeleton className="mx-auto h-[720px] max-w-5xl rounded-2xl" />
+        <Skeleton className="mx-auto h-180 max-w-5xl rounded-2xl" />
       </div>
     );
   }
