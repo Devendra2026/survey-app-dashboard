@@ -1,21 +1,29 @@
 import { Providers } from "@/components/provider/provider";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fira_Code, Fira_Sans, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
+const firaSans = Fira_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+});
+
+const firaCode = Fira_Code({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "SDV GIS APPS",
-  description: "SDV GIS APPS",
+  title: "SDV EDUTECH — Survey Dashboard",
+  description: "SDV EDUTECH enterprise GIS property survey management platform",
 };
 
 export default function RootLayout({
@@ -27,7 +35,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning={true}
-      className={`${geistSans.variable} ${geistMono.variable} h-full overflow-hidden antialiased`}
+      className={`${firaSans.variable} ${plusJakarta.variable} ${firaCode.variable} h-full overflow-hidden antialiased`}
     >
       <body className="flex h-full min-h-0 flex-col overflow-hidden">
         <Providers>{children}</Providers>

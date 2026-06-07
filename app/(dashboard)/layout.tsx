@@ -1,6 +1,8 @@
 "use client";
 
+import { MotionProvider, PageTransition } from "@/components/design-system/motion";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { SidebarProvider } from "@/components/layout/sidebar-context";
 import { Topbar } from "@/components/layout/Topbar";
 import { useCurrentUser } from "@/lib/session";
 import { useAuth } from "@clerk/nextjs";
@@ -41,15 +43,21 @@ function AccountGate({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden">
-      <Sidebar />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <Topbar />
-        <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background">
-          <div className="mx-auto w-full max-w-7xl space-y-6 p-5 pb-10 lg:p-8 lg:pb-12">{children}</div>
-        </main>
+    <SidebarProvider>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <Sidebar />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-[margin,padding] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
+          <Topbar />
+          <main className="app-mesh-bg premium-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
+            <MotionProvider>
+              <PageTransition className="mx-auto w-full max-w-[1440px] space-y-6 p-4 pb-10 sm:p-5 lg:space-y-8 lg:p-8 lg:pb-12">
+                {children}
+              </PageTransition>
+            </MotionProvider>
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
 
