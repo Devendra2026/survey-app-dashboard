@@ -3,6 +3,8 @@
  * (and then relies on Convex's reactive cache to push updates).
  */
 import { v } from "convex/values";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { CONSTRUCTION_TYPES, FLOOR_NAMES, FLOOR_USAGE_FACTORS, FLOOR_USAGE_TYPES } from "./areaMasters";
 import { requireUser } from "./helpers";
@@ -24,31 +26,110 @@ interface Option {
   label: string;
 }
 
+/** Indexed master categories — avoids a full-table scan + filter on `masters`. */
+const MASTER_BUNDLE_CATEGORIES = [
+  "assessment_year",
+  "ownership_type",
+  "property_use",
+  "situation",
+  "road_type",
+  "tax_rate_zone",
+  "water_source",
+  "sanitation_type",
+  "usage_factor",
+  "usage_type",
+  "floor_usage_type",
+  "construction_type",
+  "floor_name",
+] as const;
+
+async function loadActiveMastersByCategory(ctx: QueryCtx): Promise<Record<string, Option[]>> {
+  const grouped: Record<string, Option[]> = {};
+  const rowsByCategory = await Promise.all(
+    MASTER_BUNDLE_CATEGORIES.map((category) =>
+      ctx.db
+        .query("masters")
+        .withIndex("by_category_position", (q) => q.eq("category", category).eq("isActive", true))
+        .collect(),
+    ),
+  );
+  for (let i = 0; i < MASTER_BUNDLE_CATEGORIES.length; i++) {
+    const category = MASTER_BUNDLE_CATEGORIES[i]!;
+    const rows = rowsByCategory[i] ?? [];
+    if (rows.length === 0) continue;
+    grouped[category] = rows.sort((a, b) => a.position - b.position).map((m) => ({ value: m.value, label: m.label }));
+  }
+  return grouped;
+}
+
+/** Load wards only for municipalities in scope (indexed per ULB — not a full-table scan). */
+async function loadWardsForMunicipalities(
+  ctx: QueryCtx,
+  municipalities: Doc<"municipalities">[],
+): Promise<
+  Array<{
+    _id: Id<"wards">;
+    municipalityId: Id<"municipalities">;
+    municipalityCode: string;
+    wardNo: string;
+    wardCode: string;
+    name: string;
+  }>
+> {
+  const muniById = new Map(municipalities.map((m) => [m._id, m]));
+  const wardRows = await Promise.all(
+    municipalities.map((muni) =>
+      ctx.db
+        .query("wards")
+        .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", muni._id))
+        .collect(),
+    ),
+  );
+
+  const wardOut: Array<{
+    _id: Id<"wards">;
+    municipalityId: Id<"municipalities">;
+    municipalityCode: string;
+    wardNo: string;
+    wardCode: string;
+    name: string;
+  }> = [];
+
+  for (const rows of wardRows) {
+    for (const w of rows) {
+      wardOut.push({
+        _id: w._id,
+        municipalityId: w.municipalityId,
+        municipalityCode: muniById.get(w.municipalityId)?.code ?? "",
+        wardNo: w.wardNo,
+        wardCode: w.wardCode ?? w.wardNo,
+        name: w.name,
+      });
+    }
+  }
+
+  return wardOut;
+}
+
 /**
  * Returns every active dropdown grouped by category, plus the full set of
  * municipalities and wards the caller has any read access to. The mobile
  * uses this as the single source of truth for every dropdown menu.
  */
 export const bundle = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    /** Web clients should pass false and load wards via `wardsForMunicipality` on demand. */
+    includeWards: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
     const me = await requireUser(ctx);
+    const includeWards = args.includeWards ?? true;
 
-    const [masters, { districts: visibleDistricts, municipalities: visibleMunis }, wards] = await Promise.all([
-      // Dropdown masters — by_category_position index for grouped iteration
-      ctx.db
-        .query("masters")
-        .filter((q) => q.eq(q.field("isActive"), true))
-        .collect(),
+    const [{ districts: visibleDistricts, municipalities: visibleMunis }, grouped] = await Promise.all([
       resolveTenantScope(ctx, me),
-      ctx.db.query("wards").collect(),
+      loadActiveMastersByCategory(ctx),
     ]);
-    const groupedRaw: Record<string, Option[]> = {};
-    for (const m of masters.sort((a, b) => a.position - b.position)) {
-      groupedRaw[m.category] = groupedRaw[m.category] ?? [];
-      groupedRaw[m.category]!.push({ value: m.value, label: m.label });
-    }
-    const grouped = groupedRaw;
+
     const districtsById = new Map(visibleDistricts.map((d) => [d._id, d]));
 
     const districtsOut = visibleDistricts.map((d) => ({
@@ -73,17 +154,7 @@ export const bundle = query({
       };
     });
 
-    const wardsForUser = wards.filter((w) => visibleMunis.some((m) => m._id === w.municipalityId));
-    const muniById = new Map(visibleMunis.map((m) => [m._id, m]));
-
-    const wardOut = wardsForUser.map((w) => ({
-      _id: w._id,
-      municipalityId: w.municipalityId,
-      municipalityCode: muniById.get(w.municipalityId)?.code ?? "",
-      wardNo: w.wardNo,
-      wardCode: w.wardCode ?? w.wardNo,
-      name: w.name,
-    }));
+    const wardOut = includeWards ? await loadWardsForMunicipalities(ctx, visibleMunis) : [];
 
     return {
       updatedAt: Date.now(),
@@ -121,12 +192,12 @@ export const wardsForMunicipality = query({
   args: { municipalityId: v.id("municipalities") },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    const [muni, rows] = await Promise.all([
-      assertMunicipalityInScope(ctx, me, args.municipalityId),
-      ctx.db.query("wards").collect(),
-    ]);
+    const muni = await assertMunicipalityInScope(ctx, me, args.municipalityId);
+    const rows = await ctx.db
+      .query("wards")
+      .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", args.municipalityId))
+      .collect();
     return rows
-      .filter((w) => w.municipalityId === args.municipalityId)
       .sort((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }))
       .map((w) => ({
         _id: w._id,

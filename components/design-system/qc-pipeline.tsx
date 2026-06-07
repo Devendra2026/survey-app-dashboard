@@ -17,12 +17,16 @@ export function QcPipeline({
   inReview,
   approved,
   rejected,
+  activeStage,
+  onStageClick,
   className,
 }: {
   pending: number;
   inReview?: number;
   approved: number;
   rejected: number;
+  activeStage?: string;
+  onStageClick?: (stageId: string) => void;
   className?: string;
 }) {
   const stages: PipelineStage[] = [
@@ -31,28 +35,28 @@ export function QcPipeline({
       label: "Pending",
       count: pending,
       icon: Clock3,
-      color: "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25",
+      color: "text-amber-950 dark:text-amber-200 bg-warning/12 border-warning/40",
     },
     {
       id: "review",
       label: "In Review",
       count: inReview ?? 0,
       icon: GitBranch,
-      color: "text-brand-navy dark:text-primary bg-brand-navy/10 border-brand-navy/25",
+      color: "text-brand-navy dark:text-primary bg-brand-navy/10 border-brand-navy/25 dark:border-primary/30",
     },
     {
       id: "approved",
       label: "Approved",
       count: approved,
       icon: CheckCircle2,
-      color: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
+      color: "text-emerald-800 dark:text-emerald-300 bg-success/12 border-success/35",
     },
     {
       id: "rejected",
-      label: "Rejected",
+      label: "Returned",
       count: rejected,
       icon: XCircle,
-      color: "text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/25",
+      color: "text-brand-red bg-brand-red/10 border-brand-red/35",
     },
   ];
 
@@ -62,30 +66,60 @@ export function QcPipeline({
     <GlassCard padding="md" className={className}>
       <GlassCardHeader
         title="QC Workflow Pipeline"
-        description="End-to-end quality control stages"
+        description="Click a stage to filter the review queue"
         icon={<FileCheck className="h-4 w-4" aria-hidden />}
       />
       <ul className="grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4" aria-label="QC pipeline stages">
         {stages.map((stage, i) => {
           const Icon = stage.icon;
           const pct = Math.round((stage.count / total) * 100);
+          const isActive = activeStage === stage.id || (stage.id === "rejected" && activeStage === "rejected");
+          const tabKey =
+            stage.id === "pending"
+              ? "pending"
+              : stage.id === "approved"
+                ? "approved"
+                : stage.id === "rejected"
+                  ? "rejected"
+                  : "all";
+          const interactive = onStageClick && stage.id !== "review";
+
+          const inner = (
+            <>
+              <div className="flex items-center justify-between">
+                <Icon className="h-5 w-5" aria-hidden />
+                <span className="font-mono text-2xl font-bold tabular-nums">{stage.count}</span>
+              </div>
+              <p className="mt-2 text-xs font-bold uppercase tracking-wider">{stage.label}</p>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background/50">
+                <progress
+                  className="h-full w-full appearance-none rounded-full bg-transparent [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-transparent [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-current [&::-webkit-progress-value]:opacity-60"
+                  value={pct}
+                  max={100}
+                  aria-label={`${stage.label} ${pct}%`}
+                />
+              </div>
+            </>
+          );
+
           return (
             <li key={stage.id}>
-              <div className={cn("rounded-xl border p-4 transition-all duration-200 hover:shadow-md", stage.color)}>
-                <div className="flex items-center justify-between">
-                  <Icon className="h-5 w-5" aria-hidden />
-                  <span className="font-mono text-2xl font-bold tabular-nums">{stage.count}</span>
-                </div>
-                <p className="mt-2 text-xs font-bold uppercase tracking-wider">{stage.label}</p>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background/50">
-                  <progress
-                    className="h-full w-full appearance-none rounded-full bg-transparent [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-transparent [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-current [&::-webkit-progress-value]:opacity-60"
-                    value={pct}
-                    max={100}
-                    aria-label={`${stage.label} ${pct}%`}
-                  />
-                </div>
-              </div>
+              {interactive ? (
+                <button
+                  type="button"
+                  onClick={() => onStageClick(tabKey)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    "w-full cursor-pointer rounded-xl border p-4 text-left transition-all duration-200 hover:shadow-premium-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy/40 dark:focus-visible:ring-primary/50",
+                    stage.color,
+                    isActive && "ring-2 ring-brand-navy/30 shadow-premium-sm dark:ring-primary/40",
+                  )}
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div className={cn("rounded-xl border p-4 transition-all duration-200", stage.color)}>{inner}</div>
+              )}
               {i < stages.length - 1 && <div className="mx-auto mt-2 hidden h-px w-8 bg-border lg:block" aria-hidden />}
             </li>
           );

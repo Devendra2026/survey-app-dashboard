@@ -16,7 +16,7 @@ import { useQuery as useConvexQuery } from "convex/react";
 
 export function useMasters() {
   const ready = useConvexAuthReady();
-  const bundle = useConvexQuery(api.masters.bundle, ready ? {} : "skip");
+  const bundle = useConvexQuery(api.masters.bundle, ready ? { includeWards: false } : "skip");
   return { masters: bundle, isLoading: bundle === undefined };
 }
 

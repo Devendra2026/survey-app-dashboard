@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useMasters } from "@/hooks/masters/useMasters";
+import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters";
 import { QC_STATUSES, QC_STATUS_LABEL, SURVEY_STATUSES, SURVEY_STATUS_LABEL } from "@/lib/domain";
 import { CalendarDays, RotateCcw, Search } from "lucide-react";
 
@@ -39,6 +39,7 @@ export function SurveyFilters({
   showQcStatus?: boolean;
 }) {
   const { masters } = useMasters();
+  const wardsForMuni = useWardsForMunicipality(value.municipalityId);
   const set = (patch: Partial<FilterState>) => onChange({ ...value, ...patch });
   const setMonth = (month: string | undefined) => {
     if (!month) {
@@ -59,9 +60,7 @@ export function SurveyFilters({
     set({ month, fromDate, toDate });
   };
 
-  const wardsInScope = (masters?.wards ?? []).filter(
-    (w: any) => !value.municipalityId || w.municipalityId === value.municipalityId,
-  );
+  const wardsInScope = value.municipalityId ? (wardsForMuni ?? []) : [];
   const ulbsInScope = (masters?.ulbs ?? []).filter((m: any) => !value.districtId || m.districtId === value.districtId);
   const hasActiveFilters = Boolean(
     value.search ||
@@ -175,13 +174,17 @@ export function SurveyFilters({
 
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Ward</Label>
-          <Select value={value.wardNo ?? ALL} onValueChange={(v) => set({ wardNo: pickFilterValue(v) })}>
+          <Select
+            value={value.wardNo ?? ALL}
+            onValueChange={(v) => set({ wardNo: pickFilterValue(v) })}
+            disabled={!value.municipalityId}
+          >
             <SelectTrigger className="h-10 w-full rounded-lg border-primary/20">
-              <SelectValue placeholder="Ward" />
+              <SelectValue placeholder={value.municipalityId ? "Ward" : "Select ULB first"} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>All wards</SelectItem>
-              {wardsInScope.map((w: any) => (
+              {wardsInScope.map((w) => (
                 <SelectItem key={w._id} value={w.wardNo}>
                   Ward {w.wardNo}
                 </SelectItem>
