@@ -2,6 +2,7 @@
 
 import { DemandNoticeView } from "@/components/qc/demand-notice-view";
 import { EmptyState } from "@/components/shared/empty-state";
+import { CardsSkeleton } from "@/components/shared/loading";
 import { RoleGate } from "@/components/shared/role-gate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
@@ -13,9 +14,11 @@ export default function DemandNoticePage({ params }: { params: Promise<{ id: str
 
   if (survey === undefined) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-6 w-48" />
-        <Skeleton className="mx-auto h-[900px] max-w-4xl rounded-sm" />
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-44 rounded-xl" />
+        <Skeleton className="h-36 w-full rounded-2xl" />
+        <CardsSkeleton count={5} />
+        <Skeleton className="mx-auto h-[720px] max-w-5xl rounded-2xl" />
       </div>
     );
   }
@@ -28,9 +31,7 @@ export default function DemandNoticePage({ params }: { params: Promise<{ id: str
       capability="qc.review"
       deniedDescription="Demand notices are available to supervisors and administrators."
     >
-      <div className="rounded-2xl bg-slate-100/80 p-4 lg:p-8 dark:bg-slate-900/40">
-        <DemandNoticeView survey={survey} surveyId={id} />
-      </div>
+      <DemandNoticeView survey={survey} surveyId={id} />
     </RoleGate>
   );
 }

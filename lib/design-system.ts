@@ -5,17 +5,24 @@ export const BRAND = {
   white: "#FFFFFF",
 } as const;
 
-/** Premium theme surface roles */
+/**
+ * Premium theme surface roles
+ * Typography: Fira Sans (body) · Plus Jakarta Sans (headings) · Fira Code (IDs/mono)
+ * Light: navy #002366 text on cool off-white · red #CC0000 CTAs
+ * Dark: luminous navy primary on deep navy canvas · red accent glow
+ */
 export const THEME = {
   light: {
     sidebar: "Frosted white glass · navy text · red accents",
     canvas: "Cool off-white with subtle navy/red mesh",
     cards: "High-opacity white glass · soft layered shadows",
+    text: "Foreground navy · muted slate-600 secondary",
   },
   dark: {
     sidebar: "Deep navy shell · luminous red accents",
     canvas: "Rich navy-black with ambient glow",
     cards: "Elevated navy surfaces · inner highlight edge",
+    text: "Near-white foreground · soft gray secondary",
   },
 } as const;
 

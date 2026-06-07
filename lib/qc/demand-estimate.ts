@@ -7,11 +7,15 @@ export type DemandAssessment = {
 };
 
 const ZONE_RATE_PER_SQFT: Record<string, number> = {
-  rate_zone_1: 3.2,
-  rate_zone_2: 2.8,
-  rate_zone_3: 2.4,
-  rate_zone_4: 2.0,
-  rate_zone_5: 1.6,
+  below_9m: 1.24,
+  "9_to_12m": 1.05,
+  "12_to_24m": 0.9,
+  above_24m: 0.75,
+  rate_zone_1: 1.24,
+  rate_zone_2: 1.05,
+  rate_zone_3: 0.9,
+  rate_zone_4: 0.75,
+  rate_zone_5: 0.65,
 };
 
 export function estimateDemandAssessment(

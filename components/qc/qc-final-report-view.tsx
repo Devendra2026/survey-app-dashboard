@@ -1,75 +1,93 @@
 "use client";
 
+import { ExecutiveHero, SectionHeader } from "@/components/design-system/executive-hero";
+import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
+import { MetricCard } from "@/components/design-system/metric-card";
+import { FadeIn, PageTransition, StaggerGrid, StaggerItem } from "@/components/design-system/motion";
 import { generateQcFinalReportPdf } from "@/components/reports/queries/pdf";
+import { GoogleMapEmbed } from "@/components/shared/google-map-embed";
+import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMasters } from "@/hooks/masters/useMasters";
-import { QC_STATUS_LABEL } from "@/lib/domain";
-import { estimateDemandAssessment, formatInr } from "@/lib/qc/demand-estimate";
-import { surveyAreaMetrics } from "@/lib/survey/area";
+import { formatInr } from "@/lib/qc/demand-estimate";
+import { getQcReportDemand } from "@/lib/qc/qc-report-demand";
+import { formatAreaSqft, formatAreaSqMeter, surveyAreaMetrics } from "@/lib/survey/area";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import { fmtDate } from "@/lib/utils";
 import type { SurveyDetail } from "@/schema/surveys/index";
-import { BadgeCheck, ChevronRight, Download, FileText, MapPin, Printer, Share2, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  Building2,
+  Camera,
+  ChevronRight,
+  Download,
+  FileText,
+  ImageOff,
+  Layers,
+  MapPin,
+  MapPinHouse,
+  Printer,
+  Receipt,
+  Ruler,
+  Share2,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
 
 type QcFinalReportViewProps = {
   survey: SurveyDetail;
   surveyId: string;
-  auditorName?: string;
   backHref?: string;
 };
 
-function qcStatusPresentation(qcStatus: SurveyDetail["qcStatus"]) {
-  if (qcStatus === "approved") {
-    return { label: "Verified & Finalized", className: "text-emerald-600 dark:text-emerald-400" };
-  }
-  if (qcStatus === "rejected") {
-    return { label: "Returned for Correction", className: "text-red-600 dark:text-red-400" };
-  }
-  return { label: QC_STATUS_LABEL[qcStatus], className: "text-amber-600 dark:text-amber-400" };
-}
-
-function SummaryField({ label, value }: { label: string; value: string }) {
+function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
+  const empty = value == null || value === "" || value === "—";
   return (
-    <div className="space-y-1">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{label}</p>
-      <p className="text-sm font-bold text-foreground">{value}</p>
+    <div className="rounded-xl border border-border/50 bg-card/80 px-3 py-2.5 shadow-premium-sm backdrop-blur-sm dark:bg-card/40">
+      <p className="mb-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p
+        className={`text-sm font-medium leading-snug ${empty ? "italic text-muted-foreground/50" : "text-foreground"}`}
+      >
+        {empty ? "—" : value}
+      </p>
     </div>
   );
 }
 
-function GeoMapPanel({ latitude, longitude }: { latitude: number; longitude: number }) {
-  const mapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${latitude},${longitude}&zoom=16&size=640x360&markers=${latitude},${longitude},red-pushpin`;
-
+function ReportPhoto({ url, label }: { url?: string | null; label: string }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-700/40 bg-slate-900 shadow-inner">
-      <div className="border-b border-slate-700/50 px-4 py-3">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Geo-Tagged Location</p>
+    <figure className="premium-card overflow-hidden rounded-xl border border-border/60">
+      <div className="relative aspect-4/3 bg-muted/40">
+        {url ? (
+          <Image
+            src={url}
+            alt={label}
+            fill
+            unoptimized
+            sizes="(max-width: 640px) 100vw, 320px"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImageOff className="h-7 w-7 opacity-40" aria-hidden />
+            <p className="text-xs font-medium opacity-60">No {label.toLowerCase()}</p>
+          </div>
+        )}
       </div>
-      <div className="relative aspect-4/3 bg-slate-800">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={mapUrl} alt="Property geo-tagged location" className="h-full w-full object-cover opacity-90" />
-        <div className="absolute inset-0 bg-linear-to-t from-slate-950/80 via-transparent to-transparent" />
-        <div className="absolute bottom-3 left-3 right-3 rounded-lg bg-black/75 px-3 py-2 backdrop-blur-sm">
-          <p className="font-mono text-xs font-semibold text-white">
-            {Math.abs(latitude).toFixed(4)}° {latitude >= 0 ? "N" : "S"}, {Math.abs(longitude).toFixed(4)}°{" "}
-            {longitude >= 0 ? "E" : "W"}
-          </p>
-        </div>
-      </div>
-    </div>
+      <figcaption className="border-t border-border/50 px-3 py-2 text-center text-xs font-semibold text-foreground">
+        {label}
+      </figcaption>
+    </figure>
   );
 }
 
-export function QcFinalReportView({
-  survey,
-  surveyId,
-  auditorName,
-  backHref = `/qc/${surveyId}`,
-}: QcFinalReportViewProps) {
+export function QcFinalReportView({ survey, surveyId, backHref = `/qc/${surveyId}` }: QcFinalReportViewProps) {
   const { masters } = useMasters();
   const ulbCodes = buildUlbCodeMap(masters?.ulbs);
   const propertyId = resolveDisplayPropertyId(survey, ulbCodes) ?? survey.propertyId ?? survey.parcelNo;
@@ -86,12 +104,15 @@ export function QcFinalReportView({
     "—";
   const taxZone = labelFromOptions(masters?.taxRateZones, survey.taxRateZone);
   const roadType = labelFromOptions(masters?.roadTypes, survey.roadType);
-  const demand = estimateDemandAssessment(survey, areas.builtUpSqft);
-  const qcStatus = qcStatusPresentation(survey.qcStatus);
+  const ownershipType = labelFromOptions(masters?.ownershipTypes, survey.ownershipType);
+  const demand = getQcReportDemand(survey, survey.floors, masters ?? undefined);
+  const displayAssessableSqft = demand.assessableSqft > 0 ? demand.assessableSqft : areas.builtUpSqft;
   const certifiedAt = survey.submittedAt ?? Date.now();
+  const assessmentYear = survey.assessmentYear || "—";
+  const frontPhoto = survey.photos?.find((p) => p.slot === "front")?.url;
+  const sidePhoto = survey.photos?.find((p) => p.slot === "side")?.url;
 
   const pdfOptions = {
-    auditorName,
     masters: masters
       ? {
           propertyUses: masters.propertyUses,
@@ -116,220 +137,322 @@ export function QcFinalReportView({
   }
 
   return (
-    <div className="qc-final-report space-y-6 print:space-y-4">
-      {/* Breadcrumbs */}
-      <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground print:hidden">
-        <Link href="/qc" className="font-medium transition-colors hover:text-foreground">
-          QC Workflow
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="font-medium">Reports</span>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="font-semibold text-foreground">{propertyId}</span>
-      </nav>
-
-      {/* Report header */}
-      <div className="flex flex-col gap-5 border-b border-border/60 pb-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
-            QC Final Report
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Comprehensive verification and finalized assessment for Property ID:{" "}
-            <span className="font-mono font-semibold text-foreground">{propertyId}</span>
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <Button variant="outline" size="sm" className="rounded-lg" onClick={shareReport}>
-            <Share2 className="h-4 w-4" /> Share with Owner
-          </Button>
-          <Button variant="outline" size="sm" className="rounded-lg" onClick={() => window.print()}>
-            <Printer className="h-4 w-4" /> Print
-          </Button>
-          <Button asChild variant="outline" size="sm" className="rounded-lg">
-            <Link href={`/qc/${surveyId}/demand-notice`}>
-              <FileText className="h-4 w-4" /> Generate Demand Notice
-            </Link>
-          </Button>
-          <Button
-            size="sm"
-            className="rounded-lg bg-blue-600 text-white shadow-md hover:bg-blue-500"
-            onClick={() => generateQcFinalReportPdf(survey, pdfOptions)}
-          >
-            <Download className="h-4 w-4" /> Download PDF
-          </Button>
-        </div>
-      </div>
-
-      {/* Property summary */}
-      <section className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
-        <div className="grid gap-6 border-b border-border/50 p-5 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Final QC Status</p>
-            <p className={`text-lg font-black ${qcStatus.className}`}>{qcStatus.label}</p>
-          </div>
-          <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Owner Name</p>
-            <p className="text-lg font-bold text-foreground">{ownerName}</p>
-          </div>
-        </div>
-        <div className="grid gap-5 p-5 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryField label="Ward Number" value={survey.wardNo ? `Ward No. ${survey.wardNo}` : "—"} />
-          <SummaryField label="Property Type" value={propertyType} />
-          <SummaryField label="Tax Rate Zone" value={taxZone} />
-          <SummaryField label="Road Type" value={roadType} />
-        </div>
-      </section>
-
-      {/* Main grid: floors + sidebar */}
-      <div className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
-        {/* Floor breakdown */}
-        <section className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
-          <div className="border-b border-border/50 px-5 py-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-              Floor-wise Area Breakdown
-            </h2>
-          </div>
-          {survey.floors?.length ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b border-border/60 bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider">Floor Level</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider">Usage Type</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider">Construction</TableHead>
-                    <TableHead className="text-right text-[10px] font-bold uppercase tracking-wider">
-                      Built-up (Sqft)
-                    </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {survey.floors.map((floor, i) => (
-                    <TableRow
-                      key={floor._id}
-                      className={`border-b border-border/40 ${i % 2 === 0 ? "bg-background" : "bg-muted/15"}`}
-                    >
-                      <TableCell className="font-semibold capitalize">
-                        {labelFromOptions(masters?.floors, floor.floorName)}
-                      </TableCell>
-                      <TableCell className="capitalize text-muted-foreground">
-                        {labelFromOptions(masters?.usageTypes, floor.usageType) ||
-                          labelFromOptions(masters?.usageFactors, floor.usageFactor)}
-                      </TableCell>
-                      <TableCell className="capitalize text-muted-foreground">
-                        {labelFromOptions(masters?.constructionTypes, floor.constructionType)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-bold tabular-nums">
-                        {floor.areaSqft.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                          Measured
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <p className="px-5 py-10 text-center text-sm text-muted-foreground">No floor records available</p>
-          )}
-          <div className="flex items-center justify-between border-t border-border/50 bg-blue-50/50 px-5 py-4 dark:bg-blue-950/20">
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Total Assessable Area
-            </span>
-            <span className="font-mono text-2xl font-black tabular-nums text-blue-600 dark:text-blue-400">
-              {areas.builtUpSqft > 0
-                ? areas.builtUpSqft.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : "—"}
-            </span>
-          </div>
-        </section>
-
-        {/* Right column */}
-        <div className="space-y-5">
-          {/* Demand assessment */}
-          <section className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900 text-slate-100 shadow-lg">
-            <div className="border-b border-slate-700/60 px-4 py-3">
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Demand Assessment</h2>
-            </div>
-            <div className="divide-y divide-slate-700/50 px-4">
-              {demand.lines.map((line) => (
-                <div key={line.label} className="flex items-center justify-between py-3">
-                  <span className="text-sm text-slate-300">{line.label}</span>
-                  <span className="font-mono text-sm font-semibold tabular-nums">{formatInr(line.amount)}</span>
-                </div>
-              ))}
-            </div>
-            <div className="border-t border-slate-700/60 bg-slate-800/80 px-4 py-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Annual Demand</p>
-              <p className="mt-1 font-mono text-3xl font-black tabular-nums text-blue-400">
-                {demand.total > 0 ? formatInr(demand.total) : "—"}
-              </p>
-            </div>
-          </section>
-
-          {/* Geo map */}
-          {survey.gps ? (
-            <GeoMapPanel latitude={survey.gps.latitude} longitude={survey.gps.longitude} />
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-slate-700/40 bg-slate-900">
-              <div className="border-b border-slate-700/50 px-4 py-3">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Geo-Tagged Location</p>
-              </div>
-              <div className="flex flex-col items-center justify-center gap-2 px-4 py-14 text-slate-500">
-                <MapPin className="h-8 w-8 opacity-40" />
-                <p className="text-sm">No GPS coordinates captured</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Certification footer */}
-      <section className="grid gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm lg:grid-cols-[1fr_1fr_auto] lg:items-center">
-        <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Auditor Digital Signature
-          </p>
-          <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-5">
-            <p className="font-serif text-2xl italic text-slate-600 dark:text-slate-300">{auditorName ?? "—"}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Certified Auditor</p>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Certification Timestamp
-          </p>
-          <p className="font-mono text-sm font-semibold uppercase tracking-wide text-foreground">
-            {fmtDate(certifiedAt)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Surveyor: {survey.surveyor?.name ?? "—"} · {survey.city ?? "—"}
-          </p>
-        </div>
-        <div className="rounded-xl border border-emerald-200/60 bg-emerald-50 px-5 py-4 dark:border-emerald-800/40 dark:bg-emerald-950/30">
-          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-            <ShieldCheck className="h-5 w-5 shrink-0" />
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider">Compliance Check</p>
-              <p className="text-sm font-semibold">Document Integrity Verified</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="flex justify-start print:hidden">
-        <Button asChild variant="outline" size="sm" className="rounded-full">
+    <PageTransition className="qc-final-report space-y-6 lg:space-y-8">
+      <div className="print-hidden flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button asChild variant="outline" size="sm" className="w-fit cursor-pointer rounded-xl">
           <Link href={backHref}>
-            <BadgeCheck className="h-4 w-4" /> Back to QC Review
+            <ArrowLeft className="h-4 w-4" aria-hidden /> Back to QC Review
           </Link>
         </Button>
+        <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+          <Link href="/qc" className="cursor-pointer font-medium transition-colors duration-200 hover:text-foreground">
+            QC Workflow
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          <span className="font-medium">Final Report</span>
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          <span className="font-mono text-xs font-semibold text-foreground">{propertyId}</span>
+        </nav>
       </div>
-    </div>
+
+      <FadeIn>
+        <ExecutiveHero
+          eyebrow="Verified Assessment Document"
+          title="QC Final Report"
+          description={`Property ${propertyId} · ${ownerName} · Ward ${survey.wardNo ?? "—"}, ${survey.city ?? "—"}`}
+          icon={ShieldCheck}
+          gradient="brand"
+          actions={
+            <div className="print-hidden flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" className="cursor-pointer rounded-xl" onClick={shareReport}>
+                <Share2 className="h-4 w-4" aria-hidden /> Share
+              </Button>
+              <Button variant="outline" size="sm" className="cursor-pointer rounded-xl" onClick={() => window.print()}>
+                <Printer className="h-4 w-4" aria-hidden /> Print
+              </Button>
+              <Button asChild variant="outline" size="sm" className="cursor-pointer rounded-xl">
+                <Link href={`/qc/${surveyId}/demand-notice`}>
+                  <FileText className="h-4 w-4" aria-hidden /> Demand Notice
+                </Link>
+              </Button>
+              <Button
+                size="sm"
+                className="btn-brand cursor-pointer rounded-xl"
+                onClick={() => generateQcFinalReportPdf(survey, pdfOptions)}
+              >
+                <Download className="h-4 w-4" aria-hidden /> Download PDF
+              </Button>
+            </div>
+          }
+        />
+      </FadeIn>
+
+      <section aria-labelledby="report-kpi-heading">
+        <SectionHeader
+          id="report-kpi-heading"
+          title="Assessment Summary"
+          description="Key figures from the finalized QC record"
+          className="mb-4"
+        />
+        <StaggerGrid className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
+          <StaggerItem>
+            <MetricCard
+              label="Annual Demand"
+              value={demand.total > 0 ? formatInr(demand.total) : "—"}
+              hint="estimated property tax"
+              icon={Receipt}
+              tone="ai"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <MetricCard
+              label="Assessable Area"
+              value={displayAssessableSqft > 0 ? formatAreaSqft(displayAssessableSqft) : "—"}
+              hint={formatAreaSqMeter(displayAssessableSqft)}
+              icon={Ruler}
+              tone="info"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <MetricCard
+              label="Plot Area"
+              value={formatAreaSqft(areas.plotSqft)}
+              hint={formatAreaSqMeter(areas.plotSqft)}
+              icon={MapPinHouse}
+              tone="default"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <MetricCard
+              label="Plinth Area"
+              value={formatAreaSqft(areas.plinthSqft)}
+              hint={formatAreaSqMeter(areas.plinthSqft)}
+              icon={Building2}
+              tone="muted"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <MetricCard
+              label="Certified On"
+              value={fmtDate(certifiedAt)}
+              hint={`Year ${assessmentYear}`}
+              icon={BadgeCheck}
+              tone="success"
+            />
+          </StaggerItem>
+        </StaggerGrid>
+      </section>
+
+      <div className="grid items-start gap-6 xl:grid-cols-[1fr_380px]">
+        <div className="space-y-6">
+          <FadeIn delay={0.04}>
+            <GlassCard padding="md">
+              <GlassCardHeader
+                title="Property & Owner"
+                description="Identity and taxation attributes"
+                icon={<Users className="h-4 w-4" aria-hidden />}
+                className="mb-4"
+              />
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <QcStatusBadge status={survey.qcStatus} />
+                <SurveyStatusBadge status={survey.status} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <DetailField label="Property ID" value={<span className="font-mono text-xs">{propertyId}</span>} />
+                <DetailField label="Owner / Respondent" value={ownerName} />
+                <DetailField label="Ward" value={survey.wardNo ? `Ward ${survey.wardNo}` : "—"} />
+                <DetailField label="ULB / City" value={survey.city ?? "—"} />
+                <DetailField label="Property Type" value={propertyType} />
+                <DetailField label="Ownership" value={ownershipType} />
+                <DetailField label="Tax Rate Zone" value={taxZone} />
+                <DetailField label="Road Type" value={roadType} />
+                <DetailField label="Surveyor" value={survey.surveyor?.name ?? "—"} />
+                <DetailField label="Parcel No" value={survey.parcelNo} />
+                <DetailField label="Assessment Year" value={assessmentYear} />
+                <DetailField
+                  label="Address"
+                  value={
+                    [survey.houseNo, survey.locality, survey.colonyName, survey.pinCode].filter(Boolean).join(", ") ||
+                    "—"
+                  }
+                />
+              </div>
+            </GlassCard>
+          </FadeIn>
+
+          <FadeIn delay={0.06}>
+            <GlassCard padding="none" className="overflow-hidden">
+              <GlassCardHeader
+                title="Floor-wise Area Breakdown"
+                description="Measured built-up areas by level"
+                icon={<Layers className="h-4 w-4" aria-hidden />}
+                className="border-b border-border/50 px-5 py-4"
+              />
+              {survey.floors?.length ? (
+                <div className="overflow-x-auto p-4 pt-0">
+                  <div className="premium-card overflow-hidden rounded-xl border border-border/60">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b border-brand-navy/10 bg-linear-to-r from-brand-navy/6 via-muted/25 to-brand-navy/4 hover:bg-brand-navy/6 dark:border-primary/15 dark:from-primary/12">
+                          <TableHead className="text-[10px] font-bold uppercase tracking-[0.12em]">Floor</TableHead>
+                          <TableHead className="text-[10px] font-bold uppercase tracking-[0.12em]">Usage</TableHead>
+                          <TableHead className="text-[10px] font-bold uppercase tracking-[0.12em]">
+                            Construction
+                          </TableHead>
+                          <TableHead className="text-right text-[10px] font-bold uppercase tracking-[0.12em]">
+                            Built-up (sqft)
+                          </TableHead>
+                          <TableHead className="text-[10px] font-bold uppercase tracking-[0.12em]">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {survey.floors.map((floor) => (
+                          <TableRow key={floor._id} className="border-b border-border/40 text-sm">
+                            <TableCell className="font-medium capitalize">
+                              {labelFromOptions(masters?.floors, floor.floorName)}
+                            </TableCell>
+                            <TableCell className="capitalize text-muted-foreground">
+                              {labelFromOptions(masters?.usageTypes, floor.usageType) ||
+                                labelFromOptions(masters?.usageFactors, floor.usageFactor)}
+                            </TableCell>
+                            <TableCell className="capitalize text-muted-foreground">
+                              {labelFromOptions(masters?.constructionTypes, floor.constructionType)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-semibold tabular-nums">
+                              {floor.areaSqft.toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success">
+                                <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
+                                Measured
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              ) : (
+                <p className="px-5 py-10 text-center text-sm text-muted-foreground">No floor records available</p>
+              )}
+              <div className="flex items-center justify-between border-t border-border/50 bg-brand-navy/5 px-5 py-4 dark:bg-primary/8">
+                <span className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  Total Assessable Area
+                </span>
+                <span className="font-display text-2xl font-bold tabular-nums text-foreground">
+                  {displayAssessableSqft > 0
+                    ? `${displayAssessableSqft.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sq ft`
+                    : "—"}
+                </span>
+              </div>
+            </GlassCard>
+          </FadeIn>
+
+          <FadeIn delay={0.08}>
+            <GlassCard padding="md">
+              <GlassCardHeader
+                title="Site Documentation"
+                description="Geo-tagged photographic evidence"
+                icon={<Camera className="h-4 w-4" aria-hidden />}
+                className="mb-4"
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <ReportPhoto url={frontPhoto} label="Front View" />
+                <ReportPhoto url={sidePhoto} label="Side View" />
+              </div>
+            </GlassCard>
+          </FadeIn>
+        </div>
+
+        <aside className="space-y-5 xl:sticky xl:top-6">
+          <FadeIn delay={0.06}>
+            <GlassCard variant="accent" padding="md" className="border-brand-red/20">
+              <GlassCardHeader
+                title="Demand Assessment"
+                description="Annual property tax estimate"
+                icon={<Receipt className="h-4 w-4" aria-hidden />}
+                className="mb-4"
+              />
+              {demand.lines.length > 0 ? (
+                <ul className="divide-y divide-border/50">
+                  {demand.lines.map((line) => (
+                    <li key={line.label} className="flex items-center justify-between py-3 first:pt-0">
+                      <span className="text-sm text-muted-foreground">{line.label}</span>
+                      <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
+                        {formatInr(line.amount)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No assessable area on record — add floor or plot area to calculate demand.
+                </p>
+              )}
+              <div className="mt-4 rounded-xl border-2 border-brand-red/25 bg-brand-red/8 px-4 py-5 dark:border-brand-red/35 dark:bg-brand-red/12">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                  Total Annual Demand
+                </p>
+                <p className="mt-1 font-display text-3xl font-bold tabular-nums text-brand-red">
+                  {demand.total > 0 ? formatInr(demand.total) : "—"}
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="mt-4 w-full cursor-pointer rounded-xl">
+                <Link href={`/qc/${surveyId}/demand-notice`}>
+                  <FileText className="h-4 w-4" aria-hidden /> View Demand Notice
+                </Link>
+              </Button>
+            </GlassCard>
+          </FadeIn>
+
+          <FadeIn delay={0.1}>
+            {survey.gps ? (
+              <GoogleMapEmbed
+                latitude={survey.gps.latitude}
+                longitude={survey.gps.longitude}
+                accuracyMeters={survey.gps.accuracyMeters}
+              />
+            ) : (
+              <GlassCard padding="md" className="text-center">
+                <MapPin className="mx-auto h-8 w-8 text-muted-foreground/40" aria-hidden />
+                <p className="mt-2 text-sm text-muted-foreground">No GPS coordinates captured</p>
+              </GlassCard>
+            )}
+          </FadeIn>
+
+          <FadeIn delay={0.12}>
+            <GlassCard padding="md">
+              <SectionHeader title="Certification Record" description="Report metadata" className="mb-4" />
+              <dl className="space-y-3 text-sm">
+                <div>
+                  <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                    Certified On
+                  </dt>
+                  <dd className="mt-0.5 font-mono font-semibold text-foreground">{fmtDate(certifiedAt)}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Surveyor</dt>
+                  <dd className="mt-0.5 font-medium text-foreground">{survey.surveyor?.name ?? "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">ULB</dt>
+                  <dd className="mt-0.5 font-medium text-foreground">{survey.city ?? "—"}</dd>
+                </div>
+              </dl>
+              <div className="mt-4 rounded-xl border border-success/35 bg-success/10 px-4 py-3">
+                <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+                  <BadgeCheck className="h-5 w-5 shrink-0" aria-hidden />
+                  <p className="text-sm font-semibold">Document integrity verified</p>
+                </div>
+              </div>
+            </GlassCard>
+          </FadeIn>
+        </aside>
+      </div>
+    </PageTransition>
   );
 }

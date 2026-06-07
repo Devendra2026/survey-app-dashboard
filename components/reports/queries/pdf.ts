@@ -123,7 +123,6 @@ type QcFinalReportMasters = {
 };
 
 export type QcFinalReportOptions = {
-  auditorName?: string;
   masters?: QcFinalReportMasters;
 };
 
@@ -133,7 +132,7 @@ function fmtLabel(options: MasterOption[] | undefined, value: string | undefined
 
 /** QC final report — verified property assessment for one survey. */
 export function generateQcFinalReportPdf(survey: any, options: QcFinalReportOptions = {}) {
-  const { auditorName, masters } = options;
+  const { masters } = options;
   const doc = new jsPDF();
   const propertyId = survey.propertyId || survey.parcelNo;
   const ownerName = survey.respondentName || survey.owners?.[0]?.name || "—";
@@ -229,9 +228,8 @@ export function generateQcFinalReportPdf(survey: any, options: QcFinalReportOpti
   doc.text("Certification", 14, certY);
   doc.setFontSize(9);
   doc.setTextColor(60, 60, 60);
-  doc.text(`Auditor: ${auditorName ?? "—"}`, 14, certY + 8);
-  doc.text(`Certified on: ${fmtDate(Date.now())}`, 14, certY + 15);
-  doc.text("Document integrity: Verified", 14, certY + 22);
+  doc.text(`Certified on: ${fmtDate(Date.now())}`, 14, certY + 8);
+  doc.text("Document integrity: Verified", 14, certY + 15);
 
   save(doc, `qc_final_${survey.parcelNo || survey._id}`);
 }

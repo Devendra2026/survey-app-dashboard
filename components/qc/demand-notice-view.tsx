@@ -1,5 +1,10 @@
 "use client";
 
+import { ExecutiveHero, SectionHeader } from "@/components/design-system/executive-hero";
+import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
+import { MetricCard } from "@/components/design-system/metric-card";
+import { FadeIn, PageTransition, StaggerGrid, StaggerItem } from "@/components/design-system/motion";
+import { GoogleMapEmbed } from "@/components/shared/google-map-embed";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMasters } from "@/hooks/masters/useMasters";
@@ -14,7 +19,20 @@ import {
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import type { SurveyDetail } from "@/schema/surveys/index";
-import { ArrowLeft, ChevronRight, ImageOff, Printer } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  Camera,
+  ChevronRight,
+  FileText,
+  ImageOff,
+  Layers,
+  MapPin,
+  Printer,
+  Receipt,
+  Ruler,
+  Scale,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -32,29 +50,32 @@ function BilingualLabel({ en, hi }: { en: string; hi: string }) {
   );
 }
 
-function InfoBox({ label, value }: { label: React.ReactNode; value: string }) {
+function NoticeField({ label, value }: { label: React.ReactNode; value: string }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-bold leading-snug text-slate-900">{value}</p>
+    <div className="rounded-xl border border-border/50 bg-card/90 px-3 py-2.5 shadow-premium-sm dark:bg-card/60">
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-semibold leading-snug text-foreground">{value}</p>
     </div>
   );
 }
 
-function SiteImage({ src, alt, label }: { src?: string | null; alt: string; label: string }) {
+function NoticePhoto({ url, label }: { url?: string | null; label: string }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="relative aspect-square w-full bg-slate-100">
-        {src ? (
-          <Image src={src} alt={alt} fill unoptimized sizes="240px" className="object-cover" />
+    <figure className="overflow-hidden rounded-xl border border-border/60 bg-card">
+      <div className="relative aspect-square w-full bg-muted/30">
+        {url ? (
+          <Image src={url} alt={label} fill unoptimized sizes="240px" className="object-cover" />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-400">
-            <ImageOff className="h-8 w-8 opacity-40" />
-            <p className="text-xs font-medium">No {label}</p>
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImageOff className="h-7 w-7 opacity-40" aria-hidden />
+            <p className="text-xs font-medium opacity-60">No {label.toLowerCase()}</p>
           </div>
         )}
       </div>
-    </div>
+      <figcaption className="border-t border-border/50 px-3 py-2 text-center text-xs font-semibold text-foreground">
+        {label}
+      </figcaption>
+    </figure>
   );
 }
 
@@ -74,221 +95,361 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
   const noticeDate = formatNoticeDate(survey.submittedAt ?? Date.now());
   const assessmentYear = survey.assessmentYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
   const frontPhoto = survey.photos?.find((p) => p.slot === "front")?.url;
-  const mapPhoto = survey.gps
-    ? `https://staticmap.openstreetmap.de/staticmap.php?center=${survey.gps.latitude},${survey.gps.longitude}&zoom=17&size=400x400&markers=${survey.gps.latitude},${survey.gps.longitude},lightblue1`
-    : survey.photos?.find((p) => p.slot === "side")?.url;
 
   return (
-    <div className="demand-notice space-y-5">
-      <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground print:hidden">
-        <Link href="/qc" className="font-medium transition-colors hover:text-foreground">
-          QC Workflow
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <Link href={`/qc/${surveyId}/report`} className="font-medium transition-colors hover:text-foreground">
-          Reports
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="font-semibold text-foreground">Demand Notice</span>
-      </nav>
-
-      <div className="demand-notice-toolbar flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <Button asChild variant="outline" size="sm" className="rounded-lg">
+    <PageTransition className="demand-notice space-y-6 lg:space-y-8">
+      <div className="print-hidden flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button asChild variant="outline" size="sm" className="w-fit cursor-pointer rounded-xl">
           <Link href={backHref}>
-            <ArrowLeft className="h-4 w-4" /> Back to QC Report
+            <ArrowLeft className="h-4 w-4" aria-hidden /> Back to QC Report
           </Link>
         </Button>
-        <Button variant="outline" size="sm" className="rounded-lg" onClick={() => window.print()}>
-          <Printer className="h-4 w-4" /> Print Notice
-        </Button>
+        <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+          <Link href="/qc" className="cursor-pointer font-medium transition-colors duration-200 hover:text-foreground">
+            QC Workflow
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          <Link
+            href={`/qc/${surveyId}/report`}
+            className="cursor-pointer font-medium transition-colors duration-200 hover:text-foreground"
+          >
+            Final Report
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          <span className="font-semibold text-foreground">Demand Notice</span>
+        </nav>
       </div>
 
-      {/* Document */}
-      <article className="demand-notice-document mx-auto max-w-4xl overflow-hidden rounded-sm border border-slate-200 bg-white shadow-xl">
-        {/* Header */}
-        <header className="border-b-4 border-blue-700 px-8 pb-5 pt-8 text-center">
-          <p className="font-serif text-lg font-bold leading-relaxed text-slate-900">{office.hindi}</p>
-          <p className="mt-1 font-serif text-base font-semibold text-slate-700">{office.english}</p>
-        </header>
+      <FadeIn>
+        <ExecutiveHero
+          eyebrow="Tax Demand Notice"
+          title="Annual Property Tax Assessment"
+          description={`${propertyId} · ${ownerName} · ${cityName}, ${stateName}`}
+          icon={Receipt}
+          gradient="brand"
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              className="print-hidden cursor-pointer rounded-xl"
+              onClick={() => window.print()}
+            >
+              <Printer className="h-4 w-4" aria-hidden /> Print Notice
+            </Button>
+          }
+        />
+      </FadeIn>
 
-        <div className="space-y-6 px-8 py-6">
-          {/* Meta row */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 text-sm">
-            <p>
-              <span className="font-semibold text-slate-600">Assessment Year:</span>{" "}
-              <span className="font-bold text-slate-900">{assessmentYear}</span>
-            </p>
-            <p>
-              <span className="font-semibold text-slate-600">Notice Date:</span>{" "}
-              <span className="font-bold text-slate-900">{noticeDate}</span>
-            </p>
-          </div>
-
-          {/* Property grid */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <InfoBox label="Property Zone" value={taxZone.toUpperCase()} />
-            <InfoBox
-              label={<BilingualLabel en="Ward" hi="वार्ड संख्या" />}
-              value={`वार्ड नंबर ${survey.wardNo} (Ward No. ${survey.wardNo})`}
+      <section aria-labelledby="notice-kpi-heading" className="print-hidden">
+        <SectionHeader
+          id="notice-kpi-heading"
+          title="Demand Summary"
+          description="Computed from floor-wise ALV assessment"
+          className="mb-4"
+        />
+        <StaggerGrid className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
+          <StaggerItem>
+            <MetricCard
+              label="Total Annual Demand"
+              value={notice.totalAnnualDemand > 0 ? formatInr(notice.totalAnnualDemand) : "—"}
+              hint="property + water + drainage"
+              icon={Receipt}
+              tone="ai"
             />
-            <InfoBox label={<BilingualLabel en="Unique ID" hi="यूनिक आईडी" />} value={propertyId} />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <InfoBox label="Property Owner" value={ownerName} />
-            <InfoBox label="Address" value={address || "—"} />
-          </div>
+          </StaggerItem>
+          <StaggerItem>
+            <MetricCard
+              label="Total ALV"
+              value={notice.totalAlv > 0 ? formatInr(notice.totalAlv) : "—"}
+              hint="annual letting value"
+              icon={Scale}
+              tone="info"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <MetricCard
+              label="Assessed Area"
+              value={notice.totalArea > 0 ? `${formatAmountPlain(notice.totalArea)} sq ft` : "—"}
+              hint="sum of floor areas"
+              icon={Ruler}
+              tone="default"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <MetricCard
+              label="Property Tax"
+              value={notice.propertyTax > 0 ? formatInr(notice.propertyTax) : "—"}
+              hint="10% of ALV"
+              icon={Building2}
+              tone="warning"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <MetricCard
+              label="Notice Date"
+              value={noticeDate}
+              hint={`Year ${assessmentYear}`}
+              icon={FileText}
+              tone="success"
+            />
+          </StaggerItem>
+        </StaggerGrid>
+      </section>
 
-          {/* Assessment table */}
-          <section>
-            <h2 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
-              <BilingualLabel en="Assessment Details" hi="मूल्यांकन विवरण" />
-            </h2>
-            <div className="overflow-hidden rounded-lg border border-slate-200">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b border-slate-200 bg-slate-100 hover:bg-slate-100">
-                    <TableHead className="text-[10px] font-bold uppercase text-slate-600">
-                      <BilingualLabel en="Floor" hi="तल" />
-                    </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-slate-600">
-                      <BilingualLabel en="Usage" hi="उपयोग" />
-                    </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-slate-600">
-                      <BilingualLabel en="Construction" hi="निर्माण" />
-                    </TableHead>
-                    <TableHead className="text-right text-[10px] font-bold uppercase text-slate-600">
-                      Area (SqFt)
-                    </TableHead>
-                    <TableHead className="text-right text-[10px] font-bold uppercase text-slate-600">ALV (₹)</TableHead>
-                    <TableHead className="text-right text-[10px] font-bold uppercase text-slate-600">
-                      Tax (10%)
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {notice.floorRows.length > 0 ? (
-                    notice.floorRows.map((row, i) => (
-                      <TableRow
-                        key={`${row.floorLabel}-${i}`}
-                        className={`border-b border-slate-100 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}`}
-                      >
-                        <TableCell className="font-semibold text-slate-800">{row.floorLabel}</TableCell>
-                        <TableCell className="text-slate-600">{row.usageLabel}</TableCell>
-                        <TableCell className="text-slate-600">{row.constructionLabel}</TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">
-                          {formatAmountPlain(row.areaSqft)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">
-                          {formatAmountPlain(row.alv)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold tabular-nums">
-                          {formatAmountPlain(row.tax)}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-8 text-center text-sm text-slate-500">
-                        No floor assessment data available
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {notice.floorRows.length > 0 && (
-                    <TableRow className="border-t-2 border-slate-300 bg-slate-50 font-bold hover:bg-slate-50">
-                      <TableCell colSpan={3} className="uppercase tracking-wide text-slate-700">
-                        Total Assessment
-                      </TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">
-                        {formatAmountPlain(notice.totalArea)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">
-                        {formatAmountPlain(notice.totalAlv)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-base tabular-nums text-slate-900">
-                        ₹ {formatAmountPlain(notice.totalTax)}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+      <FadeIn delay={0.06}>
+        <article className="demand-notice-document mx-auto max-w-5xl overflow-hidden rounded-2xl border border-border/60 bg-card shadow-premium-lg">
+          <header className="border-b-4 border-brand-navy bg-brand-navy/5 px-6 py-8 text-center dark:border-primary dark:bg-primary/10 sm:px-10">
+            <p className="font-heading text-lg font-bold leading-relaxed text-foreground">{office.hindi}</p>
+            <p className="mt-1 font-heading text-base font-semibold text-muted-foreground">{office.english}</p>
+            <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.16em] text-brand-red">
+              Property Tax Demand Notice / संपत्ति कर मांग नोटिस
+            </p>
+          </header>
+
+          <div className="space-y-6 px-6 py-6 sm:px-10">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4 text-sm">
+              <p>
+                <span className="font-semibold text-muted-foreground">Assessment Year:</span>{" "}
+                <span className="font-bold text-foreground">{assessmentYear}</span>
+              </p>
+              <p>
+                <span className="font-semibold text-muted-foreground">Notice Date:</span>{" "}
+                <span className="font-bold text-foreground">{noticeDate}</span>
+              </p>
             </div>
-          </section>
 
-          {/* Imagery + demand summary */}
-          <div className="grid items-start gap-6 lg:grid-cols-[1fr_300px]">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <NoticeField label="Property Zone" value={taxZone.toUpperCase()} />
+              <NoticeField
+                label={<BilingualLabel en="Ward" hi="वार्ड संख्या" />}
+                value={`वार्ड नंबर ${survey.wardNo} (Ward No. ${survey.wardNo})`}
+              />
+              <NoticeField label={<BilingualLabel en="Unique ID" hi="यूनिक आईडी" />} value={propertyId} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <NoticeField label="Property Owner" value={ownerName} />
+              <NoticeField label="Address" value={address || "—"} />
+            </div>
+
             <section>
-              <h2 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                <BilingualLabel en="Site Imagery" hi="साइट छवि" />
+              <h2 className="mb-3 font-heading text-xs font-bold uppercase tracking-[0.14em] text-brand-navy/70 dark:text-primary/80">
+                <BilingualLabel en="Assessment Details" hi="मूल्यांकन विवरण" />
               </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <SiteImage src={frontPhoto} alt="Property front view" label="front photo" />
-                <SiteImage src={mapPhoto} alt="Property location map" label="map view" />
+              <div className="premium-card overflow-hidden rounded-xl border border-border/60">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b border-brand-navy/10 bg-brand-navy/5 hover:bg-brand-navy/5 dark:border-primary/15 dark:bg-primary/10">
+                        <TableHead className="text-[10px] font-bold uppercase tracking-[0.1em]">
+                          <BilingualLabel en="Floor" hi="तल" />
+                        </TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase tracking-[0.1em]">
+                          <BilingualLabel en="Usage" hi="उपयोग" />
+                        </TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase tracking-[0.1em]">
+                          <BilingualLabel en="Construction" hi="निर्माण" />
+                        </TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-[0.1em]">
+                          Area (SqFt)
+                        </TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-[0.1em]">
+                          ALV (₹)
+                        </TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-[0.1em]">
+                          Tax (10%)
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {notice.floorRows.length > 0 ? (
+                        notice.floorRows.map((row, i) => (
+                          <TableRow key={`${row.floorLabel}-${i}`} className="border-b border-border/40 text-sm">
+                            <TableCell className="font-semibold">{row.floorLabel}</TableCell>
+                            <TableCell className="text-muted-foreground">{row.usageLabel}</TableCell>
+                            <TableCell className="text-muted-foreground">{row.constructionLabel}</TableCell>
+                            <TableCell className="text-right font-mono tabular-nums">
+                              {formatAmountPlain(row.areaSqft)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono tabular-nums">
+                              {formatAmountPlain(row.alv)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-semibold tabular-nums">
+                              {formatAmountPlain(row.tax)}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                            No floor assessment data available
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {notice.floorRows.length > 0 && (
+                        <TableRow className="border-t-2 border-brand-navy/20 bg-brand-navy/5 font-bold hover:bg-brand-navy/5 dark:border-primary/25 dark:bg-primary/10">
+                          <TableCell colSpan={3} className="uppercase tracking-wide text-foreground">
+                            Total Assessment
+                          </TableCell>
+                          <TableCell className="text-right font-mono tabular-nums">
+                            {formatAmountPlain(notice.totalArea)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono tabular-nums">
+                            {formatAmountPlain(notice.totalAlv)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-base tabular-nums text-foreground">
+                            ₹ {formatAmountPlain(notice.totalTax)}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-xl border border-indigo-200 bg-indigo-50/90 shadow-sm">
-              <div className="border-b border-indigo-200/80 px-4 py-3">
-                <h2 className="text-[11px] font-bold uppercase tracking-widest text-indigo-700">
-                  <BilingualLabel en="Demand Summary" hi="मांग सारांश" />
+            <div className="grid items-start gap-6 lg:grid-cols-[1fr_320px]">
+              <section>
+                <h2 className="mb-3 font-heading text-xs font-bold uppercase tracking-[0.14em] text-brand-navy/70 dark:text-primary/80">
+                  <BilingualLabel en="Site Documentation" hi="साइट प्रमाण" />
                 </h2>
-              </div>
-              <div className="divide-y divide-indigo-200/60 px-4">
-                <div className="flex items-center justify-between py-3 text-sm">
-                  <span className="text-slate-700">Property Tax (10%)</span>
-                  <span className="font-mono font-semibold tabular-nums">{formatInr(notice.propertyTax)}</span>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <NoticePhoto url={frontPhoto} label="Front View / सामने का दृश्य" />
+                  {survey.gps ? (
+                    <div className="print:hidden">
+                      <GoogleMapEmbed
+                        latitude={survey.gps.latitude}
+                        longitude={survey.gps.longitude}
+                        accuracyMeters={survey.gps.accuracyMeters}
+                        title="Location Map"
+                        className="h-full"
+                      />
+                    </div>
+                  ) : (
+                    <NoticePhoto url={survey.photos?.find((p) => p.slot === "side")?.url} label="Side View" />
+                  )}
                 </div>
-                <div className="flex items-center justify-between py-3 text-sm">
-                  <span className="text-slate-700">Water Tax (7%)</span>
-                  <span className="font-mono font-semibold tabular-nums">
-                    {notice.waterTax > 0 ? formatInr(notice.waterTax) : "—"}
-                  </span>
+              </section>
+
+              <section className="overflow-hidden rounded-xl border-2 border-brand-red/25 bg-brand-red/6 dark:border-brand-red/35 dark:bg-brand-red/10">
+                <div className="border-b border-brand-red/20 px-4 py-3">
+                  <h2 className="font-heading text-xs font-bold uppercase tracking-[0.14em] text-brand-red">
+                    <BilingualLabel en="Demand Summary" hi="मांग सारांश" />
+                  </h2>
                 </div>
-                <div className="flex items-center justify-between py-3 text-sm">
-                  <span className="text-slate-700">Drainage / Sewer Tax (2.5%)</span>
-                  <span className="font-mono font-semibold tabular-nums">{formatInr(notice.drainageTax)}</span>
+                <ul className="divide-y divide-border/50 px-4">
+                  <li className="flex items-center justify-between py-3 text-sm">
+                    <span className="text-muted-foreground">Property Tax (10%)</span>
+                    <span className="font-mono font-semibold tabular-nums">{formatInr(notice.propertyTax)}</span>
+                  </li>
+                  <li className="flex items-center justify-between py-3 text-sm">
+                    <span className="text-muted-foreground">Water Tax (7%)</span>
+                    <span className="font-mono font-semibold tabular-nums">
+                      {notice.waterTax > 0 ? formatInr(notice.waterTax) : "—"}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between py-3 text-sm">
+                    <span className="text-muted-foreground">Drainage / Sewer (2.5%)</span>
+                    <span className="font-mono font-semibold tabular-nums">{formatInr(notice.drainageTax)}</span>
+                  </li>
+                </ul>
+                <div className="border-t border-brand-red/25 bg-brand-red/10 px-4 py-4 dark:bg-brand-red/15">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                    <BilingualLabel en="Total Annual Demand" hi="कुल वार्षिक मांग" />
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-bold tabular-nums text-brand-red">
+                    {notice.totalAnnualDemand > 0 ? formatInr(notice.totalAnnualDemand) : "—"}
+                  </p>
                 </div>
-              </div>
-              <div className="border-t border-indigo-300 bg-indigo-100/80 px-4 py-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-700">
-                  <BilingualLabel en="Total Annual Demand" hi="कुल वार्षिक मांग" />
-                </p>
-                <p className="mt-1 font-mono text-2xl font-black tabular-nums text-blue-700">
-                  {notice.totalAnnualDemand > 0 ? formatInr(notice.totalAnnualDemand) : "—"}
-                </p>
-              </div>
+              </section>
+            </div>
+
+            <section className="space-y-3 border-t border-border/50 pt-6 text-sm leading-relaxed text-muted-foreground">
+              <p className="text-foreground">
+                Any objection to this assessment must be submitted in writing to the Executive Officer within{" "}
+                <strong>15 days</strong> from the date of this notice. Failure to do so will result in the demand being
+                considered final and recoverable as arrears.
+              </p>
+              <p>
+                इस मूल्यांकन पर कोई भी आपत्ति इस नोटिस की तिथि से <strong>15 दिनों</strong> के भीतर कार्यकारी अधिकारी को
+                लिखित रूप में प्रस्तुत की जानी चाहिए। ऐसा न करने पर मांग को अंतिम मानकर बकाया के रूप में वसूली जाएगी।
+              </p>
             </section>
-          </div>
 
-          {/* Notice text */}
-          <section className="space-y-3 border-t border-slate-200 pt-6 text-sm leading-relaxed text-slate-700">
-            <p>
-              Any objection to this assessment must be submitted in writing to the Executive Officer within{" "}
-              <strong>15 days</strong> from the date of this notice. Failure to do so will result in the demand being
-              considered final and recoverable as arrears.
-            </p>
-            <p className="text-slate-600">
-              इस मूल्यांकन पर कोई भी आपत्ति इस नोटिस की तिथि से <strong>15 दिनों</strong> के भीतर कार्यकारी अधिकारी को
-              लिखित रूप में प्रस्तुत की जानी चाहिए। ऐसा न करने पर मांग को अंतिम मानकर बकाया के रूप में वसूली जाएगी।
-            </p>
-          </section>
-
-          {/* Signature */}
-          <div className="flex justify-end pt-4">
-            <div className="w-64 text-center">
-              <div className="mb-2 h-12 border-b border-slate-400" />
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Executive Officer</p>
-              <p className="text-[11px] text-slate-500">Tax Collector Department</p>
+            <div className="flex justify-end pt-2">
+              <div className="w-64 text-center">
+                <div className="mb-2 h-12 border-b border-border" aria-hidden />
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Executive Officer</p>
+                <p className="text-[11px] text-muted-foreground">Tax Collector Department</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <footer className="border-t border-slate-200 bg-slate-50 px-8 py-4 text-center">
-          <p className="text-[11px] leading-relaxed text-slate-500">
-            This is a computer-generated document. Digital signatures are verified by the Municipal Board of {stateName}
-            .
-          </p>
-        </footer>
-      </article>
-    </div>
+          <footer className="border-t border-border/50 bg-muted/30 px-6 py-4 text-center sm:px-10">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Computer-generated demand notice issued by the Municipal Board of {stateName}. Property ID:{" "}
+              <span className="font-mono font-semibold text-foreground">{propertyId}</span>
+            </p>
+          </footer>
+        </article>
+      </FadeIn>
+
+      <div className="print-hidden grid gap-4 sm:grid-cols-2">
+        {survey.gps && (
+          <GlassCard padding="md" className="sm:col-span-2 lg:hidden">
+            <GlassCardHeader
+              title="Geo-Tagged Location"
+              description="Survey GPS coordinates on Google Maps"
+              icon={<MapPin className="h-4 w-4" aria-hidden />}
+              className="mb-4"
+            />
+            <GoogleMapEmbed
+              latitude={survey.gps.latitude}
+              longitude={survey.gps.longitude}
+              accuracyMeters={survey.gps.accuracyMeters}
+            />
+          </GlassCard>
+        )}
+        <GlassCard padding="md">
+          <GlassCardHeader
+            title="Assessment Reference"
+            icon={<Layers className="h-4 w-4" aria-hidden />}
+            className="mb-3"
+          />
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">ULB</dt>
+              <dd className="font-medium text-foreground">{cityName}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Zone</dt>
+              <dd className="font-medium text-foreground">{taxZone}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Floors assessed</dt>
+              <dd className="font-medium text-foreground">{notice.floorRows.length}</dd>
+            </div>
+          </dl>
+        </GlassCard>
+        <GlassCard padding="md">
+          <GlassCardHeader
+            title="Related Documents"
+            icon={<FileText className="h-4 w-4" aria-hidden />}
+            className="mb-3"
+          />
+          <div className="flex flex-col gap-2">
+            <Button asChild variant="outline" size="sm" className="cursor-pointer justify-start rounded-xl">
+              <Link href={`/qc/${surveyId}/report`}>
+                <FileText className="h-4 w-4" aria-hidden /> QC Final Report
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="cursor-pointer justify-start rounded-xl">
+              <Link href={`/qc/${surveyId}`}>
+                <Camera className="h-4 w-4" aria-hidden /> QC Review
+              </Link>
+            </Button>
+          </div>
+        </GlassCard>
+      </div>
+    </PageTransition>
   );
 }
