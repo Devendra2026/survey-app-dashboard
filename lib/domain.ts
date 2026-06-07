@@ -128,3 +128,13 @@ export const PHOTO_SLOT_LABEL: Record<PhotoSlot, string> = {
   side: "Side",
   document: "Document",
 };
+
+/** Matches `survey.submit` — only draft (or legacy rejected status) surveys can be submitted. */
+export function canSubmitSurvey(survey: { status: SurveyStatus }): boolean {
+  return survey.status === "draft" || survey.status === "rejected";
+}
+
+/** QC rejection resets `status` to draft while `qcStatus` stays rejected. */
+export function isSurveyResubmit(survey: { status: SurveyStatus; qcStatus: QcStatus }): boolean {
+  return survey.status === "draft" && survey.qcStatus === "rejected";
+}

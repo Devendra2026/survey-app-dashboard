@@ -19,10 +19,11 @@ import {
   isOpenLandFloor,
   openLandSqftFromFloors,
   plinthSqftFromFloors,
+  plotPlinthConflict,
 } from "@/lib/survey/area";
 import type { FloorRow } from "@/schema/surveys/index";
 import { Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 type Draft = {
@@ -96,10 +97,14 @@ export function FloorsEditor({
   surveyId,
   plotSqft: initialPlot,
   plinthSqft: initialPlinth,
+  onRegisterSave,
+  onPlotSqftChange,
 }: {
   surveyId: string;
   plotSqft?: number;
   plinthSqft?: number;
+  onRegisterSave?: (fn: () => Promise<boolean>) => void;
+  onPlotSqftChange?: (plotSqft: number) => void;
 }) {
   const floors = useFloors(surveyId) as FloorRow[] | undefined;
   const survey = useSurvey(surveyId);
@@ -111,11 +116,36 @@ export function FloorsEditor({
   const [plotSqft, setPlotSqft] = useState(initialPlot ?? 0);
   const [savingPlot, setSavingPlot] = useState(false);
 
+  useEffect(() => {
+    setPlotSqft(initialPlot ?? 0);
+  }, [initialPlot]);
+
+  useEffect(() => {
+    onPlotSqftChange?.(plotSqft);
+  }, [plotSqft, onPlotSqftChange]);
+
   const builtUpFloors = useMemo(() => (floors ?? []).filter((f) => !isOpenLandFloor(f.floorName)), [floors]);
   const openLandFloors = useMemo(() => (floors ?? []).filter((f) => isOpenLandFloor(f.floorName)), [floors]);
   const builtUpTotal = builtUpSqftFromFloors(floors ?? []);
   const openLandTotal = openLandSqftFromFloors(floors ?? []);
   const plinthFromFloors = plinthSqftFromFloors(floors ?? []);
+
+  const saveDraftRef = useRef(saveDraft);
+  saveDraftRef.current = saveDraft;
+  const surveyRef = useRef(survey);
+  surveyRef.current = survey;
+  const plotSqftRef = useRef(plotSqft);
+  plotSqftRef.current = plotSqft;
+  const plinthRef = useRef(plinthFromFloors);
+  plinthRef.current = plinthFromFloors;
+  const floorsRef = useRef(floors);
+  floorsRef.current = floors;
+
+  useEffect(() => {
+    if (!onRegisterSave) return;
+    // react-doctor-disable-next-line react-doctor/no-pass-data-to-parent, react-doctor/no-prop-callback-in-effect -- parent registers area save on submit
+    onRegisterSave(async () => persistPlotArea(plotSqftRef.current));
+  }, [onRegisterSave]);
 
   const opts = {
     floors: masters?.floors ?? [],
@@ -124,20 +154,46 @@ export function FloorsEditor({
     construction: masters?.constructionTypes ?? [],
   };
 
+  function resolvePlinthSqft(currentSurvey: NonNullable<typeof survey>): number {
+    if (plinthRef.current > 0) return plinthRef.current;
+    if ((floorsRef.current?.length ?? 0) > 0) return 0;
+    return currentSurvey.plinthSqft || 0;
+  }
+
+  async function persistPlotArea(plot: number): Promise<boolean> {
+    const currentSurvey = surveyRef.current;
+    if (!currentSurvey) return false;
+    if (!(plot > 0)) {
+      toast.error("Enter plot area greater than 0.");
+      return false;
+    }
+    const plinth = resolvePlinthSqft(currentSurvey);
+    const conflict = plotPlinthConflict(plot, plinth);
+    if (conflict) {
+      toast.error(conflict);
+      return false;
+    }
+    try {
+      await saveDraftRef.current({
+        localId: currentSurvey.localId,
+        municipalityId: currentSurvey.municipalityId,
+        clientUpdatedAt: Date.now(),
+        plotSqft: plot,
+        plinthSqft: plinth,
+      } as any);
+      return true;
+    } catch (e) {
+      toast.error(parseConvexError(e).message);
+      return false;
+    }
+  }
+
   async function savePlot() {
     if (!survey) return;
     setSavingPlot(true);
     try {
-      await saveDraft({
-        localId: survey.localId,
-        municipalityId: survey.municipalityId,
-        clientUpdatedAt: Date.now(),
-        plotSqft,
-        plinthSqft: plinthFromFloors || initialPlinth || survey.plinthSqft,
-      } as any);
-      toast.success("Plot area saved");
-    } catch (e) {
-      toast.error(parseConvexError(e).message);
+      const ok = await persistPlotArea(plotSqft);
+      if (ok) toast.success("Plot area saved");
     } finally {
       setSavingPlot(false);
     }
@@ -209,7 +265,14 @@ export function FloorsEditor({
         />
         <div className="space-y-3">
           {floors === undefined ? null : builtUpFloors.length === 0 ? (
-            <EmptyState title="No built-up floors" description="Add ground floor or upper floors with their areas." />
+            <EmptyState
+              title="Built-up floor required"
+              description={
+                openLandFloors.length > 0
+                  ? "Open land alone is not enough for QC submit — add a ground floor or upper floor with its area."
+                  : "Add ground floor or upper floors with their areas before submitting."
+              }
+            />
           ) : (
             <FloorTable
               floors={builtUpFloors}

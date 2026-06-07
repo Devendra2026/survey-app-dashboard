@@ -1,3 +1,22 @@
+import { validateAreaSection } from "@/convex/areaMasters";
+
+/** Area checks required by `survey.submit` (plot + at least one floor row). */
+export function surveyAreaSubmitErrors(input: {
+  plotSqft?: number;
+  plinthSqft?: number;
+  floors?: { floorName: string; areaSqft: number }[];
+}): Record<string, string[]> {
+  return validateAreaSection({
+    plotSqft: input.plotSqft,
+    plinthSqft: input.plinthSqft,
+    floors: input.floors,
+  });
+}
+
+export function firstAreaSubmitError(errors: Record<string, string[]>): string | null {
+  return Object.values(errors).flat()[0] ?? null;
+}
+
 /** Rough completion % for the detail page progress bar (mirrors mobile survey steps). */
 export function surveyCompletionPercent(survey: {
   propertyId?: string;

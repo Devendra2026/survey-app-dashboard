@@ -8,11 +8,14 @@ import { PhotoUploader } from "@/components/surveys/photo-uploader";
 import { SurveyForm } from "@/components/surveys/survey-form";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useFloors } from "@/hooks/surveys/useFloors";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
+import { firstAreaSubmitError, surveyAreaSubmitErrors } from "@/lib/survey/progress";
 import { cn } from "@/lib/utils";
 import type { SurveyListItem } from "@/schema/surveys/index";
 import { Camera, ClipboardList, Layers, MapPin, Send } from "lucide-react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
 
 const tabTriggerClass =
   "cursor-pointer gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-all duration-200 data-[state=active]:bg-brand-navy data-[state=active]:text-white data-[state=active]:shadow-premium-sm dark:data-[state=active]:bg-primary disabled:opacity-40";
@@ -53,20 +56,46 @@ export function SurveyEditor({
   const [saving, setSaving] = useState(false);
   const loaded = useSurvey(surveyId);
   const survey = existing ?? loaded;
+  const floors = useFloors(surveyId);
   const canEditSections = !!surveyId && !locked;
 
-  const saveFormFn = useRef<(() => Promise<boolean>) | null>(null);
+  const saveDetailsFn = useRef<(() => Promise<boolean>) | null>(null);
+  const saveAreaFn = useRef<(() => Promise<boolean>) | null>(null);
+  const plotSqftDraftRef = useRef(0);
+  const onPlotSqftChange = useCallback((value: number) => {
+    plotSqftDraftRef.current = value;
+  }, []);
 
   async function handleSaveAndSubmit() {
     if (!onSubmit) return;
     setSaving(true);
     try {
-      const saved = await (saveFormFn.current?.() ?? Promise.resolve(true));
-      if (!saved) return;
+      const detailsSaved = await (saveDetailsFn.current?.() ?? Promise.resolve(true));
+      if (!detailsSaved) return;
+
+      const areaSaved = await (saveAreaFn.current?.() ?? Promise.resolve(true));
+      if (!areaSaved) {
+        setActiveTab("area");
+        return;
+      }
+
+      const plotSqft = Math.max(plotSqftDraftRef.current, survey?.plotSqft ?? 0);
+      const areaErrors = surveyAreaSubmitErrors({
+        plotSqft,
+        plinthSqft: survey?.plinthSqft,
+        floors: (floors ?? []).map((f) => ({ floorName: f.floorName, areaSqft: f.areaSqft })),
+      });
+      const areaMessage = firstAreaSubmitError(areaErrors);
+      if (areaMessage) {
+        setActiveTab("area");
+        toast.error(areaMessage);
+        return;
+      }
+
+      onSubmit();
     } finally {
       setSaving(false);
     }
-    onSubmit();
   }
 
   const isWorking = submitting || saving;
@@ -134,15 +163,23 @@ export function SurveyEditor({
               existing={survey as SurveyListItem | null | undefined}
               onSaved={onSaved}
               onRegisterSave={(fn) => {
-                saveFormFn.current = fn;
+                saveDetailsFn.current = fn;
               }}
             />
           )}
         </TabsContent>
 
-        <TabsContent value="area" className="mt-0">
+        <TabsContent value="area" forceMount className={cn("mt-0", activeTab !== "area" && "hidden")}>
           {canEditSections && surveyId ? (
-            <FloorsEditor surveyId={surveyId} plotSqft={survey?.plotSqft} plinthSqft={survey?.plinthSqft} />
+            <FloorsEditor
+              surveyId={surveyId}
+              plotSqft={survey?.plotSqft}
+              plinthSqft={survey?.plinthSqft}
+              onRegisterSave={(fn) => {
+                saveAreaFn.current = fn;
+              }}
+              onPlotSqftChange={onPlotSqftChange}
+            />
           ) : (
             <LockedTab
               title="Area details"

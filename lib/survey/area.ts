@@ -35,6 +35,14 @@ export function formatAreaSqMeter(sqft: number): string {
   return `${sqm.toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 0 })} sq m`;
 }
 
+/** Client-side guard before saving plot — mirrors `validateBusinessRules` on the server. */
+export function plotPlinthConflict(plotSqft: number, plinthSqft: number): string | null {
+  if (plotSqft > 0 && plinthSqft > plotSqft) {
+    return `Ground floor / plinth (${formatAreaSqft(plinthSqft)}) cannot exceed plot area (${formatAreaSqft(plotSqft)}). Edit the ground floor row or increase plot area.`;
+  }
+  return null;
+}
+
 export type SurveyAreaMetrics = {
   plotSqft: number;
   plotSqMeter: number;

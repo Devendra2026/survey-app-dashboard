@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useSubmitSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
+import { canSubmitSurvey, isSurveyResubmit } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
 import { ArrowLeft, Eye, PencilLine } from "lucide-react";
 import Link from "next/link";
@@ -41,8 +42,9 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   }
 
   const locked = survey.qcStatus === "approved";
-  const canSubmit = survey.status === "draft" || survey.qcStatus === "rejected" || survey.status === "submitted";
-  const isResubmit = survey.qcStatus === "rejected";
+  const canSubmit = canSubmitSurvey(survey);
+  const isResubmit = isSurveyResubmit(survey);
+  const awaitingQc = survey.status === "submitted" && survey.qcStatus === "pending";
   const propertyLabel = survey.propertyId || `Parcel ${survey.parcelNo}`;
 
   async function onSubmit() {
@@ -110,6 +112,12 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
         ) : (
           <>
             {isResubmit && <QcCorrectionBanner remarks={remarks} />}
+            {awaitingQc && (
+              <output className="block rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
+                This survey is awaiting QC review. You can save edits, but it cannot be submitted again until QC returns
+                it for correction.
+              </output>
+            )}
             <SurveyEditor
               localId={survey.localId}
               surveyId={id}

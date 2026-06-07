@@ -649,7 +649,13 @@ export const submit = mutation({
       clientError("FORBIDDEN", "Not your survey");
     }
     if (survey.status !== "draft" && survey.status !== "rejected") {
-      clientError("BAD_STATE", "Only drafts can be submitted");
+      const message =
+        survey.status === "submitted"
+          ? "This survey is already submitted and awaiting QC review"
+          : survey.status === "approved"
+            ? "Approved surveys cannot be submitted again"
+            : "Only draft surveys can be submitted";
+      clientError("BAD_STATE", message);
     }
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);

@@ -7,7 +7,13 @@
  */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { normalizeFloorFields, presentFloorRow, usageTypeToOccupied, validateFloorRow } from "./areaMasters";
+import {
+  normalizeFloorFields,
+  plinthSqftFromFloors,
+  presentFloorRow,
+  usageTypeToOccupied,
+  validateFloorRow,
+} from "./areaMasters";
 import { assertCanReadWard, clientError, requireUser, writeAudit } from "./helpers";
 
 export const list = query({
@@ -78,23 +84,34 @@ export const upsert = mutation({
       areaSqft: args.areaSqft,
     };
 
+    let floorId = existing?._id;
     if (existing) {
       await ctx.db.patch(existing._id, row);
-      return existing._id;
+    } else {
+      floorId = await ctx.db.insert("floors", {
+        surveyId: args.surveyId,
+        clientFloorId: args.clientFloorId,
+        ...row,
+      });
+      await writeAudit(ctx, {
+        actorId: me._id,
+        action: "floor.added",
+        entity: "survey",
+        entityId: args.surveyId,
+        metadata: { clientFloorId: args.clientFloorId },
+      });
     }
-    const id = await ctx.db.insert("floors", {
-      surveyId: args.surveyId,
-      clientFloorId: args.clientFloorId,
-      ...row,
+
+    const floorRows = await ctx.db
+      .query("floors")
+      .withIndex("by_survey", (q) => q.eq("surveyId", args.surveyId))
+      .collect();
+    await ctx.db.patch(args.surveyId, {
+      plinthSqft: plinthSqftFromFloors(floorRows),
+      serverVersion: survey.serverVersion + 1,
     });
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: "floor.added",
-      entity: "survey",
-      entityId: args.surveyId,
-      metadata: { clientFloorId: args.clientFloorId },
-    });
-    return id;
+
+    return floorId!;
   },
 });
 
@@ -136,6 +153,14 @@ export const remove = mutation({
       clientError("LOCKED", "Survey is locked");
     }
     await ctx.db.delete(args.id);
+    const floorRows = await ctx.db
+      .query("floors")
+      .withIndex("by_survey", (q) => q.eq("surveyId", floor.surveyId))
+      .collect();
+    await ctx.db.patch(floor.surveyId, {
+      plinthSqft: plinthSqftFromFloors(floorRows),
+      serverVersion: survey.serverVersion + 1,
+    });
   },
 });
 
