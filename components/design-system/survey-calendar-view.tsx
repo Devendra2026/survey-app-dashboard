@@ -119,7 +119,7 @@ export function SurveyCalendarView({ surveys, className }: { surveys: CalendarSu
                   <td
                     key={key}
                     className={cn(
-                      "min-h-[72px] bg-card/80 p-1.5 align-top sm:min-h-[88px]",
+                      "min-h-18 bg-card/80 p-1.5 align-top sm:min-h-22",
                       !inMonth && "opacity-40",
                       today && "ring-1 ring-inset ring-primary/40",
                     )}

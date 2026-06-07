@@ -33,7 +33,7 @@ export function ExecutiveHero({
     <GlassCard
       variant="accent"
       padding="lg"
-      className={cn("brand-pixel-pattern bg-gradient-to-br shadow-premium-lg", gradients[gradient], className)}
+      className={cn("brand-pixel-pattern bg-linear-to-br shadow-premium-lg", gradients[gradient], className)}
     >
       <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-navy/8 blur-3xl dark:bg-brand-navy/20" />
       <div className="pointer-events-none absolute -bottom-12 left-1/4 h-32 w-32 rounded-full bg-brand-red/8 blur-2xl dark:bg-brand-red/15" />

@@ -46,11 +46,11 @@ function AccountGate({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <Sidebar />
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-[margin,padding] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-[margin,padding] duration-300 ease-in-out">
           <Topbar />
           <main className="app-mesh-bg premium-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
             <MotionProvider>
-              <PageTransition className="mx-auto w-full max-w-[1440px] space-y-6 p-4 pb-10 sm:p-5 lg:space-y-8 lg:p-8 lg:pb-12">
+              <PageTransition className="mx-auto w-full max-w-360 space-y-6 p-4 pb-10 sm:p-5 lg:space-y-8 lg:p-8 lg:pb-12">
                 {children}
               </PageTransition>
             </MotionProvider>

@@ -121,7 +121,7 @@ export function GisSurveyMap({
           {/* Grid background */}
           <div className="brand-pixel-pattern absolute inset-0" aria-hidden />
           <div
-            className="absolute inset-0 bg-gradient-to-br from-brand-navy/5 via-transparent to-brand-red/6"
+            className="absolute inset-0 bg-linear-to-br from-brand-navy/5 via-transparent to-brand-red/6"
             aria-hidden
           />
 

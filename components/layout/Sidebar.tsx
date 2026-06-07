@@ -82,7 +82,7 @@ function NavLink({
       {active && (
         <span
           className={cn(
-            "absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-brand-red",
+            "absolute left-0 top-1/2 h-5 w-0.75 -translate-y-1/2 rounded-r-full bg-brand-red",
             labelTransition,
             collapsed && "opacity-0",
           )}
@@ -91,7 +91,7 @@ function NavLink({
       )}
       <Icon
         className={cn(
-          "h-[1.125rem] w-[1.125rem] shrink-0 transition-colors duration-200",
+          "h-4.5 w-4.5 shrink-0 transition-colors duration-200",
           active ? "text-brand-red" : "text-sidebar-foreground/55 group-hover:text-sidebar-foreground",
         )}
         aria-hidden
@@ -100,7 +100,7 @@ function NavLink({
         className={cn(
           "truncate whitespace-nowrap",
           labelTransition,
-          collapsed ? "max-w-0 opacity-0" : "max-w-[11rem] opacity-100",
+          collapsed ? "max-w-0 opacity-0" : "max-w-44 opacity-100",
         )}
       >
         {item.label}
@@ -166,7 +166,7 @@ function NavItems({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?:
 
 function SidebarBrand({ collapsed }: { collapsed?: boolean }) {
   return (
-    <div className="flex h-[4.25rem] shrink-0 items-center justify-center overflow-hidden border-b border-sidebar-border px-2">
+    <div className="flex h-17 shrink-0 items-center justify-center overflow-hidden border-b border-sidebar-border px-2">
       <Link
         href="/dashboard"
         className="flex cursor-pointer items-center justify-center rounded-xl p-1.5 transition-opacity duration-200 hover:opacity-90"
@@ -178,8 +178,8 @@ function SidebarBrand({ collapsed }: { collapsed?: boolean }) {
           width={132}
           height={40}
           className={cn(
-            "object-contain transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-            collapsed ? "h-10 w-10" : "h-10 w-auto max-w-[9.5rem]",
+            "object-contain transition-all duration-300 ease-in-out",
+            collapsed ? "h-10 w-10" : "h-10 w-auto max-w-38",
           )}
           priority
         />
@@ -197,7 +197,7 @@ export function Sidebar() {
         className={cn(
           "sidebar-shell relative hidden h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-sidebar-border lg:flex",
           "bg-sidebar backdrop-blur-xl shadow-premium-sm dark:shadow-none",
-          collapsed ? "w-[4.25rem]" : "w-[15.5rem]",
+          collapsed ? "w-17" : "w-62",
         )}
         aria-label="Sidebar"
         data-collapsed={collapsed}
@@ -207,7 +207,7 @@ export function Sidebar() {
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-[15.5rem] border-sidebar-border bg-sidebar p-0 backdrop-blur-xl">
+        <SheetContent side="left" className="w-62 border-sidebar-border bg-sidebar p-0 backdrop-blur-xl">
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation</SheetTitle>
           </SheetHeader>

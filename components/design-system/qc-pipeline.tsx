@@ -111,7 +111,7 @@ export function QcReviewTimeline({
             {i < events.length - 1 && (
               <span
                 className={cn(
-                  "absolute left-[11px] top-6 h-full w-px",
+                  "absolute left-2.75 top-6 h-full w-px",
                   event.status === "done" ? "bg-primary/40" : "bg-border",
                 )}
                 aria-hidden

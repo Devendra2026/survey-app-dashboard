@@ -40,7 +40,7 @@ export function Topbar() {
   return (
     <>
       <CommandPalette />
-      <header className="glass-surface z-10 flex h-14 shrink-0 items-center gap-3 px-3 sm:px-5 lg:h-[4.25rem]">
+      <header className="glass-surface z-10 flex h-14 shrink-0 items-center gap-3 px-3 sm:px-5 lg:h-17">
         <Button
           variant="ghost"
           size="icon"

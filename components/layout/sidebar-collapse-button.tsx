@@ -22,14 +22,14 @@ export function SidebarCollapseButton({ className }: { className?: string }) {
     >
       <PanelLeftClose
         className={cn(
-          "absolute h-5 w-5 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+          "absolute h-5 w-5 transition-all duration-300 ease-in-out",
           collapsed ? "scale-75 rotate-90 opacity-0" : "scale-100 rotate-0 opacity-100",
         )}
         aria-hidden
       />
       <PanelLeftOpen
         className={cn(
-          "absolute h-5 w-5 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+          "absolute h-5 w-5 transition-all duration-300 ease-in-out",
           collapsed ? "scale-100 rotate-0 opacity-100" : "scale-75 -rotate-90 opacity-0",
         )}
         aria-hidden
