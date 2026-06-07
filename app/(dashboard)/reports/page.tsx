@@ -95,11 +95,11 @@ export default function ReportsPage() {
           />
           <ReportCard
             icon={FileText}
-            title="QC Report"
-            desc="Per-survey QC decisions & remark thread."
+            title="QC Final Report"
+            desc="Styled final report with property summary, floor breakdown, demand assessment, and certification."
             actions={
               <p className="text-sm text-muted-foreground">
-                Open any survey in QC and use the &quot;QC PDF&quot; action.
+                Open any survey in QC and click &quot;QC Report Generate&quot; to view the report.
               </p>
             }
           />

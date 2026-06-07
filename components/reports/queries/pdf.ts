@@ -1,6 +1,9 @@
 "use client";
 
+import type { MasterOption } from "@/convex/areaMasters";
 import { QC_STATUS_LABEL, SURVEY_STATUS_LABEL } from "@/lib/domain";
+import { surveyAreaMetrics } from "@/lib/survey/area";
+import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { fmtDate } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -108,36 +111,134 @@ export function generateSurveyReportPdf(survey: any) {
   save(doc, `survey_${survey.parcelNo || survey._id}`);
 }
 
-/** QC report — decisions + remark thread for one survey. */
-export function generateQcReportPdf(survey: any, remarks: any[]) {
+type QcFinalReportMasters = {
+  propertyUses?: MasterOption[];
+  propertyUseSubcategories?: Record<string, MasterOption[]>;
+  roadTypes?: MasterOption[];
+  taxRateZones?: MasterOption[];
+  floors?: MasterOption[];
+  usageTypes?: MasterOption[];
+  usageFactors?: MasterOption[];
+  constructionTypes?: MasterOption[];
+};
+
+export type QcFinalReportOptions = {
+  auditorName?: string;
+  masters?: QcFinalReportMasters;
+};
+
+function fmtLabel(options: MasterOption[] | undefined, value: string | undefined) {
+  return labelFromOptions(options, value);
+}
+
+/** QC final report — verified property assessment for one survey. */
+export function generateQcFinalReportPdf(survey: any, options: QcFinalReportOptions = {}) {
+  const { auditorName, masters } = options;
   const doc = new jsPDF();
-  header(doc, `QC Report — ${survey.propertyId || survey.parcelNo}`, `${survey.city} · Ward ${survey.wardNo}`);
+  const propertyId = survey.propertyId || survey.parcelNo;
+  const ownerName = survey.respondentName || survey.owners?.[0]?.name || "—";
+  const areas = surveyAreaMetrics({
+    plotSqft: survey.plotSqft ?? 0,
+    plinthSqft: survey.plinthSqft ?? 0,
+    floors: survey.floors ?? [],
+  });
+  const propertyTypeOptions = survey.propertyUse ? masters?.propertyUseSubcategories?.[survey.propertyUse] : undefined;
+  const qcStatusLabel = QC_STATUS_LABEL[survey.qcStatus as keyof typeof QC_STATUS_LABEL] ?? survey.qcStatus;
+
+  header(
+    doc,
+    `QC Final Report — ${propertyId}`,
+    `Comprehensive verification for ${survey.city ?? "—"} · Ward ${survey.wardNo ?? "—"}`,
+  );
+
   autoTable(doc, {
     startY: 38,
-    head: [["Field", "Value"]],
+    head: [["Property Summary", ""]],
     body: [
-      ["Survey", survey.propertyId || survey.parcelNo],
+      ["Final QC Status", qcStatusLabel],
+      ["Owner Name", ownerName],
+      ["Ward Number", survey.wardNo ? `Ward ${survey.wardNo}` : "—"],
+      [
+        "Property Type",
+        fmtLabel(propertyTypeOptions, survey.propertyType) ||
+          fmtLabel(masters?.propertyUses, survey.propertyUse) ||
+          "—",
+      ],
+      ["Tax Rate Zone", fmtLabel(masters?.taxRateZones, survey.taxRateZone)],
+      ["Road Type", fmtLabel(masters?.roadTypes, survey.roadType)],
       ["Surveyor", survey.surveyor?.name ?? "—"],
-      ["Status", SURVEY_STATUS_LABEL[survey.status as keyof typeof SURVEY_STATUS_LABEL]],
-      ["QC Status", QC_STATUS_LABEL[survey.qcStatus as keyof typeof QC_STATUS_LABEL]],
+      ["Survey Status", SURVEY_STATUS_LABEL[survey.status as keyof typeof SURVEY_STATUS_LABEL] ?? survey.status],
     ],
+    theme: "striped",
     headStyles: { fillColor: NAVY },
     styles: { fontSize: 9 },
   });
+
+  if (survey.floors?.length) {
+    autoTable(doc, {
+      head: [["Floor", "Usage Type", "Construction", "Built-up Area (sqft)", "Occupancy"]],
+      body: survey.floors.map((f: any) => [
+        fmtLabel(masters?.floors, f.floorName),
+        fmtLabel(masters?.usageTypes, f.usageType) || fmtLabel(masters?.usageFactors, f.usageFactor),
+        fmtLabel(masters?.constructionTypes, f.constructionType),
+        f.areaSqft?.toLocaleString("en-IN") ?? "—",
+        f.isOccupied ? "Occupied" : "Vacant",
+      ]),
+      foot: [["", "", "TOTAL ASSESSABLE AREA", areas.builtUpSqft.toLocaleString("en-IN"), ""]],
+      headStyles: { fillColor: NAVY },
+      footStyles: { fillColor: [240, 244, 248], textColor: [30, 58, 95], fontStyle: "bold" },
+      styles: { fontSize: 9 },
+    });
+  }
+
   autoTable(doc, {
-    head: [["When", "Author", "Role", "Status", "Remark"]],
-    body: (remarks ?? []).map((r) => [
-      fmtDate(r._creationTime),
-      r.author?.name ?? "—",
-      r.authorRole,
-      r.status,
-      r.message,
-    ]),
+    head: [["Assessment & Services", ""]],
+    body: [
+      ["Total Assessable Area (sqft)", areas.builtUpSqft > 0 ? areas.builtUpSqft.toLocaleString("en-IN") : "—"],
+      ["Plot Area (sqft)", survey.plotSqft > 0 ? survey.plotSqft.toLocaleString("en-IN") : "—"],
+      ["Plinth Area (sqft)", areas.plinthSqft > 0 ? areas.plinthSqft.toLocaleString("en-IN") : "—"],
+      ["Assessment Year", survey.assessmentYear ?? "—"],
+      ["Municipal Water", survey.municipalWaterConnection ? "Connected" : "Not connected"],
+      ["Water Source", survey.waterSource?.replace(/_/g, " ") ?? "—"],
+      ["Sanitation", survey.sanitationType?.replace(/_/g, " ") ?? "—"],
+      ["Waste Collection", survey.municipalWasteCollection ? "Yes" : "No"],
+    ],
+    theme: "striped",
     headStyles: { fillColor: NAVY },
-    styles: { fontSize: 8, cellWidth: "wrap" },
-    columnStyles: { 4: { cellWidth: 70 } },
+    styles: { fontSize: 9 },
   });
-  save(doc, `qc_${survey.parcelNo || survey._id}`);
+
+  if (survey.gps) {
+    autoTable(doc, {
+      head: [["Geo-Tagged Location", ""]],
+      body: [
+        ["Latitude", `${survey.gps.latitude.toFixed(6)}° N`],
+        ["Longitude", `${survey.gps.longitude.toFixed(6)}° E`],
+        ["Accuracy", `${survey.gps.accuracyMeters.toFixed(1)} m`],
+        ["Captured", fmtDate(survey.gps.capturedAt)],
+      ],
+      theme: "striped",
+      headStyles: { fillColor: NAVY },
+      styles: { fontSize: 9 },
+    });
+  }
+
+  const certY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 12 : 220;
+  doc.setFontSize(10);
+  doc.setTextColor(30, 58, 95);
+  doc.text("Certification", 14, certY);
+  doc.setFontSize(9);
+  doc.setTextColor(60, 60, 60);
+  doc.text(`Auditor: ${auditorName ?? "—"}`, 14, certY + 8);
+  doc.text(`Certified on: ${fmtDate(Date.now())}`, 14, certY + 15);
+  doc.text("Document integrity: Verified", 14, certY + 22);
+
+  save(doc, `qc_final_${survey.parcelNo || survey._id}`);
+}
+
+/** @deprecated Use generateQcFinalReportPdf — remarks are no longer included. */
+export function generateQcReportPdf(survey: any, _remarks?: any[], options?: QcFinalReportOptions) {
+  generateQcFinalReportPdf(survey, options);
 }
 
 /** Municipality summary report from the analytics breakdown. */

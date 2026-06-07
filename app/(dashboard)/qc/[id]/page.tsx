@@ -1,40 +1,31 @@
 "use client";
 
-import { QcPanel } from "@/components/qc/qc-panel";
-import { generateQcReportPdf } from "@/components/reports/queries/pdf";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
 import { SurveyDetailView } from "@/components/surveys/survey-detail-view";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
-import { ArrowLeft, Building2, ClipboardCheck, Download, ExternalLink, MapPin, Pencil } from "lucide-react";
+import { ArrowLeft, Building2, ClipboardCheck, ExternalLink, FileText, MapPin, Pencil } from "lucide-react";
 import Link from "next/link";
 import { use } from "react";
 
 export default function QcReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const survey = useSurvey(id);
-  const remarks = useQcRemarks(id);
 
   if (survey === undefined) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-36 rounded-full" />
         <Skeleton className="h-36 w-full rounded-2xl" />
-        <div className="grid gap-5 lg:grid-cols-[1fr_400px]">
-          <Skeleton className="h-96 w-full rounded-xl" />
-          <Skeleton className="h-96 w-full rounded-xl" />
-        </div>
+        <Skeleton className="h-96 w-full rounded-xl" />
       </div>
     );
   }
 
   if (survey === null) return <EmptyState title="Survey not found" />;
-
-  const canReview = survey.qcStatus === "pending" && survey.status === "submitted";
 
   return (
     <RoleGate
@@ -92,12 +83,13 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
 
             <div className="flex flex-wrap items-center gap-2">
               <Button
-                variant="outline"
+                asChild
                 size="sm"
-                onClick={() => generateQcReportPdf(survey, remarks ?? [])}
-                className="rounded-full border-amber-300 bg-white/80 text-amber-800 shadow-sm hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                className="rounded-full bg-linear-to-r from-amber-600 to-orange-600 text-white shadow-sm hover:from-amber-500 hover:to-orange-500"
               >
-                <Download className="h-4 w-4" /> QC PDF
+                <Link href={`/qc/${id}/report`}>
+                  <FileText className="h-4 w-4" /> QC Report Generate
+                </Link>
               </Button>
               <Button
                 asChild
@@ -114,7 +106,8 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
                   <Button
                     asChild
                     size="sm"
-                    className="rounded-full bg-linear-to-r from-amber-600 to-orange-600 text-white shadow-sm hover:from-amber-500 hover:to-orange-500"
+                    variant="outline"
+                    className="rounded-full border-amber-300 bg-white/80 text-amber-800 shadow-sm hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-900/30"
                   >
                     <Link href={`/surveys/${id}/edit`}>
                       <Pencil className="h-4 w-4" /> Edit survey
@@ -124,22 +117,9 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
               )}
             </div>
           </div>
-
-          {canReview && (
-            <p className="relative mt-4 rounded-xl border border-amber-300/50 bg-amber-100/50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-700/40 dark:bg-amber-900/30 dark:text-amber-100">
-              This survey is <strong>awaiting your QC decision</strong>. Review all sections below, then approve or
-              return for correction using the panel on the right.
-            </p>
-          )}
         </div>
 
-        {/* Main content: survey detail + QC panel */}
-        <div className="grid items-start gap-6 lg:grid-cols-[1fr_400px]">
-          <SurveyDetailView survey={survey} surveyId={id} remarks={remarks} hideProgressFooter />
-          <div className="lg:sticky lg:top-4">
-            <QcPanel survey={survey} />
-          </div>
-        </div>
+        <SurveyDetailView survey={survey} surveyId={id} hideProgressFooter hideQcRemarks />
       </div>
     </RoleGate>
   );

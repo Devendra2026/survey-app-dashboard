@@ -477,11 +477,13 @@ export function SurveyDetailView({
   surveyId,
   remarks,
   hideProgressFooter = false,
+  hideQcRemarks = false,
 }: {
   survey: SurveyDetail;
   surveyId: string;
   remarks?: QcRemarkWithAuthor[];
   hideProgressFooter?: boolean;
+  hideQcRemarks?: boolean;
 }) {
   const { masters } = useMasters();
   const audit = useAuditLog({ entity: "survey", entityId: surveyId, limit: 100 });
@@ -660,7 +662,7 @@ export function SurveyDetailView({
       </SectionCard>
 
       {/* ── QC Remarks ─────────────────────────────────────────── */}
-      {(remarks === undefined || remarks.length > 0) && (
+      {!hideQcRemarks && (remarks === undefined || remarks.length > 0) && (
         <SectionCard
           title="QC Remarks & Corrections"
           description="Feedback from supervisors during quality control review."
