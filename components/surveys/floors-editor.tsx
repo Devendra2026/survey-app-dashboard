@@ -2,13 +2,10 @@
 
 import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
 import { EmptyState } from "@/components/shared/empty-state";
-import { PropertyIdTableCell, PropertyIdTableHead } from "@/components/surveys/property-id-table";
+import { FloorDraftDialog, FloorTable, type FloorDraft } from "@/components/surveys/floors-editor-parts";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMasters } from "@/hooks/masters/useMasters";
 import { useFloors, useRemoveFloor, useUpsertFloor } from "@/hooks/surveys/useFloors";
 import { useSaveDraft, useSurvey } from "@/hooks/surveys/useSurveys";
@@ -22,76 +19,11 @@ import {
   plotPlinthConflict,
 } from "@/lib/survey/area";
 import type { FloorRow } from "@/schema/surveys/index";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-type Draft = {
-  clientFloorId: string;
-  position: number;
-  floorName: string;
-  usageFactor?: string;
-  usageType: string;
-  constructionType: string;
-  areaSqft: number;
-};
-
 const newId = () => `flr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-function FloorTable({
-  floors,
-  propertyId,
-  onEdit,
-  onRemove,
-}: {
-  floors: FloorRow[];
-  propertyId?: string;
-  onEdit: (f: FloorRow) => void;
-  onRemove: (id: string) => void;
-}) {
-  if (floors.length === 0) {
-    return <p className="py-4 text-center text-sm text-muted-foreground">No rows yet.</p>;
-  }
-  return (
-    <div className="premium-card overflow-hidden rounded-xl border border-border/60 shadow-premium-sm">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <PropertyIdTableHead />
-            <TableHead>#</TableHead>
-            <TableHead>Floor</TableHead>
-            <TableHead>Usage</TableHead>
-            <TableHead>Construction</TableHead>
-            <TableHead>Area</TableHead>
-            <TableHead></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {floors.map((f) => (
-            <TableRow key={f._id}>
-              <PropertyIdTableCell propertyId={propertyId} />
-              <TableCell>{f.position}</TableCell>
-              <TableCell className="capitalize">{f.floorName.replace(/_/g, " ")}</TableCell>
-              <TableCell className="capitalize">{f.usageType.replace(/_/g, " ")}</TableCell>
-              <TableCell className="capitalize">{f.constructionType.replace(/_/g, " ")}</TableCell>
-              <TableCell className="tabular-nums">{formatAreaSqft(f.areaSqft)}</TableCell>
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" className="h-7" onClick={() => onEdit(f)}>
-                    Edit
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onRemove(f._id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
 
 export function FloorsEditor({
   surveyId,
@@ -112,7 +44,7 @@ export function FloorsEditor({
   const remove = useRemoveFloor();
   const saveDraft = useSaveDraft();
   const { masters } = useMasters();
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draft, setDraft] = useState<FloorDraft | null>(null);
   const [plotSqft, setPlotSqft] = useState(initialPlot ?? 0);
   const [savingPlot, setSavingPlot] = useState(false);
 
@@ -143,7 +75,7 @@ export function FloorsEditor({
 
   useEffect(() => {
     if (!onRegisterSave) return;
-    // react-doctor-disable-next-line react-doctor/no-pass-data-to-parent, react-doctor/no-prop-callback-in-effect -- parent registers area save on submit
+    // react-doctor-disable-next-line react-doctor/no-pass-data-to-parent, react-doctor/no-prop-callback-in-effect, react-doctor/no-pass-live-state-to-parent -- parent registers area save on submit
     onRegisterSave(async () => persistPlotArea(plotSqftRef.current));
   }, [onRegisterSave]);
 
@@ -231,6 +163,14 @@ export function FloorsEditor({
     });
   }
 
+  async function handleRemoveFloor(id: string) {
+    try {
+      await remove({ id: id as any });
+    } catch (e) {
+      toast.error(parseConvexError(e).message);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <GlassCard padding="md">
@@ -278,13 +218,7 @@ export function FloorsEditor({
               floors={builtUpFloors}
               propertyId={survey?.propertyId}
               onEdit={(f) => setDraft({ ...f, usageFactor: f.usageFactor })}
-              onRemove={async (id) => {
-                try {
-                  await remove({ id: id as any });
-                } catch (e) {
-                  toast.error(parseConvexError(e).message);
-                }
-              }}
+              onRemove={handleRemoveFloor}
             />
           )}
           <div className="rounded-xl border border-brand-navy/15 bg-brand-navy/5 px-4 py-3 dark:border-primary/20 dark:bg-primary/10">
@@ -320,13 +254,7 @@ export function FloorsEditor({
               floors={openLandFloors}
               propertyId={survey?.propertyId}
               onEdit={(f) => setDraft({ ...f, usageFactor: f.usageFactor })}
-              onRemove={async (id) => {
-                try {
-                  await remove({ id: id as any });
-                } catch (e) {
-                  toast.error(parseConvexError(e).message);
-                }
-              }}
+              onRemove={handleRemoveFloor}
             />
           )}
           <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
@@ -336,114 +264,13 @@ export function FloorsEditor({
         </div>
       </GlassCard>
 
-      <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{draft?.floorName === "open_land" ? "Open land row" : "Floor details"}</DialogTitle>
-          </DialogHeader>
-          {draft && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Floor">
-                <Sel
-                  value={draft.floorName}
-                  onChange={(v) => setDraft({ ...draft, floorName: v })}
-                  options={
-                    draft.floorName === "open_land"
-                      ? opts.floors.filter((o) => o.value === "open_land")
-                      : opts.floors.filter((o) => o.value !== "open_land")
-                  }
-                  placeholder="Select floor"
-                  disabled={draft.floorName === "open_land"}
-                />
-              </Field>
-              <Field label="Usage factor">
-                <Sel
-                  value={draft.usageFactor ?? ""}
-                  onChange={(v) => setDraft({ ...draft, usageFactor: v })}
-                  options={opts.usageFactors}
-                  placeholder="Select"
-                />
-              </Field>
-              <Field label="Usage type">
-                <Sel
-                  value={draft.usageType}
-                  onChange={(v) => setDraft({ ...draft, usageType: v })}
-                  options={opts.usageTypes}
-                  placeholder="Select"
-                />
-              </Field>
-              <Field label="Construction type">
-                <Sel
-                  value={draft.constructionType}
-                  onChange={(v) => setDraft({ ...draft, constructionType: v })}
-                  options={opts.construction}
-                  placeholder="Select"
-                />
-              </Field>
-              <Field label="Area (sqft)">
-                <Input
-                  type="number"
-                  value={draft.areaSqft}
-                  onChange={(e) => setDraft({ ...draft, areaSqft: Number(e.target.value) })}
-                />
-              </Field>
-              <Field label="Position">
-                <Input
-                  type="number"
-                  value={draft.position}
-                  onChange={(e) => setDraft({ ...draft, position: Number(e.target.value) })}
-                />
-              </Field>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDraft(null)}>
-              Cancel
-            </Button>
-            <Button onClick={saveFloor} disabled={!draft?.floorName || !draft?.usageType || !draft?.constructionType}>
-              Save floor
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FloorDraftDialog
+        draft={draft}
+        opts={opts}
+        onClose={() => setDraft(null)}
+        onChange={setDraft}
+        onSave={saveFloor}
+      />
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      {children}
-    </div>
-  );
-}
-
-function Sel({
-  value,
-  onChange,
-  options,
-  placeholder,
-  disabled,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-  placeholder: string;
-  disabled?: boolean;
-}) {
-  return (
-    <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }

@@ -31,7 +31,7 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
-import { useState } from "react";
+import { useReducer, useState } from "react";
 import { toast } from "sonner";
 import { UserAllotmentsDialog } from "./user-allotments-dialog";
 
@@ -348,6 +348,30 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
   );
 }
 
+type EditListedFormState = {
+  role: string;
+  municipalityId: string;
+  wards: string[];
+};
+
+type EditListedFormAction =
+  | { type: "setRole"; value: string }
+  | { type: "setMunicipalityId"; value: string }
+  | { type: "setWards"; value: string[] };
+
+function editListedFormReducer(state: EditListedFormState, action: EditListedFormAction): EditListedFormState {
+  switch (action.type) {
+    case "setRole":
+      return { ...state, role: action.value };
+    case "setMunicipalityId":
+      return { ...state, municipalityId: action.value };
+    case "setWards":
+      return { ...state, wards: action.value };
+    default:
+      return state;
+  }
+}
+
 // ─── edit listed user panel ───────────────────────────────────────────────────
 
 function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: () => void }) {
@@ -357,11 +381,12 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
   const catalog = useTenantCatalog();
 
   // react-doctor-disable-next-line react-doctor/no-derived-useState -- remounted via key={user._id}
-  const [role, setRole] = useState(user.role);
-  const [municipalityId, setMunicipalityId] = useState<string>(
-    user.role !== "admin" ? (user.municipalityId ?? "") : "",
-  );
-  const [wards, setWards] = useState<string[]>(user.role !== "admin" ? (user.wardAssignments ?? []) : []);
+  const [form, dispatch] = useReducer(editListedFormReducer, {
+    role: user.role,
+    municipalityId: user.role !== "admin" ? (user.municipalityId ?? "") : "",
+    wards: user.role !== "admin" ? (user.wardAssignments ?? []) : [],
+  });
+  const { role, municipalityId, wards } = form;
   const [busy, setBusy] = useState(false);
   const [allotDialogOpen, setAllotDialogOpen] = useState(false);
 
@@ -473,10 +498,10 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
             <Select
               value={role}
               onValueChange={(v) => {
-                setRole(v);
+                dispatch({ type: "setRole", value: v });
                 if (v === "admin") {
-                  setMunicipalityId("");
-                  setWards([]);
+                  dispatch({ type: "setMunicipalityId", value: "" });
+                  dispatch({ type: "setWards", value: [] });
                 }
               }}
             >
@@ -501,8 +526,8 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
                 <Select
                   value={municipalityId}
                   onValueChange={(v) => {
-                    setMunicipalityId(v);
-                    setWards([]);
+                    dispatch({ type: "setMunicipalityId", value: v });
+                    dispatch({ type: "setWards", value: [] });
                   }}
                 >
                   <SelectTrigger className="w-full">
@@ -530,7 +555,11 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
               {municipalityId && wardsForMuni.length > 0 && (
                 <>
                   <Separator />
-                  <WardPicker wards={wardsForMuni} selected={wards} onChange={setWards} />
+                  <WardPicker
+                    wards={wardsForMuni}
+                    selected={wards}
+                    onChange={(value) => dispatch({ type: "setWards", value })}
+                  />
                 </>
               )}
             </>
