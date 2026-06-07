@@ -12,16 +12,16 @@
  */
 import { api } from "@/convex/_generated/api";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
-import { useQuery } from "convex/react";
+import { useQuery as useConvexQuery } from "convex/react";
 
 export function useMasters() {
   const ready = useConvexAuthReady();
-  const bundle = useQuery(api.masters.bundle, ready ? {} : "skip");
+  const bundle = useConvexQuery(api.masters.bundle, ready ? {} : "skip");
   return { masters: bundle, isLoading: bundle === undefined };
 }
 
 export function useWardsForMunicipality(municipalityId: string | undefined) {
-  return useQuery(
+  return useConvexQuery(
     api.masters.wardsForMunicipality,
     municipalityId ? { municipalityId: municipalityId as any } : "skip",
   );

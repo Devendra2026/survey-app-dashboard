@@ -10,7 +10,7 @@ import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { resolveDisplayPropertyId, type PropertyIdSource } from "@/lib/survey/resolve-display-property-id";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery as useConvexQuery, useMutation } from "convex/react";
 import { useMemo } from "react";
 
 export interface SurveyListFilters {
@@ -26,7 +26,7 @@ export interface SurveyListFilters {
 /** api.survey.list — server enforces tenant scope + role visibility. */
 export function useSurveyList(filters: SurveyListFilters = {}) {
   const ready = useConvexAuthReady();
-  return useQuery(
+  return useConvexQuery(
     api.survey.list,
     ready
       ? {
@@ -56,7 +56,7 @@ export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize
   } = useCursorPagination(resetKey, pageSize);
 
   const ready = useConvexAuthReady();
-  const result = useQuery(
+  const result = useConvexQuery(
     api.survey.listPaginated,
     ready
       ? {
@@ -95,7 +95,7 @@ export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize
 /** api.survey.get — full detail w/ floors, photos (hydrated URLs), qcRemarks. */
 export function useSurvey(id: string | undefined) {
   const ready = useConvexAuthReady();
-  return useQuery(api.survey.get, ready && id ? { id: id as Id<"surveys"> } : "skip");
+  return useConvexQuery(api.survey.get, ready && id ? { id: id as Id<"surveys"> } : "skip");
 }
 
 export function useSubmitSurvey() {

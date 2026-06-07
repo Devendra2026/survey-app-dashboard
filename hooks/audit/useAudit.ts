@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useHasCapability } from "@/hooks/use-capability";
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
-import { useQuery } from "convex/react";
+import { useQuery as useConvexQuery } from "convex/react";
 import { useMemo } from "react";
 
 export type AuditFilterFacets = {
@@ -23,7 +23,7 @@ export function useAuditLog(
   filters: { entity?: string; entityId?: string; actorId?: string; action?: string; limit?: number } = {},
 ) {
   const allowed = useHasCapability("audit.view");
-  return useQuery(
+  return useConvexQuery(
     api.audit.list,
     allowed
       ? {
@@ -55,7 +55,7 @@ export function useAuditLogPaginated(filters: AuditListFilters = {}, pageSize = 
     pageNumber,
   } = useCursorPagination(resetKey, pageSize);
 
-  const result = useQuery(
+  const result = useConvexQuery(
     api.audit.listPaginated,
     allowed
       ? {
@@ -89,11 +89,11 @@ export function useAuditLogPaginated(filters: AuditListFilters = {}, pageSize = 
 
 export function useAuditFacets() {
   const allowed = useHasCapability("audit.view");
-  const raw = useQuery(api.audit.actionFacets, allowed ? {} : "skip");
+  const raw = useConvexQuery(api.audit.actionFacets, allowed ? {} : "skip");
   return useMemo(() => normalizeFacets(raw), [raw]);
 }
 
 export function useAuditSummary() {
   const allowed = useHasCapability("audit.view");
-  return useQuery(api.audit.summary, allowed ? {} : "skip");
+  return useConvexQuery(api.audit.summary, allowed ? {} : "skip");
 }
