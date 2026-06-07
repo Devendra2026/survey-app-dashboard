@@ -1,5 +1,7 @@
 "use client";
 
+import { ExecutiveHero } from "@/components/design-system/executive-hero";
+import { PageTransition } from "@/components/design-system/motion";
 import { generateSurveyReportPdf } from "@/components/reports/queries/pdf";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -10,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useRemoveSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
 import { parseConvexError } from "@/lib/errors";
-import { ArrowLeft, Building2, Download, MapPin, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, FileSearch, MapPin, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use } from "react";
@@ -25,17 +27,18 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
 
   if (survey === undefined) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-36 rounded-full" />
-        <Skeleton className="h-36 w-full rounded-2xl" />
+      <PageTransition className="space-y-6">
+        <Skeleton className="h-9 w-36 rounded-xl" />
+        <Skeleton className="h-40 w-full rounded-2xl" />
         <div className="grid gap-5">
-          <Skeleton className="h-48 w-full rounded-xl" />
-          <Skeleton className="h-48 w-full rounded-xl" />
-          <Skeleton className="h-64 w-full rounded-xl" />
+          <Skeleton className="h-48 w-full rounded-2xl" />
+          <Skeleton className="h-48 w-full rounded-2xl" />
+          <Skeleton className="h-64 w-full rounded-2xl" />
         </div>
-      </div>
+      </PageTransition>
     );
   }
+
   if (survey === null) {
     return <EmptyState title="Survey not found" description="It may have been deleted or is outside your scope." />;
   }
@@ -51,61 +54,50 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
     }
   }
 
+  const propertyLabel = survey.propertyId || `Parcel ${survey.parcelNo}`;
+
   return (
-    <div className="space-y-6">
-      {/* Back button */}
+    <PageTransition className="space-y-6 lg:space-y-8">
       <Button
         asChild
         variant="outline"
         size="sm"
-        className="w-fit rounded-full border-primary/30 bg-primary/5 px-4 text-primary hover:bg-primary/10"
+        className="w-fit cursor-pointer rounded-xl border-border/70 bg-card/80 px-4 shadow-premium-sm backdrop-blur-sm hover:bg-muted/40"
       >
         <Link href="/surveys">
-          <ArrowLeft className="h-4 w-4" /> Back to surveys
+          <ArrowLeft className="h-4 w-4" aria-hidden /> Back to surveys
         </Link>
       </Button>
 
-      {/* Hero header */}
-      <div className="relative overflow-hidden rounded-2xl border border-sky-200/60 bg-linear-to-r from-sky-50 via-indigo-50 to-blue-50 px-6 py-6 shadow-sm dark:border-sky-800/30 dark:from-sky-950/60 dark:via-indigo-950/50 dark:to-blue-950/40">
-        {/* Decorative blobs */}
-        <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl dark:bg-sky-500/10" />
-        <div className="pointer-events-none absolute -bottom-8 left-1/3 h-28 w-28 rounded-full bg-indigo-300/20 blur-2xl dark:bg-indigo-500/10" />
-
-        <div className="relative flex flex-wrap items-start justify-between gap-5">
-          {/* Left: property identity */}
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/60">
-                <Building2 className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-              </div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-sky-600/80 dark:text-sky-400/70">
-                Property Survey
-              </span>
-            </div>
-            <h1 className="font-mono text-2xl font-black tracking-tight text-sky-950 dark:text-sky-50">
-              {survey.propertyId || `Parcel ${survey.parcelNo}`}
-            </h1>
+      <ExecutiveHero
+        eyebrow="Survey View"
+        title={propertyLabel}
+        description={
+          survey.city
+            ? `${survey.city} · Ward ${survey.wardNo}${survey.respondentName ? ` · ${survey.respondentName}` : ""}`
+            : "Property survey record and documentation"
+        }
+        icon={FileSearch}
+        gradient="brand"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <SurveyStatusBadge status={survey.status} />
               <QcStatusBadge status={survey.qcStatus} />
               {survey.city && (
-                <span className="flex items-center gap-1 rounded-full bg-white/60 px-2.5 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-sky-200/60 dark:bg-sky-900/30 dark:text-sky-300 dark:ring-sky-700/40">
-                  <MapPin className="h-3 w-3" />
-                  {survey.city} · Ward {survey.wardNo}
+                <span className="inline-flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  <MapPin className="h-3 w-3" aria-hidden />
+                  {survey.city}
                 </span>
               )}
             </div>
-          </div>
-
-          {/* Right: actions */}
-          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => generateSurveyReportPdf(survey)}
-              className="rounded-full border-blue-200 bg-white/80 text-blue-700 shadow-sm hover:bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-900/30"
+              className="cursor-pointer rounded-xl border-brand-navy/25 bg-card/80 shadow-premium-sm hover:bg-brand-navy/5 dark:border-primary/30"
             >
-              <Download className="h-4 w-4" /> PDF
+              <Download className="h-4 w-4" aria-hidden /> PDF
             </Button>
             <RoleGate capability="surveys.editDraft" fallback={null}>
               {survey.qcStatus !== "approved" && (
@@ -114,12 +106,13 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
                   size="sm"
                   className={
                     survey.qcStatus === "rejected"
-                      ? "rounded-full bg-linear-to-r from-rose-600 to-orange-600 text-white shadow-sm hover:from-rose-500 hover:to-orange-500"
-                      : "rounded-full bg-linear-to-r from-indigo-600 to-blue-600 text-white shadow-sm hover:from-indigo-500 hover:to-blue-500"
+                      ? "btn-brand cursor-pointer rounded-xl shadow-md"
+                      : "cursor-pointer rounded-xl bg-brand-navy text-white shadow-md hover:bg-brand-navy/90 dark:bg-primary dark:hover:bg-primary/90"
                   }
                 >
                   <Link href={`/surveys/${id}/edit`}>
-                    <Pencil className="h-4 w-4" /> {survey.qcStatus === "rejected" ? "Fix & Re-submit" : "Edit"}
+                    <Pencil className="h-4 w-4" aria-hidden />
+                    {survey.qcStatus === "rejected" ? "Fix & Re-submit" : "Edit"}
                   </Link>
                 </Button>
               )}
@@ -130,18 +123,17 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
                   variant="outline"
                   size="sm"
                   onClick={onDelete}
-                  className="rounded-full border-rose-300 bg-white/80 text-rose-700 shadow-sm hover:bg-rose-50 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-900/30"
+                  className="cursor-pointer rounded-xl border-brand-red/30 text-brand-red hover:bg-brand-red/10"
                 >
-                  <Trash2 className="h-4 w-4" /> Delete
+                  <Trash2 className="h-4 w-4" aria-hidden /> Delete
                 </Button>
               )}
             </RoleGate>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Detail content */}
       <SurveyDetailView survey={survey as any} surveyId={id} remarks={remarks as any} />
-    </div>
+    </PageTransition>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
+import { ExecutiveHero } from "@/components/design-system/executive-hero";
+import { PageTransition } from "@/components/design-system/motion";
 import { QcCorrectionBanner } from "@/components/qc/qc-correction-banner";
 import { EmptyState } from "@/components/shared/empty-state";
-import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
 import { SurveyEditor } from "@/components/surveys/survey-editor";
@@ -11,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useSubmitSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
 import { parseConvexError } from "@/lib/errors";
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, Eye, PencilLine } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useState } from "react";
@@ -27,10 +28,11 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
 
   if (survey === undefined) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96 w-full" />
-      </div>
+      <PageTransition className="space-y-6">
+        <Skeleton className="h-9 w-36 rounded-xl" />
+        <Skeleton className="h-40 w-full rounded-2xl" />
+        <Skeleton className="h-96 w-full rounded-2xl" />
+      </PageTransition>
     );
   }
 
@@ -41,6 +43,7 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   const locked = survey.qcStatus === "approved";
   const canSubmit = survey.status === "draft" || survey.qcStatus === "rejected" || survey.status === "submitted";
   const isResubmit = survey.qcStatus === "rejected";
+  const propertyLabel = survey.propertyId || `Parcel ${survey.parcelNo}`;
 
   async function onSubmit() {
     if (!confirm("Submit this survey for QC review? You won't be able to edit it until it's reviewed.")) return;
@@ -58,50 +61,48 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
 
   return (
     <RoleGate mode="page" capability="surveys.editDraft" deniedDescription="You don't have permission to edit surveys.">
-      <div className="space-y-5">
+      <PageTransition className="space-y-6 lg:space-y-8">
         <Button
           asChild
           variant="outline"
           size="sm"
-          className="w-fit rounded-full border-primary/30 bg-primary/5 px-4 text-primary hover:bg-primary/10"
+          className="w-fit cursor-pointer rounded-xl border-border/70 bg-card/80 px-4 shadow-premium-sm backdrop-blur-sm hover:bg-muted/40"
         >
           <Link href={`/surveys/${id}`}>
-            <ArrowLeft className="h-4 w-4" /> Back to detail
+            <ArrowLeft className="h-4 w-4" aria-hidden /> Back to detail
           </Link>
         </Button>
 
-        <div className="relative overflow-hidden rounded-2xl border border-amber-200/60 bg-linear-to-r from-amber-50 via-orange-50 to-yellow-50 px-6 py-5 shadow-sm dark:border-amber-800/30 dark:from-amber-950/50 dark:via-orange-950/40 dark:to-yellow-950/30">
-          {/* Decorative blobs */}
-          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-amber-300/20 blur-2xl dark:bg-amber-500/10" />
-          <div className="pointer-events-none absolute -bottom-8 left-1/3 h-24 w-24 rounded-full bg-orange-300/20 blur-2xl dark:bg-orange-500/10" />
-          <PageHeader
-            title={`Edit — ${survey.propertyId || `Parcel ${survey.parcelNo}`}`}
-            description={`${survey.city} · Ward ${survey.wardNo} · Complete all tabs before submitting.`}
-            actions={
-              <div className="flex flex-wrap items-center gap-2">
-                <SurveyStatusBadge status={survey.status} />
-                <QcStatusBadge status={survey.qcStatus} />
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full border-amber-300 bg-white/80 text-amber-800 shadow-sm hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-900/30"
-                >
-                  <Link href={`/surveys/${id}`}>
-                    <Eye className="h-4 w-4" /> View detail
-                  </Link>
-                </Button>
-              </div>
-            }
-          />
-        </div>
+        <ExecutiveHero
+          eyebrow="Survey Edit"
+          title={propertyLabel}
+          description={`${survey.city} · Ward ${survey.wardNo} — complete all tabs before submitting for QC.`}
+          icon={PencilLine}
+          gradient="brand"
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <SurveyStatusBadge status={survey.status} />
+              <QcStatusBadge status={survey.qcStatus} />
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="cursor-pointer rounded-xl border-brand-navy/25 bg-card/80 shadow-premium-sm hover:bg-brand-navy/5 dark:border-primary/30"
+              >
+                <Link href={`/surveys/${id}`}>
+                  <Eye className="h-4 w-4" aria-hidden /> View detail
+                </Link>
+              </Button>
+            </div>
+          }
+        />
 
         {locked ? (
           <EmptyState
             title="Survey locked"
             description="This survey has been approved and can no longer be edited. Contact a supervisor to re-open it."
             action={
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="rounded-xl">
                 <Link href={`/surveys/${id}`}>View detail</Link>
               </Button>
             }
@@ -120,7 +121,7 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
             />
           </>
         )}
-      </div>
+      </PageTransition>
     </RoleGate>
   );
 }

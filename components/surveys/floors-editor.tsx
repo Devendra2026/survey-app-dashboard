@@ -1,9 +1,9 @@
 "use client";
 
+import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PropertyIdTableCell, PropertyIdTableHead } from "@/components/surveys/property-id-table";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,7 +52,7 @@ function FloorTable({
     return <p className="py-4 text-center text-sm text-muted-foreground">No rows yet.</p>;
   }
   return (
-    <div className="rounded-lg border border-border">
+    <div className="premium-card overflow-hidden rounded-xl border border-border/60 shadow-premium-sm">
       <Table>
         <TableHeader>
           <TableRow>
@@ -177,43 +177,37 @@ export function FloorsEditor({
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Plot area</CardTitle>
-          <CardDescription>Total plot size on ground (sq ft).</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1.5 min-w-40">
+      <GlassCard padding="md">
+        <GlassCardHeader title="Plot area" description="Total plot size on ground (sq ft)." />
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-40 space-y-1.5">
             <Label>Plot (sqft)</Label>
             <Input type="number" value={plotSqft || ""} onChange={(e) => setPlotSqft(Number(e.target.value))} />
           </div>
-          <Button size="sm" disabled={savingPlot} onClick={savePlot}>
+          <Button size="sm" disabled={savingPlot} onClick={savePlot} className="cursor-pointer rounded-xl">
             {savingPlot ? "Saving…" : "Save plot area"}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </GlassCard>
 
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Plinth area</CardTitle>
-          <CardDescription>Calculated from ground floor row.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-semibold tabular-nums">{formatAreaSqft(plinthFromFloors)}</p>
-        </CardContent>
-      </Card>
+      <GlassCard padding="md" variant="accent">
+        <GlassCardHeader title="Plinth area" description="Calculated from ground floor row." />
+        <p className="font-display text-2xl font-bold tabular-nums text-brand-navy dark:text-primary-foreground">
+          {formatAreaSqft(plinthFromFloors)}
+        </p>
+      </GlassCard>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base">Built-up floors</CardTitle>
-            <CardDescription>Ground floor, first floor, and other constructed levels.</CardDescription>
-          </div>
-          <Button size="sm" onClick={() => openAddFloor(false)}>
-            <Plus className="h-4 w-4" /> Add floor
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <GlassCard padding="md">
+        <GlassCardHeader
+          title="Built-up floors"
+          description="Ground floor, first floor, and other constructed levels."
+          action={
+            <Button size="sm" onClick={() => openAddFloor(false)} className="cursor-pointer rounded-xl">
+              <Plus className="h-4 w-4" aria-hidden /> Add floor
+            </Button>
+          }
+        />
+        <div className="space-y-3">
           {floors === undefined ? null : builtUpFloors.length === 0 ? (
             <EmptyState title="No built-up floors" description="Add ground floor or upper floors with their areas." />
           ) : (
@@ -230,25 +224,32 @@ export function FloorsEditor({
               }}
             />
           )}
-          <div className="rounded-md border border-primary/25 bg-primary/5 px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total built-up area</p>
-            <p className="text-xl font-semibold tabular-nums">{formatAreaSqft(builtUpTotal)}</p>
+          <div className="rounded-xl border border-brand-navy/15 bg-brand-navy/5 px-4 py-3 dark:border-primary/20 dark:bg-primary/10">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Total built-up area</p>
+            <p className="font-mono text-xl font-bold tabular-nums text-brand-navy dark:text-primary-foreground">
+              {formatAreaSqft(builtUpTotal)}
+            </p>
             <p className="text-xs text-muted-foreground">Sum of all floor rows except open land.</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </GlassCard>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base">Open land area</CardTitle>
-            <CardDescription>Vacant or undeveloped plot area — separate from built-up floors.</CardDescription>
-          </div>
-          <Button size="sm" variant="outline" onClick={() => openAddFloor(true)}>
-            <Plus className="h-4 w-4" /> Add open land
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <GlassCard padding="md">
+        <GlassCardHeader
+          title="Open land area"
+          description="Vacant or undeveloped plot area — separate from built-up floors."
+          action={
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openAddFloor(true)}
+              className="cursor-pointer rounded-xl"
+            >
+              <Plus className="h-4 w-4" aria-hidden /> Add open land
+            </Button>
+          }
+        />
+        <div className="space-y-3">
           {floors === undefined ? null : openLandFloors.length === 0 ? (
             <p className="text-sm text-muted-foreground">No open land rows. Add one if part of the plot is vacant.</p>
           ) : (
@@ -265,12 +266,12 @@ export function FloorsEditor({
               }}
             />
           )}
-          <div className="rounded-md border border-border bg-muted/40 px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total open land area</p>
-            <p className="text-xl font-semibold tabular-nums">{formatAreaSqft(openLandTotal)}</p>
+          <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Total open land area</p>
+            <p className="font-mono text-xl font-bold tabular-nums">{formatAreaSqft(openLandTotal)}</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </GlassCard>
 
       <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
         <DialogContent>
