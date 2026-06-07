@@ -6,6 +6,7 @@ import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-bad
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMasters } from "@/hooks/masters/useMasters";
+import { SURVEY_ROW_TONE } from "@/lib/design-system";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import { fmtDay } from "@/lib/utils";
@@ -40,11 +41,11 @@ export interface SurveyRow {
 const col = createColumnHelper<SurveyRow>();
 
 function surveyRowTone(row: SurveyRow) {
-  if (row.qcStatus === "approved") return "bg-emerald-500/5 hover:bg-emerald-500/10";
-  if (row.qcStatus === "rejected") return "bg-rose-500/5 hover:bg-rose-500/10";
-  if (row.qcStatus === "pending") return "bg-amber-500/5 hover:bg-amber-500/10";
-  if (row.status === "submitted") return "bg-indigo-500/5 hover:bg-indigo-500/10";
-  return "hover:bg-muted/40";
+  if (row.qcStatus === "approved") return SURVEY_ROW_TONE.approved;
+  if (row.qcStatus === "rejected") return SURVEY_ROW_TONE.rejected;
+  if (row.qcStatus === "pending") return SURVEY_ROW_TONE.qcPending;
+  if (row.status === "submitted") return SURVEY_ROW_TONE.submitted;
+  return SURVEY_ROW_TONE.draft;
 }
 
 export function SurveyTable({
@@ -113,8 +114,8 @@ export function SurveyTable({
             size="sm"
             className={
               isQc
-                ? "h-7 rounded-full bg-amber-600/10 px-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-300/60 hover:bg-amber-600 hover:text-white hover:ring-amber-600 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-700/50 dark:hover:bg-amber-500 dark:hover:text-white"
-                : "h-7 rounded-full bg-indigo-600/10 px-3 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-300/60 hover:bg-indigo-600 hover:text-white hover:ring-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300 dark:ring-indigo-700/50 dark:hover:bg-indigo-500 dark:hover:text-white"
+                ? "h-7 rounded-full bg-warning/15 px-3 text-xs font-semibold text-amber-950 ring-1 ring-warning/40 hover:bg-warning hover:text-amber-950 hover:ring-warning dark:bg-warning/12 dark:text-amber-200 dark:hover:bg-warning/90 dark:hover:text-amber-950"
+                : "h-7 rounded-full bg-brand-navy/10 px-3 text-xs font-semibold text-brand-navy ring-1 ring-brand-navy/25 hover:bg-brand-navy hover:text-white hover:ring-brand-navy dark:bg-primary/15 dark:text-primary-foreground dark:ring-primary/30 dark:hover:bg-primary"
             }
           >
             <Link href={`${hrefBase}/${c.row.original._id}`}>
@@ -142,13 +143,13 @@ export function SurveyTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+    <div className="premium-card overflow-hidden rounded-xl border border-border/60 bg-card/90 shadow-premium-sm backdrop-blur-sm">
       <Table className="min-w-full">
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
             <TableRow
               key={hg.id}
-              className="border-b border-border/60 bg-linear-to-r from-slate-50 to-muted/30 hover:from-slate-50 hover:to-muted/30 dark:from-slate-900/60 dark:to-muted/10 dark:hover:from-slate-900/60"
+              className="border-b border-brand-navy/10 bg-linear-to-r from-brand-navy/6 via-muted/25 to-brand-navy/4 hover:from-brand-navy/6 dark:border-primary/15 dark:from-primary/12 dark:via-muted/10 dark:to-primary/6"
             >
               {hg.headers.map((h) => (
                 <TableHead

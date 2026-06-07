@@ -31,6 +31,30 @@ export const SPACING = {
 
 export const GRID_COLS = 12;
 
+/** Survey / QC status visuals — SDV navy + red brand, AA-friendly contrast */
+export const SURVEY_STATUS_BADGE: Record<string, string> = {
+  draft: "border-border/70 bg-muted/60 text-muted-foreground",
+  submitted:
+    "border-brand-navy/35 bg-brand-navy/10 text-brand-navy dark:border-primary/40 dark:bg-primary/15 dark:text-primary-foreground",
+  approved: "border-success/35 bg-success/12 text-emerald-800 dark:text-emerald-300",
+  rejected: "border-brand-red/35 bg-brand-red/10 text-brand-red dark:text-brand-red-foreground",
+};
+
+export const QC_STATUS_BADGE: Record<string, string> = {
+  pending:
+    "border-warning/45 bg-warning/14 text-amber-950 dark:border-warning/40 dark:bg-warning/12 dark:text-amber-200",
+  approved: "border-success/35 bg-success/12 text-emerald-800 dark:text-emerald-300",
+  rejected: "border-brand-red/35 bg-brand-red/10 text-brand-red dark:text-brand-red-foreground",
+};
+
+export const SURVEY_ROW_TONE: Record<string, string> = {
+  draft: "hover:bg-muted/35",
+  submitted: "bg-brand-navy/4 hover:bg-brand-navy/8 dark:bg-primary/6 dark:hover:bg-primary/10",
+  qcPending: "bg-warning/7 hover:bg-warning/12",
+  approved: "bg-success/6 hover:bg-success/10",
+  rejected: "bg-brand-red/5 hover:bg-brand-red/9",
+};
+
 export const NAV_ITEMS = [
   { key: "dashboard", href: "/dashboard", label: "Dashboard", shortLabel: "Home" },
   { key: "surveys", href: "/surveys", label: "Surveys", shortLabel: "Surveys" },

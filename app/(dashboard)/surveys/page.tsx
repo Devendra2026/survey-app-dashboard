@@ -1,12 +1,9 @@
 "use client";
 
 import { ExecutiveHero, SectionHeader } from "@/components/design-system/executive-hero";
-import { GisSurveyMap } from "@/components/design-system/gis-survey-map";
 import { GlassCard } from "@/components/design-system/glass-card";
 import { MetricCard } from "@/components/design-system/metric-card";
 import { PageTransition } from "@/components/design-system/motion";
-import { SurveyCalendarView } from "@/components/design-system/survey-calendar-view";
-import { ViewModeToggle, type ViewMode } from "@/components/design-system/view-mode-toggle";
 import { RoleGate } from "@/components/shared/role-gate";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { SurveyExcelActions } from "@/components/surveys/survey-excel-actions";
@@ -18,7 +15,7 @@ import { useMasters } from "@/hooks/masters/useMasters";
 import { searchSurveys, useSurveyList } from "@/hooks/surveys/useSurveys";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
-import { BarChart3, CalendarDays, CheckCircle2, Clock3, Filter, ListChecks, Plus, TrendingDown } from "lucide-react";
+import { BarChart3, CalendarDays, CheckCircle2, Clock3, Filter, LayoutList, Plus, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -53,7 +50,6 @@ export default function SurveysPage() {
   const [pageSize, setPageSize] = useState(20);
   const [activeTab, setActiveTab] = useState("all");
   const [pageNumber, setPageNumber] = useState(1);
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
 
   const handleFiltersChange = (next: FilterState) => {
     setFilters(next);
@@ -134,14 +130,17 @@ export default function SurveysPage() {
     return { total, today, qcPending, approved, rejected, rejectionRate };
   }, [filteredByDate]);
 
+  const draftCount = (filteredByDate as any[]).filter((r) => r.status === "draft").length;
+  const submittedCount = (filteredByDate as any[]).filter((r) => r.status === "submitted").length;
+
   return (
-    <PageTransition className="space-y-6">
+    <PageTransition className="space-y-6 lg:space-y-8">
       <ExecutiveHero
-        eyebrow="Survey Operations"
+        eyebrow="Survey Dashboard"
         title="Survey Management"
-        description="Monitor and manage property data collection with table, calendar, and GIS views."
-        icon={ListChecks}
-        gradient="navy"
+        description="Search, filter, and manage property surveys across your assigned scope."
+        icon={LayoutList}
+        gradient="brand"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <RoleGate
@@ -167,7 +166,7 @@ export default function SurveysPage() {
           value={stats.total.toLocaleString()}
           hint="in active filters"
           icon={BarChart3}
-          tone="info"
+          tone="default"
         />
         <MetricCard
           label="QC Pending"
@@ -188,7 +187,7 @@ export default function SurveysPage() {
           value={stats.today.toLocaleString()}
           hint="surveys today"
           icon={CalendarDays}
-          tone="ai"
+          tone="info"
         />
         <MetricCard
           label="Rejection Rate"
@@ -209,89 +208,71 @@ export default function SurveysPage() {
         <SurveyFilters value={filters} onChange={handleFiltersChange} />
       </GlassCard>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SectionHeader
-          title="Survey Records"
-          description={`${filteredByTab.length.toLocaleString()} records${activeTab !== "all" ? " in selected tab" : ""}`}
-        />
-        <ViewModeToggle value={viewMode} onChange={setViewMode} />
-      </div>
+      <GlassCard padding="none" className="overflow-hidden">
+        <div className="border-b border-border/60 px-5 py-4">
+          <SectionHeader
+            title="Survey Registry"
+            description={`${filteredByTab.length.toLocaleString()} surveys${activeTab !== "all" ? " in selected tab" : ""}`}
+          />
+        </div>
+        <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5">
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
+              <TabPill
+                value="all"
+                label="All"
+                count={filteredByDate.length}
+                activeColor="data-[state=active]:bg-brand-navy data-[state=active]:text-white dark:data-[state=active]:bg-primary"
+              />
+              <TabPill
+                value="qcPending"
+                label="QC Pending"
+                count={stats.qcPending}
+                activeColor="data-[state=active]:bg-warning data-[state=active]:text-amber-950"
+              />
+              <TabPill
+                value="qcApproved"
+                label="Approved"
+                count={stats.approved}
+                activeColor="data-[state=active]:bg-success data-[state=active]:text-white"
+              />
+              <TabPill
+                value="qcRejected"
+                label="Rejected"
+                count={stats.rejected}
+                activeColor="data-[state=active]:bg-brand-red data-[state=active]:text-white"
+              />
+              <TabPill
+                value="draft"
+                label="Draft"
+                count={draftCount}
+                activeColor="data-[state=active]:bg-muted-foreground/80 data-[state=active]:text-white"
+              />
+              <TabPill
+                value="submitted"
+                label="Submitted"
+                count={submittedCount}
+                activeColor="data-[state=active]:bg-brand-navy data-[state=active]:text-white dark:data-[state=active]:bg-primary"
+              />
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="p-4">
+          <SurveyTable rows={isLoading ? undefined : (pagedRows as Parameters<typeof SurveyTable>[0]["rows"])} />
+        </div>
+      </GlassCard>
 
-      {viewMode === "table" && (
-        <GlassCard padding="none" className="overflow-hidden">
-          <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5">
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
-                <TabPill
-                  value="all"
-                  label="All"
-                  count={filteredByDate.length}
-                  activeColor="data-[state=active]:bg-slate-700 data-[state=active]:text-white dark:data-[state=active]:bg-slate-600"
-                />
-                <TabPill
-                  value="qcPending"
-                  label="QC Pending"
-                  count={stats.qcPending}
-                  activeColor="data-[state=active]:bg-amber-500 data-[state=active]:text-white"
-                />
-                <TabPill
-                  value="qcApproved"
-                  label="Approved"
-                  count={stats.approved}
-                  activeColor="data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
-                />
-                <TabPill
-                  value="qcRejected"
-                  label="Rejected"
-                  count={stats.rejected}
-                  activeColor="data-[state=active]:bg-rose-600 data-[state=active]:text-white"
-                />
-                <TabPill
-                  value="draft"
-                  label="Draft"
-                  count={(filteredByDate as any[]).filter((r) => r.status === "draft").length}
-                  activeColor="data-[state=active]:bg-slate-500 data-[state=active]:text-white"
-                />
-                <TabPill
-                  value="submitted"
-                  label="Submitted"
-                  count={(filteredByDate as any[]).filter((r) => r.status === "submitted").length}
-                  activeColor="data-[state=active]:bg-indigo-600 data-[state=active]:text-white"
-                />
-              </TabsList>
-            </Tabs>
-          </div>
-          <div className="p-4">
-            <SurveyTable rows={isLoading ? undefined : (pagedRows as Parameters<typeof SurveyTable>[0]["rows"])} />
-          </div>
-        </GlassCard>
-      )}
-
-      {viewMode === "calendar" && (
-        <SurveyCalendarView surveys={filteredByTab as Parameters<typeof SurveyCalendarView>[0]["surveys"]} />
-      )}
-
-      {viewMode === "gis" && (
-        <GisSurveyMap
-          surveys={filteredByTab as Parameters<typeof GisSurveyMap>[0]["surveys"]}
-          loading={isLoading}
-          height={480}
-        />
-      )}
-
-      {viewMode === "table" && (
-        <TablePagination
-          pageNumber={pageNumber}
-          pageSize={pageSize}
-          itemCount={pagedRows.length}
-          canGoPrev={canGoPrev}
-          canGoNext={canGoNext}
-          onPrev={() => setPageNumber((p) => Math.max(1, p - 1))}
-          onNext={() => setPageNumber((p) => (canGoNext ? p + 1 : p))}
-          pageSizeOptions={[10, 20, 50, 100]}
-          onPageSizeChange={handlePageSizeChange}
-        />
-      )}
+      <TablePagination
+        pageNumber={pageNumber}
+        pageSize={pageSize}
+        itemCount={pagedRows.length}
+        canGoPrev={canGoPrev}
+        canGoNext={canGoNext}
+        onPrev={() => setPageNumber((p) => Math.max(1, p - 1))}
+        onNext={() => setPageNumber((p) => (canGoNext ? p + 1 : p))}
+        pageSizeOptions={[10, 20, 50, 100]}
+        onPageSizeChange={handlePageSizeChange}
+      />
     </PageTransition>
   );
 }
