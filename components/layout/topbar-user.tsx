@@ -41,13 +41,6 @@ export function TopbarUser() {
               {roleLabel(role)}
             </Badge>
           )}
-          {user?.municipality?.name && <span className="truncate">{user.municipality.name}</span>}
-          {user?.district?.name && (
-            <>
-              <span aria-hidden>·</span>
-              <span className="truncate">{user.district.name}</span>
-            </>
-          )}
         </div>
       </div>
     </div>

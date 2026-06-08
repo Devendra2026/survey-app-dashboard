@@ -20,7 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         queries: {
           queryKeyHashFn: convexQueryClient.hashFn(),
           queryFn: convexQueryClient.queryFn(),
-          staleTime: 30_000,
+          staleTime: 1000,
         },
       },
     });
@@ -35,9 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <div className="flex h-full min-h-0 flex-col overflow-hidden">
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-                <TooltipProvider>
-                  {children}
-                </TooltipProvider>
+                <TooltipProvider>{children}</TooltipProvider>
               </ThemeProvider>
             </div>
             <Toaster position="top-right" richColors closeButton />

@@ -100,7 +100,7 @@ function NavLink({
         className={cn(
           "truncate whitespace-nowrap",
           labelTransition,
-          collapsed ? "max-w-0 opacity-0" : "max-w-44 opacity-100",
+          collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
         )}
       >
         {item.label}
@@ -208,7 +208,7 @@ export function Sidebar() {
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-48 border-sidebar-border bg-sidebar p-0 backdrop-blur-xl">
+        <SheetContent side="left" className="w-36 border-sidebar-border bg-sidebar p-0 backdrop-blur-xl">
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation</SheetTitle>
             <SheetDescription>Main application navigation links.</SheetDescription>

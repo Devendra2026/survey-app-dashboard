@@ -124,7 +124,6 @@ export function Topbar() {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-
           <ModeToggle />
           <TopbarUser />
         </div>
