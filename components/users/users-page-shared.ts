@@ -1,7 +1,8 @@
-import type { SheetListedUser, SheetPendingUser } from "@/components/users/user-edit-sheet";
+import type { SheetListedUser, SheetPendingUser, SheetUser } from "@/components/users/user-edit-sheet";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { FunctionReturnType } from "convex/server";
+import type { Dispatch } from "react";
 
 export type PendingUser = FunctionReturnType<typeof api.admin.listPendingApprovals>[number];
 export type ListedUser = FunctionReturnType<typeof api.admin.listUsers>["page"][number];
@@ -22,7 +23,33 @@ export type UsersListUiAction =
   | { type: "setSearch"; value: string }
   | { type: "clearFilters" };
 
+export type UsersDirectoryPagination = {
+  pageNumber: number;
+  rowsPerPage: number;
+  canGoPrev: boolean;
+  canGoNext: boolean;
+  goPrev: () => void;
+  goNext: () => void;
+};
+
+export type UsersDirectoryLoadStatus = "loading" | "ready";
+
 export const ALL = "__all__";
+
+export function usersListHasActiveFilters(listUi: UsersListUiState) {
+  return listUi.roleFilter !== ALL || listUi.statusFilter !== ALL || listUi.search.trim().length > 0;
+}
+
+export type UsersDirectoryTabModel = {
+  filteredUsers: ListedUser[] | undefined;
+  allRoles: RoleRow[] | undefined;
+  listUi: UsersListUiState;
+  dispatchListUi: Dispatch<UsersListUiAction>;
+  pagination: UsersDirectoryPagination;
+  loadStatus: UsersDirectoryLoadStatus;
+  setSheetUser: (user: SheetUser) => void;
+  setAllotUser: (user: AllotUser) => void;
+};
 
 const AVATAR_PALETTE = [
   "bg-violet-100 text-violet-700",

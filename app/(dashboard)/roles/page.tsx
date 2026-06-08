@@ -1,15 +1,13 @@
 "use client";
 
+import { PageTransition } from "@/components/design-system/motion";
 import { type PermissionOption } from "@/components/rbac/permission-picker";
 import { RolesMasterDetail, type RoleRow } from "@/components/rbac/roles-master-detail";
-import { PageHeader } from "@/components/shared/page-header";
+import { RolesHero, RolesMetricsSection } from "@/components/rbac/roles-page-sections";
 import { RoleGate } from "@/components/shared/role-gate";
-import { Button } from "@/components/ui/button";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useCreateRole, usePermissions, useRoles, useSeedRbac, useUpdateRole } from "@/hooks/rbac/useRbac";
 import { parseConvexError } from "@/lib/errors";
-import { cn } from "@/lib/utils";
-import { RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -127,36 +125,15 @@ export default function RolesPage() {
       capability="roles.manage"
       deniedDescription="Only administrators can manage roles and permissions."
     >
-      <div className="space-y-4">
-        <PageHeader
-          title="Roles & Permissions"
-          description="Define who can do what on web and mobile. Changes apply after the next capability sync."
-          actions={
-            <Button variant="outline" size="sm" onClick={onSeed} disabled={seeding}>
-              <RefreshCw className={cn("h-4 w-4", seeding && "animate-spin")} />
-              Refresh system RBAC
-            </Button>
-          }
+      <PageTransition className="space-y-6 lg:space-y-8">
+        <RolesHero onSeed={onSeed} seeding={seeding} />
+        <RolesMetricsSection
+          roleCount={roleCount}
+          activeCount={activeCount}
+          customCount={customCount}
+          permCount={permCount}
+          loaded={roles !== undefined}
         />
-
-        <div className="flex flex-wrap gap-2">
-          {[
-            { label: "Roles", value: roleCount, dot: "bg-primary" },
-            { label: "Active", value: activeCount, dot: "bg-emerald-500" },
-            { label: "Custom", value: customCount, dot: "bg-violet-500" },
-            { label: "Permissions", value: permCount, dot: "bg-blue-500" },
-          ].map((s) => (
-            <div
-              key={s.label}
-              className="flex items-center gap-2.5 rounded-full border border-border bg-card px-4 py-2 shadow-sm"
-            >
-              <span className={cn("h-2 w-2 rounded-full", s.dot)} />
-              <span className="text-lg font-bold tabular-nums leading-none">{roles === undefined ? "—" : s.value}</span>
-              <span className="text-xs text-muted-foreground">{s.label}</span>
-            </div>
-          ))}
-        </div>
-
         <RolesMasterDetail
           systemRoles={systemRoles}
           customRoles={customRoles}
@@ -177,11 +154,10 @@ export default function RolesPage() {
           onSaveEdit={onSaveEdit}
           onCreateRole={onCreateRole}
         />
-
         <p className="text-center text-xs text-muted-foreground">
           Surveyors and supervisors receive capabilities from their assigned role on the next app session.
         </p>
-      </div>
+      </PageTransition>
     </RoleGate>
   );
 }

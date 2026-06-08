@@ -637,7 +637,7 @@ export function RolesMasterDetail({
   onCreateRole,
 }: RolesMasterDetailProps) {
   return (
-    <div className="flex gap-4 rounded-xl border border-border bg-card shadow-sm" style={{ minHeight: 600 }}>
+    <div className="premium-card flex gap-4 overflow-hidden rounded-2xl shadow-premium-lg" style={{ minHeight: 600 }}>
       <div className="flex w-72 shrink-0 flex-col border-r border-border">
         <div className="flex items-center justify-between border-b border-border px-3 py-3">
           <p className="text-sm font-semibold text-foreground">Roles</p>

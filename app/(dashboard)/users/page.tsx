@@ -1,16 +1,17 @@
 "use client";
 
-import { PageHeader } from "@/components/shared/page-header";
+import { PageTransition } from "@/components/design-system/motion";
 import { RoleGate } from "@/components/shared/role-gate";
 import { UserAllotmentsDialog } from "@/components/users/user-allotments-dialog";
 import { UserEditSheet, type SheetUser } from "@/components/users/user-edit-sheet";
+import { UsersHero, UsersMetricsSection, UsersPendingAlert } from "@/components/users/users-page-sections";
 import {
   ALL,
   type AllotUser,
   type UsersListUiAction,
   type UsersListUiState,
 } from "@/components/users/users-page-shared";
-import { UsersPageKpiStrip, UsersPageTabs } from "@/components/users/users-page-tabs";
+import { UsersPageTabs } from "@/components/users/users-page-tabs";
 import { useRoles } from "@/hooks/rbac/useRbac";
 import { usePendingApprovals, useUserListPaginated, type UserListFilters } from "@/hooks/users/useUsers";
 import { useMemo, useReducer, useState } from "react";
@@ -72,11 +73,23 @@ export default function UsersPage() {
   const activeCount = users?.filter((u) => u.status === "active").length ?? 0;
   const disabledCount = users?.filter((u) => u.status === "disabled").length ?? 0;
 
-  const hasFilters = roleFilter !== ALL || statusFilter !== ALL || search.trim().length > 0;
-
-  function clearFilters() {
-    dispatchListUi({ type: "clearFilters" });
-  }
+  const directory = {
+    filteredUsers,
+    allRoles,
+    listUi,
+    dispatchListUi,
+    pagination: {
+      pageNumber,
+      rowsPerPage,
+      canGoPrev,
+      canGoNext,
+      goPrev,
+      goNext,
+    },
+    loadStatus: isLoading ? ("loading" as const) : ("ready" as const),
+    setSheetUser,
+    setAllotUser,
+  };
 
   return (
     <RoleGate
@@ -84,37 +97,16 @@ export default function UsersPage() {
       capability="users.view"
       deniedDescription="User management is restricted to supervisors and administrators."
     >
-      <div className="space-y-6">
-        <PageHeader title="Users" description="Approve registrations, assign roles & tenancy, and manage access." />
-
-        <UsersPageKpiStrip pending={pending} users={users} activeCount={activeCount} disabledCount={disabledCount} />
-
-        <UsersPageTabs
-          pending={pending}
-          users={users}
-          filteredUsers={filteredUsers}
-          allRoles={allRoles}
-          listUi={listUi}
-          dispatchListUi={dispatchListUi}
-          activeCount={activeCount}
-          disabledCount={disabledCount}
-          hasFilters={hasFilters}
-          clearFilters={clearFilters}
-          isLoading={isLoading}
-          pageNumber={pageNumber}
-          rowsPerPage={rowsPerPage}
-          canGoPrev={canGoPrev}
-          canGoNext={canGoNext}
-          goPrev={goPrev}
-          goNext={goNext}
-          setSheetUser={setSheetUser}
-          setAllotUser={setAllotUser}
-        />
+      <PageTransition className="space-y-6 lg:space-y-8">
+        <UsersHero />
+        <UsersPendingAlert pending={pending} />
+        <UsersMetricsSection pending={pending} users={users} activeCount={activeCount} disabledCount={disabledCount} />
+        <UsersPageTabs pending={pending} users={users} directory={directory} setSheetUser={setSheetUser} />
 
         <UserEditSheet user={sheetUser} onClose={() => setSheetUser(null)} />
 
         <UserAllotmentsDialog open={!!allotUser} onOpenChange={(o) => !o && setAllotUser(null)} user={allotUser} />
-      </div>
+      </PageTransition>
     </RoleGate>
   );
 }

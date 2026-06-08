@@ -62,6 +62,25 @@ export const SURVEY_ROW_TONE: Record<string, string> = {
   rejected: "bg-brand-red/5 hover:bg-brand-red/9",
 };
 
+/**
+ * Admin modules (Users · Roles · Master Data · Audit Log)
+ * Typography: Plus Jakarta (`font-display` / `font-heading`) titles · Fira Sans body · Fira Code (`font-mono`) for IDs/keys
+ * Color: brand navy for structure & active states · brand red for CTAs & alerts · semantic tones for KPIs only
+ */
+export const ADMIN_MODULE = {
+  heroGradient: "brand" as const,
+  tabActive: "data-[state=active]:bg-brand-navy data-[state=active]:text-white dark:data-[state=active]:bg-primary",
+  metricTones: {
+    pending: "warning",
+    active: "success",
+    disabled: "destructive",
+    total: "info",
+    permissions: "ai",
+    audit: "info",
+    entities: "muted",
+  } as const,
+} as const;
+
 export const NAV_ITEMS = [
   { key: "dashboard", href: "/dashboard", label: "Dashboard", shortLabel: "Home" },
   { key: "surveys", href: "/surveys", label: "Surveys", shortLabel: "Surveys" },

@@ -6,7 +6,6 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SheetUser } from "@/components/users/user-edit-sheet";
 import {
   avatarColor,
@@ -17,7 +16,7 @@ import {
   type PendingUser,
 } from "@/components/users/users-page-shared";
 import { cn } from "@/lib/utils";
-import { Clock, UserCheck } from "lucide-react";
+import { UserCheck } from "lucide-react";
 
 export function PendingApprovalsTab({
   pending,
@@ -27,84 +26,73 @@ export function PendingApprovalsTab({
   setSheetUser: (user: SheetUser) => void;
 }) {
   return (
-    <Card className="overflow-hidden border-border shadow-sm">
-      <CardHeader className="border-b border-border bg-muted/30 px-5 py-3.5">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-500/20">
-            <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-          </div>
-          Approval Queue
-          <span className="font-normal text-muted-foreground">— click a row to review</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        {pending === undefined ? (
-          <div className="p-5">
-            <TableSkeleton rows={3} />
-          </div>
-        ) : pending.length === 0 ? (
-          <div className="py-12">
-            <EmptyState
-              title="Queue is clear"
-              description="New sign-ups awaiting approval will appear here."
-              icon={UserCheck}
-            />
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {pending.map((u) => {
-              const age = pendingAge(u.createdAt);
-              return (
-                <button
-                  key={u._id}
-                  type="button"
-                  className="flex w-full cursor-pointer items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-muted/40"
-                  onClick={() => setSheetUser(toPendingSheet(u))}
-                >
-                  <Avatar>
-                    <AvatarFallback className={cn("text-sm font-semibold", avatarColor(u.name))}>
-                      {initials(u.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold leading-tight">{u.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    {u.requestedRole && (
-                      <Badge variant="outline" className={cn("text-xs", ROLE_COLORS[u.requestedRole] ?? "")}>
-                        {u.requestedRole}
-                      </Badge>
+    <div>
+      {pending === undefined ? (
+        <div className="p-5">
+          <TableSkeleton rows={3} />
+        </div>
+      ) : pending.length === 0 ? (
+        <div className="py-12">
+          <EmptyState
+            title="Queue is clear"
+            description="New sign-ups awaiting approval will appear here."
+            icon={UserCheck}
+          />
+        </div>
+      ) : (
+        <div className="divide-y divide-border/60">
+          {pending.map((u) => {
+            const age = pendingAge(u.createdAt);
+            return (
+              <button
+                key={u._id}
+                type="button"
+                className="flex w-full cursor-pointer items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-muted/40"
+                onClick={() => setSheetUser(toPendingSheet(u))}
+              >
+                <Avatar>
+                  <AvatarFallback className={cn("text-sm font-semibold", avatarColor(u.name))}>
+                    {initials(u.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold leading-tight">{u.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {u.requestedRole && (
+                    <Badge variant="outline" className={cn("text-xs", ROLE_COLORS[u.requestedRole] ?? "")}>
+                      {u.requestedRole}
+                    </Badge>
+                  )}
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                      age.urgent
+                        ? "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400"
+                        : "bg-muted text-muted-foreground",
                     )}
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                        age.urgent
-                          ? "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400"
-                          : "bg-muted text-muted-foreground",
-                      )}
+                  >
+                    {age.label}
+                  </span>
+                  <RoleGate capability="users.approve" fallback={null}>
+                    <Button
+                      size="sm"
+                      className="h-7 bg-emerald-600 px-3 text-xs text-white hover:bg-emerald-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSheetUser(toPendingSheet(u));
+                      }}
                     >
-                      {age.label}
-                    </span>
-                    <RoleGate capability="users.approve" fallback={null}>
-                      <Button
-                        size="sm"
-                        className="h-7 bg-emerald-600 px-3 text-xs text-white hover:bg-emerald-700"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSheetUser(toPendingSheet(u));
-                        }}
-                      >
-                        <UserCheck className="h-3 w-3" /> Review
-                      </Button>
-                    </RoleGate>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                      <UserCheck className="h-3 w-3" /> Review
+                    </Button>
+                  </RoleGate>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
