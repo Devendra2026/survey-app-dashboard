@@ -154,14 +154,14 @@ export function AllUsersDirectoryTab({
                         {u.status === "pending_approval" ? "pending" : u.status}
                       </Badge>
                     </div>
-                    {u.role !== "admin" && (u.municipalityName || u.districtName) && (
+                    {u.role !== "admin" && (u.scopeLabel || u.municipalityName || u.districtName) && (
                       <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                        {u.municipalityName ? (
+                        {u.municipalityName && !u.scopeLabel?.includes(",") ? (
                           <Building2 className="h-3 w-3 shrink-0" />
                         ) : (
                           <MapPin className="h-3 w-3 shrink-0" />
                         )}
-                        <span className="truncate">{u.municipalityName ?? u.districtName}</span>
+                        <span className="truncate">{u.scopeLabel ?? u.municipalityName ?? u.districtName}</span>
                       </p>
                     )}
                   </div>
@@ -234,15 +234,19 @@ export function AllUsersDirectoryTab({
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {u.role !== "admin" && u.municipalityName ? (
+                    {u.role !== "admin" && (u.scopeLabel || u.municipalityName || u.districtName) ? (
                       <div className="flex items-center gap-1.5 text-sm">
-                        <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
-                        <span className="max-w-32 truncate">{u.municipalityName}</span>
-                      </div>
-                    ) : u.role !== "admin" && u.districtName ? (
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
-                        <span className="max-w-32 truncate">{u.districtName}</span>
+                        {u.scopeLabel?.includes(",") || (!u.municipalityName && u.districtName) ? (
+                          <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        ) : (
+                          <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        )}
+                        <span
+                          className="max-w-40 truncate"
+                          title={u.scopeLabel ?? u.municipalityName ?? u.districtName ?? ""}
+                        >
+                          {u.scopeLabel ?? u.municipalityName ?? u.districtName}
+                        </span>
                       </div>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>

@@ -193,6 +193,58 @@ export const rejectUser = mutation({
 
 /* ────────────────────────── user management ────────────────────────── */
 
+async function buildScopeLabel(
+  ctx: QueryCtx,
+  user: Doc<"users">,
+  districts: Map<string, string>,
+  munis: Map<string, { name: string; code: string; districtId: string }>,
+): Promise<string | null> {
+  const allotmentRows = await ctx.db
+    .query("userAllotments")
+    .withIndex("by_user", (q) => q.eq("userId", user._id))
+    .collect();
+  const active = allotmentRows.filter((r) => r.isActive);
+
+  const muniNames = new Set<string>();
+  const districtNames = new Set<string>();
+
+  for (const row of active) {
+    if (row.municipalityId) {
+      let m = munis.get(row.municipalityId);
+      if (!m) {
+        const doc = await ctx.db.get(row.municipalityId);
+        if (doc) {
+          m = { name: doc.name, code: doc.code, districtId: doc.districtId };
+          munis.set(row.municipalityId, m);
+        }
+      }
+      if (m) muniNames.add(m.name);
+    } else if (row.districtId) {
+      let name = districts.get(row.districtId);
+      if (!name) {
+        const doc = await ctx.db.get(row.districtId);
+        if (doc) {
+          name = doc.name;
+          districts.set(row.districtId, name);
+        }
+      }
+      if (name) districtNames.add(`${name} (district)`);
+    }
+  }
+
+  if (user.municipalityId) {
+    const primary = munis.get(user.municipalityId)?.name;
+    if (primary) muniNames.add(primary);
+  }
+  if (user.districtId && muniNames.size === 0) {
+    const name = districts.get(user.districtId);
+    if (name) districtNames.add(`${name} (district)`);
+  }
+
+  const parts = [...muniNames, ...districtNames];
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
 async function hydrateUsersForAdmin(ctx: QueryCtx, rows: Doc<"users">[]) {
   const munis = new Map<string, { name: string; code: string; districtId: string }>();
   const districts = new Map<string, string>();
@@ -206,7 +258,10 @@ async function hydrateUsersForAdmin(ctx: QueryCtx, rows: Doc<"users">[]) {
       if (m) munis.set(u.municipalityId, { name: m.name, code: m.code, districtId: m.districtId });
     }
   }
-  return rows.map((u) => ({
+
+  const scopeLabels = await Promise.all(rows.map((u) => buildScopeLabel(ctx, u, districts, munis)));
+
+  return rows.map((u, i) => ({
     _id: u._id,
     email: u.email,
     name: u.name,
@@ -218,6 +273,7 @@ async function hydrateUsersForAdmin(ctx: QueryCtx, rows: Doc<"users">[]) {
     districtName: u.districtId ? (districts.get(u.districtId) ?? null) : null,
     municipalityName: u.municipalityId ? (munis.get(u.municipalityId)?.name ?? null) : null,
     municipalityCode: u.municipalityId ? (munis.get(u.municipalityId)?.code ?? null) : null,
+    scopeLabel: scopeLabels[i] ?? null,
     lastSeenAt: u.lastSeenAt,
     createdAt: u._creationTime,
   }));

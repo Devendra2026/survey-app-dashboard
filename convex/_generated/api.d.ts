@@ -17,6 +17,7 @@ import type * as areaMasters from "../areaMasters.js";
 import type * as audit from "../audit.js";
 import type * as capabilities from "../capabilities.js";
 import type * as clerk from "../clerk.js";
+import type * as fieldAccess from "../fieldAccess.js";
 import type * as floors from "../floors.js";
 import type * as gpsAccuracy from "../gpsAccuracy.js";
 import type * as helpers from "../helpers.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   audit: typeof audit;
   capabilities: typeof capabilities;
   clerk: typeof clerk;
+  fieldAccess: typeof fieldAccess;
   floors: typeof floors;
   gpsAccuracy: typeof gpsAccuracy;
   helpers: typeof helpers;

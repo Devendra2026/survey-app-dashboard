@@ -4,6 +4,7 @@
 import { ConvexError } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { SYSTEM_ROLE_PERMISSIONS } from "./permissionCatalog";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -14,7 +15,8 @@ export async function permissionsForRole(ctx: Ctx, roleKey: string): Promise<Set
     .unique();
 
   if (!role || role.isActive === false) {
-    return new Set();
+    const fallback = SYSTEM_ROLE_PERMISSIONS[roleKey];
+    return fallback ? new Set(fallback) : new Set();
   }
 
   const rows = await ctx.db

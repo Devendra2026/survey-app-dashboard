@@ -93,18 +93,36 @@ export function requireRole(user: Doc<"users">, ...allowed: Role[]): void {
 }
 
 /**
- * Tenant + ward check. When ward assignments are set, surveyors and supervisors
- * are limited to those wards. Admins bypass everything. Municipality scope is
- * enforced separately via assertMunicipalityInScope.
+ * Ward limits apply to surveyors only (narrow field work).
+ * Supervisors/QC see every ward in their allotted ULBs — ward chips on their
+ * profile must not hide the rest of the municipality (e.g. Etah 1224 surveys).
  */
+export function canReadWard(user: Doc<"users">, municipalityId: Id<"municipalities">, wardNo: string): boolean {
+  if (user.role === "admin" || user.role === "supervisor") return true;
+  if (user.wardAssignments.length === 0) return true;
+  if (user.municipalityId && user.municipalityId !== municipalityId) return true;
+  return user.wardAssignments.includes(wardNo);
+}
+
+/** Tenant + ward check — municipality scope is enforced via assertMunicipalityInScope. */
 export function assertCanReadWard(user: Doc<"users">, municipalityId: Id<"municipalities">, wardNo: string): void {
-  if (user.role === "admin") return;
-  if (user.wardAssignments.length > 0 && !user.wardAssignments.includes(wardNo)) {
+  if (!canReadWard(user, municipalityId, wardNo)) {
     throw new ConvexError({
       code: "FORBIDDEN",
       message: "This ward is not assigned to you.",
     });
   }
+}
+
+/** Filter ward rows for surveyor dropdowns; supervisors/QC get the full ULB ward list. */
+export function filterWardsForUser<T extends { municipalityId: Id<"municipalities">; wardNo: string }>(
+  user: Doc<"users">,
+  wards: T[],
+): T[] {
+  if (user.role === "admin" || user.role === "supervisor") return wards;
+  // Ward chips on QC / custom roles are informational — only surveyors are ward-limited.
+  if (user.role !== "surveyor") return wards;
+  return wards.filter((w) => canReadWard(user, w.municipalityId, w.wardNo));
 }
 
 /* ────────────────────────── audit helpers ────────────────────────── */

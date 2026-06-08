@@ -59,8 +59,9 @@ export async function replaceUserAllotments(
   }
 
   const now = Date.now();
-  let primaryMuni: Id<"municipalities"> | undefined;
+  const activeMunis: Id<"municipalities">[] = [];
   let primaryDistrict: Id<"districts"> | undefined;
+  const existingUser = await ctx.db.get(opts.userId);
 
   for (const a of opts.allotments) {
     const normalized = await validateAllotmentTarget(ctx, a);
@@ -73,7 +74,7 @@ export async function replaceUserAllotments(
       assignedAt: now,
     });
     if (a.isActive) {
-      if (normalized.municipalityId) primaryMuni = normalized.municipalityId;
+      if (normalized.municipalityId) activeMunis.push(normalized.municipalityId);
       if (normalized.districtId) primaryDistrict = normalized.districtId;
     }
   }
@@ -82,14 +83,20 @@ export async function replaceUserAllotments(
     municipalityId?: Id<"municipalities">;
     districtId?: Id<"districts">;
   } = {};
-  if (primaryMuni) {
-    patch.municipalityId = primaryMuni;
-    const m = await ctx.db.get(primaryMuni);
+
+  if (activeMunis.length > 0) {
+    const keepPrimary =
+      existingUser?.municipalityId && activeMunis.includes(existingUser.municipalityId)
+        ? existingUser.municipalityId
+        : activeMunis[0]!;
+    patch.municipalityId = keepPrimary;
+    const m = await ctx.db.get(keepPrimary);
     if (m) patch.districtId = m.districtId;
   } else if (primaryDistrict) {
     patch.districtId = primaryDistrict;
     patch.municipalityId = undefined;
   }
+
   if (Object.keys(patch).length > 0) {
     await ctx.db.patch(opts.userId, patch);
   }

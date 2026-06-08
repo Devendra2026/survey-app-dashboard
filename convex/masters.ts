@@ -7,7 +7,8 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { CONSTRUCTION_TYPES, FLOOR_NAMES, FLOOR_USAGE_FACTORS, FLOOR_USAGE_TYPES } from "./areaMasters";
-import { requireUser } from "./helpers";
+import { collectSurveysInFieldScope } from "./fieldAccess";
+import { filterWardsForUser, requireUser } from "./helpers";
 import { RESPONDENT_RELATIONSHIPS } from "./ownerConstants";
 import { mergeMasterOptions, SANITATION_TYPES, WATER_SOURCES } from "./serviceMasters";
 import {
@@ -166,7 +167,7 @@ export const bundle = query({
         };
       });
 
-      wardOut = includeWards ? await loadWardsForMunicipalities(ctx, visibleMunis) : [];
+      wardOut = includeWards ? filterWardsForUser(me, await loadWardsForMunicipalities(ctx, visibleMunis)) : [];
     }
 
     return {
@@ -174,6 +175,15 @@ export const bundle = query({
       districts: districtsOut,
       ulbs,
       wards: wardOut,
+      tenantScope: includeTenantCatalog
+        ? {
+            districtCount: districtsOut.length,
+            municipalityCount: ulbs.length,
+            wardCount: wardOut.length,
+            primaryMunicipalityId: me.municipalityId ?? null,
+            wardAssignments: me.wardAssignments,
+          }
+        : null,
       // Each category is optional in case it isn't seeded yet on a fresh deployment.
       assessmentYears: grouped["assessment_year"] ?? [],
       ownershipTypes: grouped["ownership_type"]?.length ? grouped["ownership_type"]! : OWNERSHIP_TYPES,
@@ -210,7 +220,7 @@ export const wardsForMunicipality = query({
       .query("wards")
       .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", args.municipalityId))
       .collect();
-    return rows
+    const wards = rows
       .sort((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }))
       .map((w) => ({
         _id: w._id,
@@ -220,6 +230,35 @@ export const wardsForMunicipality = query({
         wardCode: w.wardCode ?? w.wardNo,
         name: w.name,
       }));
+    return filterWardsForUser(me, wards);
+  },
+});
+
+/** Read-only scope summary for field users (mobile/web diagnostics). */
+export const myTenantScope = query({
+  args: {},
+  handler: async (ctx) => {
+    const me = await requireUser(ctx);
+    const scope = await resolveTenantScope(ctx, me);
+    const allotments = await ctx.db
+      .query("userAllotments")
+      .withIndex("by_user", (q) => q.eq("userId", me._id))
+      .collect();
+
+    return {
+      role: me.role,
+      primaryMunicipalityId: me.municipalityId ?? null,
+      primaryDistrictId: me.districtId ?? null,
+      wardAssignments: me.wardAssignments,
+      districts: scope.districts.map((d) => ({ _id: d._id, code: d.code, name: d.name })),
+      municipalities: scope.municipalities.map((m) => ({ _id: m._id, code: m.code, name: m.name })),
+      activeAllotments: allotments
+        .filter((a) => a.isActive)
+        .map((a) => ({
+          districtId: a.districtId ?? null,
+          municipalityId: a.municipalityId ?? null,
+        })),
+    };
   },
 });
 
@@ -289,34 +328,7 @@ export const dashboardCounts = query({
       return { total: 0, today: 0, drafts: 0, submitted: 0, approved: 0, rejected: 0 };
     }
 
-    let rows;
-    const scope = await resolveTenantScope(ctx, me);
-    const districtIds = new Set(scope.districts.map((d) => d._id));
-
-    if (me.role === "surveyor") {
-      rows = (
-        await ctx.db
-          .query("surveys")
-          .withIndex("by_surveyor", (q) => q.eq("surveyorId", me._id))
-          .collect()
-      ).filter((r) => !r.districtId || districtIds.has(r.districtId));
-    } else if (me.role === "supervisor" || me.role === "admin") {
-      if (scope.districts.length === 1) {
-        rows = await ctx.db
-          .query("surveys")
-          .withIndex("by_district", (q) => q.eq("districtId", scope.districts[0]!._id))
-          .collect();
-      } else if (me.municipalityId) {
-        rows = await ctx.db
-          .query("surveys")
-          .withIndex("by_municipality_status", (q) => q.eq("municipalityId", me.municipalityId!))
-          .collect();
-      } else {
-        rows = (await ctx.db.query("surveys").collect()).filter((r) => !r.districtId || districtIds.has(r.districtId));
-      }
-    } else {
-      rows = (await ctx.db.query("surveys").collect()).filter((r) => !r.districtId || districtIds.has(r.districtId));
-    }
+    const rows = await collectSurveysInFieldScope(ctx, me);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);

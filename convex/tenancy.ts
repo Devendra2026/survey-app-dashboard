@@ -4,13 +4,10 @@
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { roleRequiresTenancy } from "./capabilities";
 
 function isActive<T extends { isActive?: boolean }>(row: T): boolean {
   return row.isActive !== false;
-}
-
-function isFieldRole(role: Doc<"users">["role"]): role is "surveyor" | "supervisor" {
-  return role === "surveyor" || role === "supervisor";
 }
 
 /** Resolve ULBs/districts from ward numbers when profile tenant ids are missing. */
@@ -23,11 +20,30 @@ async function scopeFromWardAssignments(
   if (me.wardAssignments.length === 0) return null;
 
   const wardSet = new Set(me.wardAssignments);
-  const candidateMunis = me.municipalityId
-    ? municipalitiesAll.filter((m) => m._id === me.municipalityId)
-    : me.districtId
-      ? municipalitiesAll.filter((m) => m.districtId === me.districtId)
-      : municipalitiesAll;
+  const candidateMuniIds = new Set<Id<"municipalities">>();
+  if (me.municipalityId) candidateMuniIds.add(me.municipalityId);
+
+  const allotmentRows = await ctx.db
+    .query("userAllotments")
+    .withIndex("by_user_active", (q) => q.eq("userId", me._id).eq("isActive", true))
+    .collect();
+  for (const row of allotmentRows) {
+    if (row.municipalityId) {
+      candidateMuniIds.add(row.municipalityId);
+    } else if (row.districtId) {
+      for (const m of municipalitiesAll) {
+        if (m.districtId === row.districtId) candidateMuniIds.add(m._id);
+      }
+    }
+  }
+  if (candidateMuniIds.size === 0 && me.districtId) {
+    for (const m of municipalitiesAll) {
+      if (m.districtId === me.districtId) candidateMuniIds.add(m._id);
+    }
+  }
+
+  const candidateMunis =
+    candidateMuniIds.size > 0 ? municipalitiesAll.filter((m) => candidateMuniIds.has(m._id)) : municipalitiesAll;
 
   const matched: Doc<"wards">[] = [];
   for (const muni of candidateMunis) {
@@ -116,6 +132,36 @@ async function resolveScopeFromAllotments(
   };
 }
 
+/** Union profile tenant ids with an allotment-derived scope (primary ULB + multi-city rows). */
+function mergeScopeWithProfile(
+  scope: { districts: Doc<"districts">[]; municipalities: Doc<"municipalities">[] },
+  me: Doc<"users">,
+  districtsAll: Doc<"districts">[],
+  municipalitiesAll: Doc<"municipalities">[],
+): { districts: Doc<"districts">[]; municipalities: Doc<"municipalities">[] } {
+  const districtIds = new Set(scope.districts.map((d) => d._id));
+  const municipalityIds = new Set(scope.municipalities.map((m) => m._id));
+
+  if (me.municipalityId) {
+    const muni = municipalitiesAll.find((m) => m._id === me.municipalityId);
+    if (muni && isActive(muni)) {
+      municipalityIds.add(muni._id);
+      districtIds.add(muni.districtId);
+    }
+  }
+  if (me.districtId) {
+    districtIds.add(me.districtId);
+    for (const m of municipalitiesAll) {
+      if (m.districtId === me.districtId) municipalityIds.add(m._id);
+    }
+  }
+
+  return {
+    districts: districtsAll.filter((d) => districtIds.has(d._id)),
+    municipalities: municipalitiesAll.filter((m) => municipalityIds.has(m._id)),
+  };
+}
+
 /** Districts and ULBs visible to the signed-in user (multitenant isolation). */
 export async function resolveTenantScope(
   ctx: QueryCtx,
@@ -129,14 +175,15 @@ export async function resolveTenantScope(
   }
 
   const fromAllotments = await resolveScopeFromAllotments(ctx, me, districtsAll, municipalitiesAll);
-  if (fromAllotments && fromAllotments.municipalities.length > 0) {
-    return fromAllotments;
+  if (fromAllotments && (fromAllotments.municipalities.length > 0 || fromAllotments.districts.length > 0)) {
+    return mergeScopeWithProfile(fromAllotments, me, districtsAll, municipalitiesAll);
   }
 
   const districtId = await effectiveDistrictId(ctx, me);
+  const needsTenancy = await roleRequiresTenancy(ctx, me.role);
 
-  // Field users assigned to one ULB see that district + ULB only.
-  if (me.role === "supervisor" && me.municipalityId) {
+  // Profile-only assignment (no userAllotments rows): single ULB or whole district.
+  if (needsTenancy && me.municipalityId) {
     const muni = await ctx.db.get(me.municipalityId);
     if (!muni || !isActive(muni)) {
       return { districts: [], municipalities: [] };
@@ -147,23 +194,7 @@ export async function resolveTenantScope(
     };
   }
 
-  if (me.role === "supervisor" && districtId) {
-    return scopeForDistrict(districtId, districtsAll, municipalitiesAll);
-  }
-
-  if (me.role === "surveyor" && me.municipalityId) {
-    const muni = await ctx.db.get(me.municipalityId);
-    if (!muni || !isActive(muni)) {
-      return { districts: [], municipalities: [] };
-    }
-    return {
-      districts: districtsAll.filter((d) => d._id === muni.districtId),
-      municipalities: [muni],
-    };
-  }
-
-  // District-scoped field users (no single ULB on file).
-  if (districtId) {
+  if (needsTenancy && districtId) {
     return scopeForDistrict(districtId, districtsAll, municipalitiesAll);
   }
 
@@ -172,7 +203,7 @@ export async function resolveTenantScope(
 
   // Active field users without a profile assignment can use the seeded catalog
   // (common when approved before tenant ids were persisted).
-  if (isFieldRole(me.role) && me.status === "active" && districtsAll.length > 0) {
+  if (needsTenancy && me.status === "active" && districtsAll.length > 0) {
     return { districts: districtsAll, municipalities: municipalitiesAll };
   }
 
@@ -198,88 +229,20 @@ export async function assertMunicipalityInScope(
   user: Doc<"users">,
   municipalityId: Id<"municipalities">,
 ): Promise<Doc<"municipalities">> {
-  if (user.role === "admin") {
-    const muni = await ctx.db.get(municipalityId);
-    if (!muni) {
-      throw new ConvexError({ code: "BAD_REQUEST", message: "Unknown municipality" });
-    }
-    return muni;
-  }
-
   const muni = await ctx.db.get(municipalityId);
   if (!muni || muni.isActive === false) {
     throw new ConvexError({ code: "BAD_REQUEST", message: "Unknown municipality" });
   }
 
-  const allotmentRows = await ctx.db
-    .query("userAllotments")
-    .withIndex("by_user_active", (q) => q.eq("userId", user._id).eq("isActive", true))
-    .collect();
-  if (allotmentRows.length > 0) {
-    for (const row of allotmentRows) {
-      if (row.municipalityId === municipalityId) return muni;
-      if (!row.municipalityId && row.districtId === muni.districtId) return muni;
-    }
+  if (user.role === "admin") return muni;
+
+  const scope = await resolveTenantScope(ctx, user);
+  if (!tenantMunicipalityIds(scope).has(municipalityId)) {
     throw new ConvexError({
       code: "FORBIDDEN",
       message: "This ULB is outside your allotted municipalities.",
     });
   }
 
-  const districtId = await effectiveDistrictId(ctx, user);
-
-  if (user.role === "supervisor" && user.municipalityId) {
-    const assigned = await ctx.db.get(user.municipalityId);
-    if (assigned && isActive(assigned)) {
-      if (user.municipalityId !== municipalityId) {
-        throw new ConvexError({
-          code: "FORBIDDEN",
-          message: "This ULB is outside your assigned municipality.",
-        });
-      }
-      return muni;
-    }
-  }
-
-  if (user.role === "supervisor" && districtId) {
-    if (muni.districtId !== districtId) {
-      throw new ConvexError({
-        code: "FORBIDDEN",
-        message: "This ULB is outside your assigned district.",
-      });
-    }
-    return muni;
-  }
-
-  if (user.role === "surveyor" && user.municipalityId) {
-    const assigned = await ctx.db.get(user.municipalityId);
-    if (assigned && isActive(assigned)) {
-      if (user.municipalityId !== municipalityId) {
-        throw new ConvexError({
-          code: "FORBIDDEN",
-          message: "This ULB is outside your assigned municipality.",
-        });
-      }
-      return muni;
-    }
-  }
-
-  if (districtId) {
-    if (muni.districtId !== districtId) {
-      throw new ConvexError({
-        code: "FORBIDDEN",
-        message: "This ULB is outside your assigned district.",
-      });
-    }
-    return muni;
-  }
-
-  if (isFieldRole(user.role)) {
-    return muni;
-  }
-
-  throw new ConvexError({
-    code: "FORBIDDEN",
-    message: "No tenant scope assigned to your account.",
-  });
+  return muni;
 }

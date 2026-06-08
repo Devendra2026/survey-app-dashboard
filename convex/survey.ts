@@ -4,8 +4,9 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { addressTenantContext, normalizeAddressFields, validateAddressSection } from "./addressRules";
 import { presentFloorRow, validateAreaSection } from "./areaMasters";
+import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS, GPS_TARGET_ACCURACY_METERS } from "./gpsAccuracy";
-import { assertCanReadWard, clientError, requireRole, requireUser, writeAudit } from "./helpers";
+import { assertCanReadWard, canReadWard, clientError, requireRole, requireUser, writeAudit } from "./helpers";
 import { isValidIndianOwnerMobile, normalizeOwners, primaryOwnerMobile, validateOwnerSection } from "./ownerRules";
 import { comparePropertyIds, resolvePropertyId } from "./propertyId";
 import { gpsCapture, qcStatus, sanitationType, surveyOwnerEntry, surveyStatus, waterSource } from "./schema";
@@ -151,90 +152,25 @@ export const list = query({
     const me = await requireUser(ctx);
     const limit = Math.min(args.limit ?? 200, 2000);
 
-    // Choose the cheapest index. Surveyors hit the by_surveyor index;
-    // supervisors/admins use municipality-level indexes.
     const scope = await resolveTenantScope(ctx, me);
     const districtIds = tenantDistrictIds(scope);
     const muniIds = tenantMunicipalityIds(scope);
+    const access = await fieldSurveyAccess(ctx, me);
 
     if (args.municipalityId) {
       await assertMunicipalityInScope(ctx, me, args.municipalityId);
     }
-    if (args.districtId && me.role !== "admin" && !districtIds.has(args.districtId)) {
+    if (args.districtId && access !== "admin" && !districtIds.has(args.districtId)) {
       clientError("FORBIDDEN", "This district is outside your assigned scope");
     }
 
-    let rows: Doc<"surveys">[];
-    if (me.role === "surveyor") {
-      rows = await ctx.db
-        .query("surveys")
-        .withIndex("by_surveyor", (q) => q.eq("surveyorId", me._id))
-        .order("desc")
-        .take(limit * 2);
-      rows = rows.filter((r) => !r.districtId || districtIds.has(r.districtId)).slice(0, limit);
-    } else if (me.role === "supervisor") {
-      const districtKey = args.districtId ?? (scope.districts.length === 1 ? scope.districts[0]!._id : undefined);
-      const muniKey = args.municipalityId ?? me.municipalityId;
-
-      if (muniKey) {
-        rows = await ctx.db
-          .query("surveys")
-          .withIndex("by_municipality_status", (q) =>
-            args.status ? q.eq("municipalityId", muniKey).eq("status", args.status) : q.eq("municipalityId", muniKey),
-          )
-          .order("desc")
-          .take(limit * 2);
-      } else if (districtKey) {
-        rows = await ctx.db
-          .query("surveys")
-          .withIndex("by_district_status", (q) =>
-            args.status ? q.eq("districtId", districtKey).eq("status", args.status) : q.eq("districtId", districtKey),
-          )
-          .order("desc")
-          .take(limit * 2);
-      } else {
-        return [];
-      }
-      rows = rows.slice(0, limit);
-    } else if (me.role === "admin") {
-      if (args.municipalityId) {
-        rows = await ctx.db
-          .query("surveys")
-          .withIndex("by_municipality_status", (q) =>
-            args.status
-              ? q.eq("municipalityId", args.municipalityId!).eq("status", args.status)
-              : q.eq("municipalityId", args.municipalityId!),
-          )
-          .order("desc")
-          .take(limit * 2);
-      } else if (args.districtId) {
-        rows = await ctx.db
-          .query("surveys")
-          .withIndex("by_district_status", (q) =>
-            args.status
-              ? q.eq("districtId", args.districtId!).eq("status", args.status)
-              : q.eq("districtId", args.districtId!),
-          )
-          .order("desc")
-          .take(limit * 2);
-      } else if (args.surveyorId) {
-        rows = await ctx.db
-          .query("surveys")
-          .withIndex("by_surveyor", (q) => q.eq("surveyorId", args.surveyorId!))
-          .order("desc")
-          .take(limit * 2);
-      } else {
-        rows = await ctx.db
-          .query("surveys")
-          .order("desc")
-          .take(limit * 2);
-      }
-      rows = rows.slice(0, limit);
-    } else {
-      rows = [];
-    }
-
-    rows = rows.filter((r) => muniIds.has(r.municipalityId));
+    let rows = await querySurveysInFieldScope(ctx, me, {
+      municipalityId: args.municipalityId,
+      districtId: args.districtId,
+      status: args.status,
+      surveyorId: args.surveyorId,
+      limit,
+    });
 
     // Apply remaining filters in memory — they're small once the index has narrowed.
     if (args.districtId) {
@@ -246,7 +182,7 @@ export const list = query({
     if (args.surveyorId) {
       rows = rows.filter((r) => r.surveyorId === args.surveyorId);
     }
-    if (args.status && me.role !== "supervisor") {
+    if (args.status && access !== "assigned") {
       rows = rows.filter((r) => r.status === args.status);
     }
     if (args.qcStatus) {
@@ -285,12 +221,13 @@ function applySurveyListFilters(
   },
   me: Doc<"users">,
   muniIds: Set<Id<"municipalities">>,
+  access: Awaited<ReturnType<typeof fieldSurveyAccess>>,
 ): Doc<"surveys">[] {
-  let filtered = rows.filter((r) => muniIds.has(r.municipalityId));
+  let filtered = rows.filter((r) => muniIds.has(r.municipalityId) && canReadWard(me, r.municipalityId, r.wardNo));
   if (args.districtId) filtered = filtered.filter((r) => r.districtId === args.districtId);
   if (args.municipalityId) filtered = filtered.filter((r) => r.municipalityId === args.municipalityId);
   if (args.surveyorId) filtered = filtered.filter((r) => r.surveyorId === args.surveyorId);
-  if (args.status && me.role !== "supervisor") {
+  if (args.status && access !== "assigned") {
     filtered = filtered.filter((r) => r.status === args.status);
   }
   if (args.qcStatus) filtered = filtered.filter((r) => r.qcStatus === args.qcStatus);
@@ -309,16 +246,17 @@ export const listPaginated = query({
     const scope = await resolveTenantScope(ctx, me);
     const districtIds = tenantDistrictIds(scope);
     const muniIds = tenantMunicipalityIds(scope);
+    const access = await fieldSurveyAccess(ctx, me);
 
     if (args.municipalityId) {
       await assertMunicipalityInScope(ctx, me, args.municipalityId);
     }
-    if (args.districtId && me.role !== "admin" && !districtIds.has(args.districtId)) {
+    if (args.districtId && access !== "admin" && !districtIds.has(args.districtId)) {
       clientError("FORBIDDEN", "This district is outside your assigned scope");
     }
 
     let baseQuery;
-    if (me.role === "surveyor") {
+    if (access === "own") {
       baseQuery = ctx.db
         .query("surveys")
         .withIndex("by_surveyor", (q) => q.eq("surveyorId", me._id))
@@ -346,12 +284,28 @@ export const listPaginated = query({
         .query("surveys")
         .withIndex("by_surveyor", (q) => q.eq("surveyorId", args.surveyorId!))
         .order("desc");
+    } else if (access === "assigned" && scope.municipalities.length === 1) {
+      const muniId = scope.municipalities[0]!._id;
+      baseQuery = ctx.db
+        .query("surveys")
+        .withIndex("by_municipality_status", (q) =>
+          args.status ? q.eq("municipalityId", muniId).eq("status", args.status) : q.eq("municipalityId", muniId),
+        )
+        .order("desc");
+    } else if (access === "assigned" && scope.districts.length === 1) {
+      const districtId = scope.districts[0]!._id;
+      baseQuery = ctx.db
+        .query("surveys")
+        .withIndex("by_district_status", (q) =>
+          args.status ? q.eq("districtId", districtId).eq("status", args.status) : q.eq("districtId", districtId),
+        )
+        .order("desc");
     } else {
       baseQuery = ctx.db.query("surveys").withIndex("by_property_id").order("asc");
     }
 
     const page = await baseQuery.paginate(args.paginationOpts);
-    const filtered = applySurveyListFilters(page.page, args, me, muniIds);
+    const filtered = applySurveyListFilters(page.page, args, me, muniIds, access);
     const codes = await loadMunicipalityCodes(
       ctx,
       filtered.map((r) => r.municipalityId),

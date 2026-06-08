@@ -7,6 +7,7 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
+import { collectSurveysInFieldScope } from "./fieldAccess";
 import { clientError, requireRole, requireUser } from "./helpers";
 import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
 
@@ -50,34 +51,9 @@ function countRows(rows: Doc<"surveys">[]): SurveyCounts {
   };
 }
 
-/** Load every survey row visible to admin or supervisor within tenant scope. */
+/** Load every survey row visible to admin, supervisor, or QC within tenant scope. */
 async function loadScopedSurveys(ctx: QueryCtx, me: Doc<"users">): Promise<Doc<"surveys">[]> {
-  const scope = await resolveTenantScope(ctx, me);
-  const muniIds = tenantMunicipalityIds(scope);
-
-  if (me.role === "admin") {
-    const rows = await ctx.db.query("surveys").collect();
-    return rows.filter((r) => muniIds.has(r.municipalityId));
-  }
-
-  if (me.role === "supervisor") {
-    if (scope.districts.length === 1) {
-      const rows = await ctx.db
-        .query("surveys")
-        .withIndex("by_district", (q) => q.eq("districtId", scope.districts[0]!._id))
-        .collect();
-      return rows.filter((r) => muniIds.has(r.municipalityId));
-    }
-    if (me.municipalityId) {
-      return await ctx.db
-        .query("surveys")
-        .withIndex("by_municipality_status", (q) => q.eq("municipalityId", me.municipalityId!))
-        .collect();
-    }
-    return [];
-  }
-
-  return [];
+  return collectSurveysInFieldScope(ctx, me);
 }
 
 async function assertDistrictInScope(
