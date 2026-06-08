@@ -1,7 +1,7 @@
 "use client";
 
 import { useSidebar } from "@/components/layout/sidebar-context";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { navKeysForUser, type Role } from "@/lib/permissions";
 import { useCurrentUser } from "@/lib/session";
@@ -177,9 +177,10 @@ function SidebarBrand({ collapsed }: { collapsed?: boolean }) {
           alt="SDV"
           width={132}
           height={40}
+          style={{ width: "auto", height: "auto" }}
           className={cn(
             "object-contain transition-all duration-300 ease-in-out",
-            collapsed ? "h-10 w-10" : "h-10 w-auto max-w-38",
+            collapsed ? "h-10 w-10" : "h-10 w-auto max-w-24",
           )}
           priority
         />
@@ -207,9 +208,10 @@ export function Sidebar() {
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-62 border-sidebar-border bg-sidebar p-0 backdrop-blur-xl">
+        <SheetContent side="left" className="w-48 border-sidebar-border bg-sidebar p-0 backdrop-blur-xl">
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation</SheetTitle>
+            <SheetDescription>Main application navigation links.</SheetDescription>
           </SheetHeader>
           <SidebarBrand />
           <NavItems onNavigate={() => setMobileOpen(false)} />

@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { createContext, use, useEffect, useMemo, useState, type ComponentProps } from "react";
+import { createContext, use, useLayoutEffect, useMemo, useState, type ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -140,7 +140,7 @@ function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimit
 function DialogDescription({ className, ...props }: ComponentProps<typeof DialogPrimitive.Description>) {
   const descriptionCtx = use(DialogDescriptionContext);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     descriptionCtx?.register();
     return () => descriptionCtx?.unregister();
   }, [descriptionCtx]);
