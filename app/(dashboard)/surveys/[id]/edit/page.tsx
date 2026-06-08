@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useSubmitSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
-import { canSubmitSurvey, isSurveyResubmit } from "@/lib/domain";
+import { canSubmitSurvey, isSurveyAwaitingQc, isSurveyResubmit, wasEditedAfterSubmit } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
+import { useCurrentUser } from "@/lib/session";
 import { ArrowLeft, Eye, PencilLine } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -25,6 +26,7 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   const survey = useSurvey(id);
   const remarks = useQcRemarks(id);
   const submitSurvey = useSubmitSurvey();
+  const { role } = useCurrentUser();
   const [submitting, setSubmitting] = useState(false);
 
   if (survey === undefined) {
@@ -44,7 +46,8 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   const locked = survey.qcStatus === "approved";
   const canSubmit = canSubmitSurvey(survey);
   const isResubmit = isSurveyResubmit(survey);
-  const awaitingQc = survey.status === "submitted" && survey.qcStatus === "pending";
+  const awaitingQc = isSurveyAwaitingQc(survey);
+  const isQcReviewer = role === "supervisor" || role === "admin";
   const propertyLabel = survey.propertyId || `Parcel ${survey.parcelNo}`;
 
   async function onSubmit() {
@@ -114,8 +117,18 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
             {isResubmit && <QcCorrectionBanner remarks={remarks} />}
             {awaitingQc && (
               <output className="block rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
-                This survey is awaiting QC review. You can save edits, but it cannot be submitted again until QC returns
-                it for correction.
+                {isQcReviewer ? (
+                  <>
+                    This survey is in the QC queue. Save corrections here — it stays submitted for review
+                    {wasEditedAfterSubmit(survey) ? " (updated since last submit)" : ""}. Approve or return from the QC
+                    review screen when done.
+                  </>
+                ) : (
+                  <>
+                    This survey is awaiting QC review. You can save edits, but it cannot be re-submitted until QC
+                    returns it for correction.
+                  </>
+                )}
               </output>
             )}
             <SurveyEditor

@@ -62,12 +62,15 @@ function buildDefaultValues(
 
 export function SurveyForm({
   localId,
+  surveyId,
   municipalityId,
   existing,
   onSaved,
   onRegisterSave,
 }: {
   localId: string;
+  /** Server row id — required for supervisor QC corrections on web. */
+  surveyId?: string;
   municipalityId?: string;
   existing?: SurveyListItem | null;
   onSaved?: (surveyId: string) => void;
@@ -104,7 +107,11 @@ export function SurveyForm({
           handleSubmit(
             async (values) => {
               try {
-                const id = await saveDraftRef.current({ ...values, clientUpdatedAt: Date.now() } as any);
+                const id = await saveDraftRef.current({
+                  ...values,
+                  id: surveyId as any,
+                  clientUpdatedAt: Date.now(),
+                } as any);
                 toast.success("Details saved");
                 onSavedRef.current?.(id as unknown as string);
                 resolve(true);
@@ -118,11 +125,15 @@ export function SurveyForm({
           )();
         }),
     );
-  }, [onRegisterSave, handleSubmit]);
+  }, [onRegisterSave, handleSubmit, surveyId]);
 
   async function onSubmit(values: SurveyDraftValues) {
     try {
-      const id = await saveDraftRef.current({ ...values, clientUpdatedAt: Date.now() } as any);
+      const id = await saveDraftRef.current({
+        ...values,
+        id: surveyId as any,
+        clientUpdatedAt: Date.now(),
+      } as any);
       toast.success("Details saved");
       onSavedRef.current?.(id as unknown as string);
     } catch (e) {

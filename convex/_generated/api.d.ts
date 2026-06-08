@@ -33,6 +33,7 @@ import type * as qc from "../qc.js";
 import type * as rbac from "../rbac.js";
 import type * as serviceMasters from "../serviceMasters.js";
 import type * as survey from "../survey.js";
+import type * as surveyEditRules from "../surveyEditRules.js";
 import type * as surveyExport from "../surveyExport.js";
 import type * as surveys from "../surveys.js";
 import type * as taxationMasters from "../taxationMasters.js";
@@ -72,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   rbac: typeof rbac;
   serviceMasters: typeof serviceMasters;
   survey: typeof survey;
+  surveyEditRules: typeof surveyEditRules;
   surveyExport: typeof surveyExport;
   surveys: typeof surveys;
   taxationMasters: typeof taxationMasters;

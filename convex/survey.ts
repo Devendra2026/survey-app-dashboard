@@ -10,6 +10,12 @@ import { isValidIndianOwnerMobile, normalizeOwners, primaryOwnerMobile, validate
 import { comparePropertyIds, resolvePropertyId } from "./propertyId";
 import { gpsCapture, qcStatus, sanitationType, surveyOwnerEntry, surveyStatus, waterSource } from "./schema";
 import { validateServicesSection } from "./serviceMasters";
+import {
+  assertSurveyWritable,
+  auditActionForSave,
+  resolveExistingSurveyForSave,
+  resolvePostSaveStatuses,
+} from "./surveyEditRules";
 import { validateTaxationSection } from "./taxationMasters";
 import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
 
@@ -33,6 +39,8 @@ function enrichSurveyPropertyIds(rows: Doc<"surveys">[], codes: Map<Id<"municipa
 
 /** Partial payload for in-progress saves — only `localId` + `municipalityId` are required. */
 const draftSurveyInput = {
+  /** Server row id — required when a supervisor/admin edits someone else's survey. */
+  id: v.optional(v.id("surveys")),
   localId: v.string(),
   municipalityId: v.id("municipalities"),
   clientUpdatedAt: v.number(),
@@ -74,6 +82,7 @@ const draftSurveyInput = {
 };
 
 const surveyInput = {
+  id: v.optional(v.id("surveys")),
   localId: v.string(),
   municipalityId: v.id("municipalities"),
   wardNo: v.string(),
@@ -448,16 +457,15 @@ export const saveDraft = mutation({
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
     requireRole(me, "surveyor", "supervisor", "admin");
-    const [muni, existing] = await Promise.all([
-      assertMunicipalityInScope(ctx, me, args.municipalityId),
-      ctx.db
-        .query("surveys")
-        .withIndex("by_surveyor_localId", (q) => q.eq("surveyorId", me._id).eq("localId", args.localId))
-        .unique(),
-    ]);
-
-    if (existing?.qcStatus === "approved" && me.role === "surveyor") {
-      clientError("LOCKED", "This survey is locked — request your supervisor to re-open it");
+    const muni = await assertMunicipalityInScope(ctx, me, args.municipalityId);
+    const existing = await resolveExistingSurveyForSave(ctx, me, {
+      id: args.id,
+      localId: args.localId,
+      municipalityId: args.municipalityId,
+    });
+    if (existing) assertSurveyWritable(me, existing);
+    if (!existing && me.role !== "surveyor") {
+      clientError("BAD_REQUEST", "Supervisors must edit an existing survey by id");
     }
 
     const wardNo = args.wardNo?.trim() ?? existing?.wardNo ?? "";
@@ -486,19 +494,18 @@ export const saveDraft = mutation({
     const writable = { ...stripLocalId(normalized as SurveyUpsertArgs), districtId: muni.districtId };
 
     if (existing) {
-      const newStatus: Doc<"surveys">["status"] = existing.status === "draft" ? "draft" : existing.status;
-      const newQcStatus: Doc<"surveys">["qcStatus"] = existing.qcStatus === "approved" ? "pending" : existing.qcStatus;
+      const { status, qcStatus } = resolvePostSaveStatuses(existing);
 
       await ctx.db.patch(existing._id, {
         ...writable,
-        status: newStatus,
-        qcStatus: newQcStatus,
+        status,
+        qcStatus,
         serverVersion: existing.serverVersion + 1,
         clientUpdatedAt: args.clientUpdatedAt,
       });
       await writeAudit(ctx, {
         actorId: me._id,
-        action: "survey.draft_saved",
+        action: auditActionForSave(existing, me, false),
         entity: "survey",
         entityId: existing._id,
       });
@@ -516,7 +523,7 @@ export const saveDraft = mutation({
     });
     await writeAudit(ctx, {
       actorId: me._id,
-      action: "survey.created",
+      action: auditActionForSave(null, me, true),
       entity: "survey",
       entityId: newId,
       metadata: { localId: args.localId, draft: true },
@@ -558,33 +565,31 @@ export const upsert = mutation({
       .unique();
     if (!ward) clientError("BAD_REQUEST", "Unknown ward", { wardNo: ["unknown ward"] });
 
-    const existing = await ctx.db
-      .query("surveys")
-      .withIndex("by_surveyor_localId", (q) => q.eq("surveyorId", me._id).eq("localId", args.localId))
-      .unique();
+    const existing = await resolveExistingSurveyForSave(ctx, me, {
+      id: args.id,
+      localId: args.localId,
+      municipalityId: args.municipalityId,
+    });
+    if (existing) assertSurveyWritable(me, existing);
+    if (!existing && me.role !== "surveyor") {
+      clientError("BAD_REQUEST", "Supervisors must edit an existing survey by id");
+    }
 
-    const now = Date.now();
     const writable = { ...stripLocalId(normalized), districtId: muni.districtId };
 
     if (existing) {
-      // If the supervisor already approved this row, lock further edits unless
-      // it's the supervisor/admin doing the edit (which re-opens QC).
-      if (existing.qcStatus === "approved" && me.role === "surveyor") {
-        clientError("LOCKED", "This survey is locked — request your supervisor to re-open it");
-      }
-
-      const newStatus: Doc<"surveys">["status"] = existing.status === "draft" ? "draft" : existing.status;
-      const newQcStatus: Doc<"surveys">["qcStatus"] = existing.qcStatus === "approved" ? "pending" : existing.qcStatus;
+      const { status, qcStatus } = resolvePostSaveStatuses(existing);
 
       await ctx.db.patch(existing._id, {
         ...writable,
-        status: newStatus,
-        qcStatus: newQcStatus,
+        status,
+        qcStatus,
         serverVersion: existing.serverVersion + 1,
+        clientUpdatedAt: args.clientUpdatedAt,
       });
       await writeAudit(ctx, {
         actorId: me._id,
-        action: "survey.updated",
+        action: auditActionForSave(existing, me, false),
         entity: "survey",
         entityId: existing._id,
       });
@@ -621,9 +626,7 @@ export const setGps = mutation({
     }
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
-    if (survey.qcStatus === "approved" && me.role === "surveyor") {
-      clientError("LOCKED", "Survey is locked");
-    }
+    assertSurveyWritable(me, survey);
     if (args.gps.accuracyMeters > GPS_ACCEPT_MAX_ACCURACY_METERS) {
       clientError("VALIDATION", `GPS must be within ±${GPS_ACCEPT_MAX_ACCURACY_METERS} m — retake outside`, {
         gps: [`GPS must be within ±${GPS_ACCEPT_MAX_ACCURACY_METERS} m — retake in open sky`],

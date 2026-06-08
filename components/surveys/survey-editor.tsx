@@ -160,6 +160,7 @@ export function SurveyEditor({
           ) : (
             <SurveyForm
               localId={localId}
+              surveyId={surveyId}
               existing={survey as SurveyListItem | null | undefined}
               onSaved={onSaved}
               onRegisterSave={(fn) => {

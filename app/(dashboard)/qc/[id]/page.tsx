@@ -10,6 +10,7 @@ import { SurveyDetailView } from "@/components/surveys/survey-detail-view";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
+import { isSurveyAwaitingQc, wasEditedAfterSubmit } from "@/lib/domain";
 import { ArrowLeft, Building2, ClipboardCheck, ExternalLink, FileText, MapPin, Pencil } from "lucide-react";
 import Link from "next/link";
 import { use } from "react";
@@ -100,6 +101,11 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
         <div className="flex flex-wrap items-center gap-2">
           <SurveyStatusBadge status={survey.status} />
           <QcStatusBadge status={survey.qcStatus} />
+          {isSurveyAwaitingQc(survey) && wasEditedAfterSubmit(survey) && (
+            <span className="rounded-full border border-amber-400/50 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-950 dark:text-amber-100">
+              Updated since submit
+            </span>
+          )}
           {survey.city && (
             <span className="flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2.5 py-0.5 text-xs font-medium backdrop-blur-sm">
               <MapPin className="h-3 w-3" aria-hidden />

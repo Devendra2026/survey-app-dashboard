@@ -138,3 +138,13 @@ export function canSubmitSurvey(survey: { status: SurveyStatus }): boolean {
 export function isSurveyResubmit(survey: { status: SurveyStatus; qcStatus: QcStatus }): boolean {
   return survey.status === "draft" && survey.qcStatus === "rejected";
 }
+
+/** In the QC queue — submitted and awaiting a supervisor decision. */
+export function isSurveyAwaitingQc(survey: { status: SurveyStatus; qcStatus: QcStatus }): boolean {
+  return survey.status === "submitted" && survey.qcStatus === "pending";
+}
+
+/** True when saves landed after the last submit (QC should re-check latest data). */
+export function wasEditedAfterSubmit(survey: { submittedAt?: number; clientUpdatedAt: number }): boolean {
+  return survey.submittedAt != null && survey.clientUpdatedAt > survey.submittedAt;
+}
