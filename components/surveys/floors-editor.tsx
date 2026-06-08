@@ -107,6 +107,7 @@ export function FloorsEditor({
     }
     try {
       await saveDraftRef.current({
+        id: surveyId as any,
         localId: currentSurvey.localId,
         municipalityId: currentSurvey.municipalityId,
         clientUpdatedAt: Date.now(),

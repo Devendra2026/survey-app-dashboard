@@ -11,18 +11,26 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useSubmitSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
-import { canSubmitSurvey, isSurveyAwaitingQc, isSurveyResubmit, wasEditedAfterSubmit } from "@/lib/domain";
+import {
+  canSubmitSurvey,
+  isSurveyAwaitingQc,
+  isSurveyResubmit,
+  needsQcSaveBar,
+  wasEditedAfterSubmit,
+} from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
 import { useCurrentUser } from "@/lib/session";
 import { ArrowLeft, Eye, PencilLine } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import { toast } from "sonner";
 
 export default function SurveyEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromQc = searchParams.get("from") === "qc";
   const survey = useSurvey(id);
   const remarks = useQcRemarks(id);
   const submitSurvey = useSubmitSurvey();
@@ -48,7 +56,9 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   const isResubmit = isSurveyResubmit(survey);
   const awaitingQc = isSurveyAwaitingQc(survey);
   const isQcReviewer = role === "supervisor" || role === "admin";
+  const qcEditMode = fromQc && isQcReviewer && needsQcSaveBar(survey);
   const propertyLabel = survey.propertyId || `Parcel ${survey.parcelNo}`;
+  const backHref = fromQc ? `/qc/${id}` : `/surveys/${id}`;
 
   async function onSubmit() {
     if (!confirm("Submit this survey for QC review? You won't be able to edit it until it's reviewed.")) return;
@@ -73,15 +83,20 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
           size="sm"
           className="w-fit cursor-pointer rounded-xl border-border/70 bg-card/80 px-4 shadow-premium-sm backdrop-blur-sm hover:bg-muted/40"
         >
-          <Link href={`/surveys/${id}`}>
-            <ArrowLeft className="h-4 w-4" aria-hidden /> Back to detail
+          <Link href={backHref}>
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            {fromQc ? "Back to QC review" : "Back to detail"}
           </Link>
         </Button>
 
         <ExecutiveHero
-          eyebrow="Survey Edit"
+          eyebrow={qcEditMode ? "QC Correction" : "Survey Edit"}
           title={propertyLabel}
-          description={`${survey.city} · Ward ${survey.wardNo} — complete all tabs before submitting for QC.`}
+          description={
+            qcEditMode
+              ? `${survey.city} · Ward ${survey.wardNo} — fix data, save corrections, then approve from QC review.`
+              : `${survey.city} · Ward ${survey.wardNo} — complete all tabs before submitting for QC.`
+          }
           icon={PencilLine}
           gradient="brand"
           actions={
@@ -135,6 +150,16 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
               localId={survey.localId}
               surveyId={id}
               existing={survey}
+              showSaveBar={needsQcSaveBar(survey)}
+              saveBarLabel="Save corrections"
+              saveBarDescription="Saves property details and plot area. The survey stays submitted for QC — approve or return from the QC review screen."
+              saveBarSecondaryAction={
+                fromQc ? (
+                  <Button asChild variant="outline" className="cursor-pointer rounded-xl">
+                    <Link href={`/qc/${id}`}>Return to QC review</Link>
+                  </Button>
+                ) : undefined
+              }
               showSubmitBar={canSubmit}
               onSubmit={onSubmit}
               submitting={submitting}

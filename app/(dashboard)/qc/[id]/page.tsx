@@ -3,6 +3,7 @@
 import { ExecutiveHero } from "@/components/design-system/executive-hero";
 import { PageTransition } from "@/components/design-system/motion";
 import { QcReviewTimeline } from "@/components/design-system/qc-pipeline";
+import { QcPanel } from "@/components/qc/qc-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
@@ -88,8 +89,8 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
               {survey.qcStatus !== "approved" && (
                 <RoleGate capability="surveys.editDraft" fallback={null}>
                   <Button asChild size="sm" variant="outline" className="cursor-pointer rounded-xl">
-                    <Link href={`/surveys/${id}/edit`}>
-                      <Pencil className="h-4 w-4" aria-hidden /> Edit
+                    <Link href={`/surveys/${id}/edit?from=qc`}>
+                      <Pencil className="h-4 w-4" aria-hidden /> Edit &amp; correct
                     </Link>
                   </Button>
                 </RoleGate>
@@ -124,7 +125,10 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
           <div className="lg:col-span-2">
             <SurveyDetailView survey={survey} surveyId={id} hideProgressFooter hideQcRemarks />
           </div>
-          <QcReviewTimeline events={timeline} />
+          <div className="space-y-4">
+            <QcReviewTimeline events={timeline} />
+            <QcPanel survey={survey} />
+          </div>
         </div>
       </PageTransition>
     </RoleGate>

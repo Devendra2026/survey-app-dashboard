@@ -148,3 +148,15 @@ export function isSurveyAwaitingQc(survey: { status: SurveyStatus; qcStatus: QcS
 export function wasEditedAfterSubmit(survey: { submittedAt?: number; clientUpdatedAt: number }): boolean {
   return survey.submittedAt != null && survey.clientUpdatedAt > survey.submittedAt;
 }
+
+/** Survey can be saved (draft, in QC queue, or returned — not approved/locked). */
+export function canSaveSurveyEdits(survey: { qcStatus: QcStatus }): boolean {
+  return survey.qcStatus !== "approved";
+}
+
+/**
+ * Show the QC "save corrections" bar instead of surveyor submit — survey stays in the QC queue.
+ */
+export function needsQcSaveBar(survey: { status: SurveyStatus; qcStatus: QcStatus }): boolean {
+  return isSurveyAwaitingQc(survey);
+}

@@ -857,12 +857,16 @@ export function normalizeOwnerFields<
   };
 }
 
-export function stripLocalId<T extends { localId: string; surveyorId?: Id<"users"> }>(args: T): Omit<T, "localId"> {
-  const { localId: _l, ...rest } = args;
+/** Remove mutation-only keys before writing to the `surveys` table. */
+export function stripLocalId<T extends { localId: string; id?: Id<"surveys">; surveyorId?: Id<"users"> }>(
+  args: T,
+): Omit<T, "localId" | "id"> {
+  const { localId: _l, id: _id, ...rest } = args;
   return rest;
 }
 
 type DraftMutationArgs = {
+  id?: Id<"surveys">;
   localId: string;
   municipalityId: Id<"municipalities">;
   clientUpdatedAt: number;
@@ -923,7 +927,7 @@ export function mergeDraftArgs(
         city: muni.name,
       };
 
-  const { localId: _l, municipalityId: _m, clientUpdatedAt: _c, ...fields } = patch;
+  const { localId: _l, municipalityId: _m, clientUpdatedAt: _c, id: _id, ...fields } = patch;
   return { ...base, ...pickDefined(fields) };
 }
 

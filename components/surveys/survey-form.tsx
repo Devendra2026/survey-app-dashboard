@@ -127,21 +127,6 @@ export function SurveyForm({
     );
   }, [onRegisterSave, handleSubmit, surveyId]);
 
-  async function onSubmit(values: SurveyDraftValues) {
-    try {
-      const id = await saveDraftRef.current({
-        ...values,
-        id: surveyId as any,
-        clientUpdatedAt: Date.now(),
-      } as any);
-      toast.success("Details saved");
-      onSavedRef.current?.(id as unknown as string);
-    } catch (e) {
-      const parsed = applyServerFieldErrors(e, setErrorRef.current as any);
-      toast.error(parsed.message);
-    }
-  }
-
   const muniId = watch("municipalityId");
   const wards = useWardsForMunicipality(muniId);
   const propertyUse = watch("propertyUse");
@@ -160,12 +145,12 @@ export function SurveyForm({
   const sectionProps = { control, register, errors, masters };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <div className="space-y-4">
       <TenantPropertySection {...sectionProps} wards={wards} previewPropertyId={previewPropertyId} />
       <OwnerSection {...sectionProps} />
       <AddressSection {...sectionProps} />
       <TaxationSection {...sectionProps} subcats={subcats} />
       <ServicesSection {...sectionProps} />
-    </form>
+    </div>
   );
 }

@@ -13,8 +13,8 @@ import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { firstAreaSubmitError, surveyAreaSubmitErrors } from "@/lib/survey/progress";
 import { cn } from "@/lib/utils";
 import type { SurveyListItem } from "@/schema/surveys/index";
-import { Camera, ClipboardList, Layers, MapPin, Send } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { Camera, ClipboardList, Layers, MapPin, Save, Send } from "lucide-react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 const tabTriggerClass =
@@ -38,9 +38,13 @@ export function SurveyEditor({
   locked = false,
   onSaved,
   showSubmitBar,
+  showSaveBar,
   onSubmit,
   submitting,
   submitLabel,
+  saveBarLabel,
+  saveBarDescription,
+  saveBarSecondaryAction,
 }: {
   localId: string;
   surveyId?: string;
@@ -48,9 +52,14 @@ export function SurveyEditor({
   locked?: boolean;
   onSaved?: (surveyId: string) => void;
   showSubmitBar?: boolean;
+  /** Save without submitting — used for QC corrections while survey stays in review. */
+  showSaveBar?: boolean;
   onSubmit?: () => void;
   submitting?: boolean;
   submitLabel?: string;
+  saveBarLabel?: string;
+  saveBarDescription?: string;
+  saveBarSecondaryAction?: ReactNode;
 }) {
   const [activeTab, setActiveTab] = useState("details");
   const [saving, setSaving] = useState(false);
@@ -66,19 +75,17 @@ export function SurveyEditor({
     plotSqftDraftRef.current = value;
   }, []);
 
-  async function handleSaveAndSubmit() {
-    if (!onSubmit) return;
-    setSaving(true);
-    try {
-      const detailsSaved = await (saveDetailsFn.current?.() ?? Promise.resolve(true));
-      if (!detailsSaved) return;
+  async function persistDetailsAndArea(opts?: { validateForSubmit?: boolean }): Promise<boolean> {
+    const detailsSaved = await (saveDetailsFn.current?.() ?? Promise.resolve(true));
+    if (!detailsSaved) return false;
 
-      const areaSaved = await (saveAreaFn.current?.() ?? Promise.resolve(true));
-      if (!areaSaved) {
-        setActiveTab("area");
-        return;
-      }
+    const areaSaved = await (saveAreaFn.current?.() ?? Promise.resolve(true));
+    if (!areaSaved) {
+      setActiveTab("area");
+      return false;
+    }
 
+    if (opts?.validateForSubmit) {
       const plotSqft = Math.max(plotSqftDraftRef.current, survey?.plotSqft ?? 0);
       const areaErrors = surveyAreaSubmitErrors({
         plotSqft,
@@ -89,9 +96,29 @@ export function SurveyEditor({
       if (areaMessage) {
         setActiveTab("area");
         toast.error(areaMessage);
-        return;
+        return false;
       }
+    }
 
+    return true;
+  }
+
+  async function handleSaveCorrections() {
+    setSaving(true);
+    try {
+      const ok = await persistDetailsAndArea();
+      if (ok) toast.success(saveBarLabel ?? "Survey saved");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveAndSubmit() {
+    if (!onSubmit) return;
+    setSaving(true);
+    try {
+      const ok = await persistDetailsAndArea({ validateForSubmit: true });
+      if (!ok) return;
       onSubmit();
     } finally {
       setSaving(false);
@@ -99,6 +126,41 @@ export function SurveyEditor({
   }
 
   const isWorking = submitting || saving;
+
+  const correctionsBar = showSaveBar && canEditSections && (
+    <RoleGate capability="surveys.editDraft" fallback={null}>
+      <GlassCard variant="accent" padding="md" className="border-amber-500/25 dark:border-amber-400/30">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-900 ring-1 ring-amber-500/25 dark:text-amber-100">
+              <Save className="h-4 w-4" aria-hidden />
+            </div>
+            <div>
+              <p className="font-heading text-sm font-semibold text-foreground">{saveBarLabel ?? "Save changes"}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                {saveBarDescription ??
+                  "Saves details and plot area. The survey stays in its current QC status until you approve or return it."}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {saveBarSecondaryAction}
+            <Button
+              disabled={isWorking}
+              onClick={handleSaveCorrections}
+              className={cn(
+                "cursor-pointer rounded-xl bg-amber-600 px-6 text-white shadow-md hover:bg-amber-500 dark:bg-amber-600 dark:hover:bg-amber-500",
+                isWorking && "opacity-80",
+              )}
+            >
+              <Save className="h-4 w-4" aria-hidden />
+              {isWorking && saving ? "Saving…" : (saveBarLabel ?? "Save changes")}
+            </Button>
+          </div>
+        </div>
+      </GlassCard>
+    </RoleGate>
+  );
 
   const submitBar = showSubmitBar && onSubmit && canEditSections && (
     <RoleGate capability="surveys.submit" fallback={null}>
@@ -134,6 +196,7 @@ export function SurveyEditor({
 
   return (
     <div className="space-y-5">
+      {correctionsBar}
       {submitBar}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
