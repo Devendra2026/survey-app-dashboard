@@ -20,7 +20,7 @@ import {
 } from "@/lib/survey/area";
 import type { FloorRow } from "@/schema/surveys/index";
 import { Plus } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const newId = () => `flr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -45,16 +45,8 @@ export function FloorsEditor({
   const saveDraft = useSaveDraft();
   const { masters } = useMasters();
   const [draft, setDraft] = useState<FloorDraft | null>(null);
-  const [plotSqft, setPlotSqft] = useState(initialPlot ?? 0);
   const [savingPlot, setSavingPlot] = useState(false);
-
-  useEffect(() => {
-    setPlotSqft(initialPlot ?? 0);
-  }, [initialPlot]);
-
-  useEffect(() => {
-    onPlotSqftChange?.(plotSqft);
-  }, [plotSqft, onPlotSqftChange]);
+  const plotSqft = initialPlot ?? 0;
 
   const builtUpFloors = useMemo(() => (floors ?? []).filter((f) => !isOpenLandFloor(f.floorName)), [floors]);
   const openLandFloors = useMemo(() => (floors ?? []).filter((f) => isOpenLandFloor(f.floorName)), [floors]);
@@ -73,12 +65,6 @@ export function FloorsEditor({
   const floorsRef = useRef(floors);
   floorsRef.current = floors;
 
-  useEffect(() => {
-    if (!onRegisterSave) return;
-    // react-doctor-disable-next-line react-doctor/no-pass-data-to-parent, react-doctor/no-prop-callback-in-effect, react-doctor/no-pass-live-state-to-parent -- parent registers area save on submit
-    onRegisterSave(async () => persistPlotArea(plotSqftRef.current));
-  }, [onRegisterSave]);
-
   const opts = {
     floors: masters?.floors ?? [],
     usageFactors: masters?.usageFactors ?? [],
@@ -92,34 +78,43 @@ export function FloorsEditor({
     return currentSurvey.plinthSqft || 0;
   }
 
-  async function persistPlotArea(plot: number): Promise<boolean> {
-    const currentSurvey = surveyRef.current;
-    if (!currentSurvey) return false;
-    if (!(plot > 0)) {
-      toast.error("Enter plot area greater than 0.");
-      return false;
-    }
-    const plinth = resolvePlinthSqft(currentSurvey);
-    const conflict = plotPlinthConflict(plot, plinth);
-    if (conflict) {
-      toast.error(conflict);
-      return false;
-    }
-    try {
-      await saveDraftRef.current({
-        id: surveyId as any,
-        localId: currentSurvey.localId,
-        municipalityId: currentSurvey.municipalityId,
-        clientUpdatedAt: Date.now(),
-        plotSqft: plot,
-        plinthSqft: plinth,
-      } as any);
-      return true;
-    } catch (e) {
-      toast.error(parseConvexError(e).message);
-      return false;
-    }
-  }
+  const persistPlotArea = useCallback(
+    async (plot: number): Promise<boolean> => {
+      const currentSurvey = surveyRef.current;
+      if (!currentSurvey) return false;
+      if (!(plot > 0)) {
+        toast.error("Enter plot area greater than 0.");
+        return false;
+      }
+      const plinth = resolvePlinthSqft(currentSurvey);
+      const conflict = plotPlinthConflict(plot, plinth);
+      if (conflict) {
+        toast.error(conflict);
+        return false;
+      }
+      try {
+        await saveDraftRef.current({
+          id: (surveyId ?? currentSurvey._id) as any,
+          localId: currentSurvey.localId,
+          municipalityId: currentSurvey.municipalityId,
+          clientUpdatedAt: Date.now(),
+          plotSqft: plot,
+          plinthSqft: plinth,
+        } as any);
+        return true;
+      } catch (e) {
+        toast.error(parseConvexError(e).message);
+        return false;
+      }
+    },
+    [surveyId],
+  );
+
+  useEffect(() => {
+    if (!onRegisterSave) return;
+    // react-doctor-disable-next-line react-doctor/no-pass-data-to-parent, react-doctor/no-prop-callback-in-effect, react-doctor/no-pass-live-state-to-parent -- parent registers area save on submit
+    onRegisterSave(async () => persistPlotArea(plotSqftRef.current));
+  }, [onRegisterSave, persistPlotArea]);
 
   async function savePlot() {
     if (!survey) return;
@@ -179,7 +174,7 @@ export function FloorsEditor({
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-40 space-y-1.5">
             <Label>Plot (sqft)</Label>
-            <Input type="number" value={plotSqft || ""} onChange={(e) => setPlotSqft(Number(e.target.value))} />
+            <Input type="number" value={plotSqft || ""} onChange={(e) => onPlotSqftChange?.(Number(e.target.value))} />
           </div>
           <Button size="sm" disabled={savingPlot} onClick={savePlot} className="cursor-pointer rounded-xl">
             {savingPlot ? "Saving…" : "Save plot area"}

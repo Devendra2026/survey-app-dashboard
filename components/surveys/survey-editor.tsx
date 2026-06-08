@@ -115,6 +115,10 @@ export function SurveyEditor({
 
   async function handleSaveAndSubmit() {
     if (!onSubmit) return;
+    const confirmMessage = submitLabel
+      ? "Save changes and re-submit this survey for QC review?"
+      : "Submit this survey for QC review? You won't be able to edit it until it's reviewed.";
+    if (!confirm(confirmMessage)) return;
     setSaving(true);
     try {
       const ok = await persistDetailsAndArea({ validateForSubmit: true });
@@ -223,7 +227,7 @@ export function SurveyEditor({
           ) : (
             <SurveyForm
               localId={localId}
-              surveyId={surveyId}
+              surveyId={surveyId ?? survey?._id}
               existing={survey as SurveyListItem | null | undefined}
               onSaved={onSaved}
               onRegisterSave={(fn) => {

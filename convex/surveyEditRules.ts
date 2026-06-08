@@ -70,7 +70,8 @@ export async function resolveExistingSurveyForSave(
     if (me.role === "surveyor" && survey.surveyorId !== me._id) {
       clientError("FORBIDDEN", "Not your survey");
     }
-    if (survey.localId !== args.localId) {
+    // Surveyors sync by localId; supervisors resolve by server id for QC corrections.
+    if (me.role === "surveyor" && survey.localId !== args.localId) {
       clientError("BAD_REQUEST", "Survey identity mismatch");
     }
     return survey;
@@ -83,5 +84,15 @@ export async function resolveExistingSurveyForSave(
       .unique();
   }
 
+  // Supervisor/admin without explicit id — match by localId within the ULB.
+  const rows = await ctx.db
+    .query("surveys")
+    .withIndex("by_municipality_status", (q) => q.eq("municipalityId", args.municipalityId))
+    .collect();
+  const matches = rows.filter((r) => r.localId === args.localId);
+  if (matches.length === 1) return matches[0]!;
+  if (matches.length > 1) {
+    clientError("BAD_REQUEST", "Multiple surveys share this local id — pass survey id");
+  }
   return null;
 }

@@ -16,6 +16,13 @@ export function parseConvexError(err: unknown): ServerErr {
   return { code: "ERROR", message: "Unexpected error" };
 }
 
+/** Prefer the first field-level validation message over the generic summary. */
+export function convexValidationSummary(err: unknown): string {
+  const parsed = parseConvexError(err);
+  const detail = parsed.details ? Object.values(parsed.details).flat()[0] : undefined;
+  return detail ?? parsed.message;
+}
+
 /** Flatten field-level `details` into react-hook-form setError calls. */
 export function applyServerFieldErrors(
   err: unknown,

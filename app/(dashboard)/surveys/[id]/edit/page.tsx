@@ -18,15 +18,25 @@ import {
   needsQcSaveBar,
   wasEditedAfterSubmit,
 } from "@/lib/domain";
-import { parseConvexError } from "@/lib/errors";
+import { convexValidationSummary } from "@/lib/errors";
 import { useCurrentUser } from "@/lib/session";
 import { ArrowLeft, Eye, PencilLine } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { use, useState } from "react";
+import { Suspense, use, useState } from "react";
 import { toast } from "sonner";
 
-export default function SurveyEditPage({ params }: { params: Promise<{ id: string }> }) {
+function SurveyEditPageSkeleton() {
+  return (
+    <PageTransition className="space-y-6">
+      <Skeleton className="h-9 w-36 rounded-xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
+      <Skeleton className="h-96 w-full rounded-2xl" />
+    </PageTransition>
+  );
+}
+
+function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,13 +48,7 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   const [submitting, setSubmitting] = useState(false);
 
   if (survey === undefined) {
-    return (
-      <PageTransition className="space-y-6">
-        <Skeleton className="h-9 w-36 rounded-xl" />
-        <Skeleton className="h-40 w-full rounded-2xl" />
-        <Skeleton className="h-96 w-full rounded-2xl" />
-      </PageTransition>
-    );
+    return <SurveyEditPageSkeleton />;
   }
 
   if (survey === null) {
@@ -61,14 +65,13 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
   const backHref = fromQc ? `/qc/${id}` : `/surveys/${id}`;
 
   async function onSubmit() {
-    if (!confirm("Submit this survey for QC review? You won't be able to edit it until it's reviewed.")) return;
     setSubmitting(true);
     try {
       await submitSurvey({ id: id as any });
       toast.success("Survey submitted for QC");
       router.push(`/surveys/${id}`);
     } catch (e) {
-      toast.error(parseConvexError(e).message);
+      toast.error(convexValidationSummary(e));
     } finally {
       setSubmitting(false);
     }
@@ -169,5 +172,13 @@ export default function SurveyEditPage({ params }: { params: Promise<{ id: strin
         )}
       </PageTransition>
     </RoleGate>
+  );
+}
+
+export default function SurveyEditPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={<SurveyEditPageSkeleton />}>
+      <SurveyEditPageContent params={params} />
+    </Suspense>
   );
 }

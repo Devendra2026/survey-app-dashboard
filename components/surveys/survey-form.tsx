@@ -93,6 +93,8 @@ export function SurveyForm({
 
   const saveDraftRef = useRef(saveDraft);
   saveDraftRef.current = saveDraft;
+  const rowIdRef = useRef(surveyId ?? existing?._id);
+  rowIdRef.current = surveyId ?? existing?._id;
   const setErrorRef = useRef(setError);
   setErrorRef.current = setError;
   const onSavedRef = useRef(onSaved);
@@ -109,7 +111,7 @@ export function SurveyForm({
               try {
                 const id = await saveDraftRef.current({
                   ...values,
-                  id: surveyId as any,
+                  ...(rowIdRef.current ? { id: rowIdRef.current as any } : {}),
                   clientUpdatedAt: Date.now(),
                 } as any);
                 toast.success("Details saved");
@@ -125,7 +127,7 @@ export function SurveyForm({
           )();
         }),
     );
-  }, [onRegisterSave, handleSubmit, surveyId]);
+  }, [onRegisterSave, handleSubmit, surveyId, existing?._id]);
 
   const muniId = watch("municipalityId");
   const wards = useWardsForMunicipality(muniId);

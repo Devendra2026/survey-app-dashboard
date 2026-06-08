@@ -465,7 +465,7 @@ export const saveDraft = mutation({
     });
     if (existing) assertSurveyWritable(me, existing);
     if (!existing && me.role !== "surveyor") {
-      clientError("BAD_REQUEST", "Supervisors must edit an existing survey by id");
+      clientError("BAD_REQUEST", "No survey found to update — open the record from QC review and try saving again");
     }
 
     const wardNo = args.wardNo?.trim() ?? existing?.wardNo ?? "";
@@ -572,7 +572,7 @@ export const upsert = mutation({
     });
     if (existing) assertSurveyWritable(me, existing);
     if (!existing && me.role !== "surveyor") {
-      clientError("BAD_REQUEST", "Supervisors must edit an existing survey by id");
+      clientError("BAD_REQUEST", "No survey found to update — open the record from QC review and try saving again");
     }
 
     const writable = { ...stripLocalId(normalized), districtId: muni.districtId };
