@@ -44,22 +44,26 @@ export function PendingApprovalsTab({
           {pending.map((u) => {
             const age = pendingAge(u.createdAt);
             return (
-              <button
+              <div
                 key={u._id}
-                type="button"
-                className="flex w-full cursor-pointer items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-muted/40"
-                onClick={() => setSheetUser(toPendingSheet(u))}
+                className="flex w-full items-center gap-3 px-5 py-3.5 transition-colors hover:bg-muted/40 sm:gap-4"
               >
-                <Avatar>
-                  <AvatarFallback className={cn("text-sm font-semibold", avatarColor(u.name))}>
-                    {initials(u.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold leading-tight">{u.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-4 text-left"
+                  onClick={() => setSheetUser(toPendingSheet(u))}
+                >
+                  <Avatar>
+                    <AvatarFallback className={cn("text-sm font-semibold", avatarColor(u.name))}>
+                      {initials(u.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold leading-tight">{u.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                  </div>
+                </button>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   {u.requestedRole && (
                     <Badge variant="outline" className={cn("text-xs", ROLE_COLORS[u.requestedRole] ?? "")}>
                       {u.requestedRole}
@@ -79,16 +83,13 @@ export function PendingApprovalsTab({
                     <Button
                       size="sm"
                       className="h-7 bg-emerald-600 px-3 text-xs text-white hover:bg-emerald-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSheetUser(toPendingSheet(u));
-                      }}
+                      onClick={() => setSheetUser(toPendingSheet(u))}
                     >
-                      <UserCheck className="h-3 w-3" /> Review
+                      <UserCheck className="h-3 w-3" aria-hidden /> Review
                     </Button>
                   </RoleGate>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

@@ -42,21 +42,21 @@ export function AllUsersDirectoryTab({
 
   return (
     <div>
-      <div className="border-b border-border/60 bg-muted/15 px-5 py-3">
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <div className="relative">
+      <div className="border-b border-border/60 bg-muted/15 px-4 py-3 sm:px-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <div className="relative w-full sm:w-auto sm:min-w-52">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => dispatchListUi({ type: "setSearch", value: e.target.value })}
               placeholder="Search name or email…"
-              className="h-8 w-52 pl-8 text-sm"
+              className="h-10 w-full pl-8 text-sm sm:h-8"
             />
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
             <Select value={roleFilter} onValueChange={(value) => dispatchListUi({ type: "setRoleFilter", value })}>
-              <SelectTrigger className="h-8 w-32" aria-label="Filter by role">
+              <SelectTrigger className="h-10 w-full min-w-32 cursor-pointer sm:h-8 sm:w-36" aria-label="Filter by role">
                 <SelectValue placeholder="All roles" />
               </SelectTrigger>
               <SelectContent>
@@ -86,7 +86,10 @@ export function AllUsersDirectoryTab({
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={(value) => dispatchListUi({ type: "setStatusFilter", value })}>
-              <SelectTrigger className="h-8 w-36" aria-label="Filter by status">
+              <SelectTrigger
+                className="h-10 w-full min-w-36 cursor-pointer sm:h-8 sm:w-40"
+                aria-label="Filter by status"
+              >
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -124,7 +127,63 @@ export function AllUsersDirectoryTab({
         </div>
       ) : (
         <>
-          <Table>
+          <div className="space-y-3 p-4 md:hidden">
+            {filteredUsers?.map((u) => (
+              <div
+                key={u._id}
+                className="flex items-stretch overflow-hidden rounded-xl border border-border/60 bg-card shadow-premium-sm transition-colors duration-200 hover:bg-muted/30"
+              >
+                <button
+                  type="button"
+                  onClick={() => setSheetUser(toListedSheet(u))}
+                  className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 p-4 text-left"
+                >
+                  <Avatar size="sm">
+                    <AvatarFallback className={cn("text-xs font-semibold", avatarColor(u.name))}>
+                      {initials(u.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{u.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Badge variant="outline" className={cn("text-[10px]", ROLE_COLORS[u.role] ?? "")}>
+                        {u.role}
+                      </Badge>
+                      <Badge variant="outline" className={cn("text-[10px]", STATUS_COLORS[u.status] ?? "")}>
+                        {u.status === "pending_approval" ? "pending" : u.status}
+                      </Badge>
+                    </div>
+                    {u.role !== "admin" && (u.municipalityName || u.districtName) && (
+                      <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                        {u.municipalityName ? (
+                          <Building2 className="h-3 w-3 shrink-0" />
+                        ) : (
+                          <MapPin className="h-3 w-3 shrink-0" />
+                        )}
+                        <span className="truncate">{u.municipalityName ?? u.districtName}</span>
+                      </p>
+                    )}
+                  </div>
+                </button>
+                {isFieldRole(u.role, allRoles) && (
+                  <div className="flex shrink-0 items-start p-2 pt-4">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0 cursor-pointer rounded-lg"
+                      aria-label={`Manage allotments for ${u.name}`}
+                      onClick={() => setAllotUser({ _id: u._id as Id<"users">, name: u.name, role: u.role })}
+                    >
+                      <Layers className="h-3.5 w-3.5" aria-hidden />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <Table className="hidden md:table">
             <TableHeader>
               <TableRow className="border-border bg-muted/20 hover:bg-muted/20">
                 <TableHead className="pl-5 font-semibold text-foreground">User</TableHead>
@@ -215,7 +274,7 @@ export function AllUsersDirectoryTab({
                   </TableCell>
                   <TableCell className="pr-5" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end">
-                      {isFieldRole(u.role) && (
+                      {isFieldRole(u.role, allRoles) && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button

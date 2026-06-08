@@ -1,15 +1,20 @@
 "use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RoleSelectItems } from "@/components/users/role-select-items";
+import {
+  TenantScopeFields,
+  tenantScopeIsComplete,
+  tenantScopeToApproveArgs,
+  type TenantScopeValue,
+} from "@/components/users/tenant-scope-fields";
+import { UserSheetFooter, UserSheetHero, UserWorkspaceSection } from "@/components/users/user-sheet-layout";
 import type { Id } from "@/convex/_generated/dataModel";
-import { useRoles } from "@/hooks/rbac/useRbac";
+import { useAssignableRoles, useSetUserAllotments, useUserAllotments } from "@/hooks/rbac/useRbac";
 import {
   useApproveUser,
   useAssignTenant,
@@ -18,74 +23,24 @@ import {
   useUpdateUser,
 } from "@/hooks/users/useUsers";
 import { parseConvexError } from "@/lib/errors";
-import { cn, fmtDate } from "@/lib/utils";
+import { isSystemRoleKey, roleRequiresTenancy } from "@/lib/tenancy-ui";
+import { cn } from "@/lib/utils";
 import {
   Ban,
   Building2,
-  CalendarDays,
-  CheckCircle2,
-  Clock,
+  ChevronRight,
   Layers,
+  MapPin,
   MessageSquare,
+  Shield,
   ShieldCheck,
+  Sparkles,
   UserCheck,
   UserX,
 } from "lucide-react";
 import { useReducer, useState } from "react";
 import { toast } from "sonner";
 import { UserAllotmentsDialog } from "./user-allotments-dialog";
-
-// ─── color maps ────────────────────────────────────────────────────────────────
-
-const AVATAR_PALETTE = [
-  "bg-violet-100 text-violet-700",
-  "bg-blue-100 text-blue-700",
-  "bg-emerald-100 text-emerald-700",
-  "bg-amber-100 text-amber-700",
-  "bg-pink-100 text-pink-700",
-  "bg-cyan-100 text-cyan-700",
-  "bg-orange-100 text-orange-700",
-  "bg-indigo-100 text-indigo-700",
-];
-
-const ROLE_COLORS: Record<string, string> = {
-  admin:
-    "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30",
-  supervisor:
-    "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30",
-  surveyor:
-    "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
-  pending:
-    "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30",
-};
-
-const ROLE_HEADER_BG: Record<string, string> = {
-  admin: "from-violet-500/10 to-transparent dark:from-violet-500/20",
-  supervisor: "from-blue-500/10 to-transparent dark:from-blue-500/20",
-  surveyor: "from-emerald-500/10 to-transparent dark:from-emerald-500/20",
-  pending: "from-amber-500/10 to-transparent dark:from-amber-500/20",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  active:
-    "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
-  disabled: "bg-red-100 text-red-600 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30",
-  pending_approval:
-    "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30",
-};
-
-function avatarColor(name: string) {
-  return AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length];
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
 
 // ─── exported types ───────────────────────────────────────────────────────────
 
@@ -114,98 +69,35 @@ export type SheetListedUser = {
 
 export type SheetUser = SheetPendingUser | SheetListedUser;
 
-// ─── ward chip picker ─────────────────────────────────────────────────────────
-
-function WardPicker({
-  wards,
-  selected,
-  onChange,
-}: {
-  wards: { _id: string; wardNo: string }[];
-  selected: string[];
-  onChange: (v: string[]) => void;
-}) {
-  if (wards.length === 0) return null;
-
-  function toggle(wardNo: string) {
-    onChange(selected.includes(wardNo) ? selected.filter((x) => x !== wardNo) : [...selected, wardNo]);
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ward assignments</Label>
-        {selected.length > 0 && (
-          <button
-            type="button"
-            onClick={() => onChange([])}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            Clear all
-          </button>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {wards.map((w) => {
-          const on = selected.includes(w.wardNo);
-          return (
-            <button
-              key={w._id}
-              type="button"
-              onClick={() => toggle(w.wardNo)}
-              className={cn(
-                "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all",
-                on
-                  ? "border-primary bg-primary/10 text-primary shadow-sm"
-                  : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
-              )}
-            >
-              Ward {w.wardNo}
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-[11px] text-muted-foreground">
-        {selected.length === 0
-          ? "Leave empty to allow all wards in the ULB."
-          : `${selected.length} ward${selected.length !== 1 ? "s" : ""} assigned.`}
-      </p>
-    </div>
-  );
-}
-
-// ─── section block ─────────────────────────────────────────────────────────────
-
-function Section({ label, children, action }: { label: string; children: React.ReactNode; action?: React.ReactNode }) {
-  return (
-    <div className="space-y-2.5">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-        {action}
-      </div>
-      {children}
-    </div>
-  );
-}
-
 // ─── approve pending panel ────────────────────────────────────────────────────
 
 function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClose: () => void }) {
   const approve = useApproveUser();
   const reject = useRejectUser();
-  const roleCatalog = useRoles({ requireCapability: "users.approve" });
+  const roleCatalog = useAssignableRoles({ includeInactive: false });
   const catalog = useTenantCatalog();
 
-  const [role, setRole] = useState<string>(user.requestedRole ?? "surveyor");
-  const [municipalityId, setMunicipalityId] = useState<string>("");
-  const [wards, setWards] = useState<string[]>([]);
+  const activeRoles = (roleCatalog ?? []).filter((r) => r.isActive && r.key !== "pending");
+  const preferredRole =
+    user.requestedRole &&
+    activeRoles.some((r) => r.key === user.requestedRole && (r.isSystem || isSystemRoleKey(r.key)))
+      ? user.requestedRole
+      : user.requestedRole === "supervisor"
+        ? "supervisor"
+        : "surveyor";
+
+  const [role, setRole] = useState<string>(preferredRole);
+  const [tenantScope, setTenantScope] = useState<TenantScopeValue>({
+    scope: preferredRole === "supervisor" ? "district" : "ulb",
+    districtId: catalog?.[0]?._id ?? "",
+    municipalityId: "",
+    wards: [],
+  });
   const [busy, setBusy] = useState(false);
 
-  const munis = catalog?.flatMap((d) => d.ulbs) ?? [];
-  const wardsForMuni = munis.find((m) => m._id === municipalityId)?.wards ?? [];
-  const activeRoles = (roleCatalog ?? []).filter((r) => r.isActive && r.key !== "pending");
-  const needsMuni = role !== "admin";
-  const canApprove = !needsMuni || !!municipalityId;
+  const roleRow = activeRoles.find((r) => r.key === role);
+  const needsTenancy = roleRequiresTenancy(role, roleRow?.permissionKeys);
+  const canApprove = !needsTenancy || tenantScopeIsComplete(tenantScope);
 
   async function onApprove() {
     setBusy(true);
@@ -213,8 +105,7 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
       await approve({
         userId: user._id,
         role: role as never,
-        municipalityId: needsMuni && municipalityId ? (municipalityId as Id<"municipalities">) : undefined,
-        wardAssignments: wards,
+        ...tenantScopeToApproveArgs(tenantScope),
       });
       toast.success(`${user.name} approved as ${role}`);
       onClose();
@@ -241,169 +132,249 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
 
   return (
     <>
-      <ScrollArea className="flex-1 px-5">
-        <div className="space-y-5 py-5">
-          {/* request context */}
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-4 px-4 py-4 sm:px-5">
           {(user.requestedRole || user.requestedReason) && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
-              <p className="mb-2.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
-                <MessageSquare className="h-3.5 w-3.5" /> Sign-up request
-              </p>
+            <UserWorkspaceSection
+              title="Sign-up request"
+              description="What the applicant asked for"
+              icon={MessageSquare}
+              className="border-amber-200/60 bg-amber-50/40 dark:border-amber-500/25 dark:bg-amber-500/5"
+            >
               {user.requestedRole && (
-                <div className="mb-2 flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Requested role:</span>
-                  <Badge variant="outline" className={ROLE_COLORS[user.requestedRole] ?? ""}>
-                    {user.requestedRole}
-                  </Badge>
-                </div>
+                <p className="mb-2 text-sm text-muted-foreground">
+                  Requested role: <span className="font-medium capitalize text-foreground">{user.requestedRole}</span>
+                </p>
               )}
               {user.requestedReason && (
-                <p className="text-sm text-foreground/80 italic">&ldquo;{user.requestedReason}&rdquo;</p>
+                <blockquote className="rounded-lg border border-amber-200/50 bg-background/60 px-3 py-2 text-sm italic text-foreground/90 dark:border-amber-500/20">
+                  &ldquo;{user.requestedReason}&rdquo;
+                </blockquote>
               )}
-            </div>
+            </UserWorkspaceSection>
           )}
 
-          <Section label="Assign role">
+          <UserWorkspaceSection
+            title="Assign role"
+            description="Prefer system roles — Supervisor for QC leads"
+            icon={Shield}
+            delay={0.04}
+          >
             <Select
               value={role}
               onValueChange={(v) => {
                 setRole(v);
-                setMunicipalityId("");
-                setWards([]);
+                setTenantScope((s) => ({
+                  ...s,
+                  scope: v === "supervisor" ? "district" : "ulb",
+                  municipalityId: "",
+                  wards: [],
+                }));
               }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="h-10 w-full cursor-pointer rounded-xl">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {activeRoles.map((r) => (
-                  <SelectItem key={r.key} value={r.key}>
-                    {r.name}
-                  </SelectItem>
-                ))}
+                <RoleSelectItems roles={activeRoles} />
               </SelectContent>
             </Select>
-          </Section>
+            <p className="mt-2.5 flex items-start gap-2 rounded-lg bg-muted/30 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+              <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+              Custom roles are for exceptional permission sets only. Use{" "}
+              <strong className="font-medium text-foreground">Supervisor</strong> for district or multi-ULB QC.
+            </p>
+          </UserWorkspaceSection>
 
-          {needsMuni && (
-            <>
-              <Separator />
-              <Section label="Municipality (ULB)">
-                <Select
-                  value={municipalityId}
-                  onValueChange={(v) => {
-                    setMunicipalityId(v);
-                    setWards([]);
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a ULB…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {munis.map((m) => (
-                      <SelectItem key={m._id} value={m._id}>
-                        <span className="flex items-center gap-2">
-                          <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          {m.name}
-                          <span className="text-xs text-muted-foreground">({m.code})</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Section>
-
-              {municipalityId && wardsForMuni.length > 0 && (
-                <>
-                  <Separator />
-                  <WardPicker wards={wardsForMuni} selected={wards} onChange={setWards} />
-                </>
-              )}
-            </>
+          {needsTenancy && (
+            <UserWorkspaceSection
+              title="Tenant scope"
+              description="District, ULB, and optional ward limits"
+              icon={MapPin}
+              delay={0.08}
+            >
+              <TenantScopeFields
+                value={tenantScope}
+                onChange={(patch) => setTenantScope((s) => ({ ...s, ...patch }))}
+                wardHint={
+                  role === "supervisor" ? "Optional — limit QC review to specific wards inside the ULB." : undefined
+                }
+              />
+            </UserWorkspaceSection>
           )}
         </div>
       </ScrollArea>
 
-      <div className="border-t border-border bg-muted/20 px-5 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <Button
-            variant="outline"
-            className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={onReject}
-            disabled={busy}
-          >
-            <UserX className="h-4 w-4" /> Reject
-          </Button>
-          <Button
-            className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
-            onClick={onApprove}
-            disabled={busy || !canApprove}
-          >
-            <UserCheck className="h-4 w-4" />
-            {busy ? "Approving…" : "Approve user"}
-          </Button>
-        </div>
-      </div>
+      <UserSheetFooter hint="Review role and scope before approving">
+        <Button
+          variant="outline"
+          className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+          onClick={onReject}
+          disabled={busy}
+        >
+          <UserX className="h-4 w-4" aria-hidden />
+          Reject
+        </Button>
+        <Button
+          className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+          onClick={onApprove}
+          disabled={busy || !canApprove}
+        >
+          <UserCheck className="h-4 w-4" aria-hidden />
+          {busy ? "Approving…" : "Approve user"}
+        </Button>
+      </UserSheetFooter>
     </>
   );
 }
 
-type EditListedFormState = {
+// ─── edit listed user panel ───────────────────────────────────────────────────
+
+function resolveInitialTenantScope(
+  user: SheetListedUser,
+  catalog: ReturnType<typeof useTenantCatalog>,
+): TenantScopeValue {
+  let districtId = "";
+  if (user.municipalityId && catalog) {
+    for (const d of catalog) {
+      if (d.ulbs.some((m) => m._id === user.municipalityId)) {
+        districtId = d._id;
+        break;
+      }
+    }
+  }
+  return {
+    scope: user.municipalityId ? "ulb" : "district",
+    districtId: districtId || catalog?.[0]?._id || "",
+    municipalityId: user.municipalityId ?? "",
+    wards: user.wardAssignments ?? [],
+  };
+}
+
+type EditListedState = {
   role: string;
-  municipalityId: string;
-  wards: string[];
+  tenantScope: TenantScopeValue;
+  busy: boolean;
+  allotDialogOpen: boolean;
+  tab: "access" | "allotments";
 };
 
-type EditListedFormAction =
-  | { type: "setRole"; value: string }
-  | { type: "setMunicipalityId"; value: string }
-  | { type: "setWards"; value: string[] };
+type EditListedAction =
+  | { type: "set_role"; role: string }
+  | { type: "patch_tenant_scope"; patch: Partial<TenantScopeValue> }
+  | { type: "set_busy"; busy: boolean }
+  | { type: "set_allot_dialog"; open: boolean }
+  | { type: "set_tab"; tab: "access" | "allotments" };
 
-function editListedFormReducer(state: EditListedFormState, action: EditListedFormAction): EditListedFormState {
+function initEditListedState({
+  user,
+  catalog,
+}: {
+  user: SheetListedUser;
+  catalog: ReturnType<typeof useTenantCatalog>;
+}): EditListedState {
+  return {
+    role: user.role,
+    tenantScope: resolveInitialTenantScope(user, catalog),
+    busy: false,
+    allotDialogOpen: false,
+    tab: "access",
+  };
+}
+
+function editListedReducer(state: EditListedState, action: EditListedAction): EditListedState {
   switch (action.type) {
-    case "setRole":
-      return { ...state, role: action.value };
-    case "setMunicipalityId":
-      return { ...state, municipalityId: action.value };
-    case "setWards":
-      return { ...state, wards: action.value };
+    case "set_role": {
+      if (action.role === "admin") return { ...state, role: action.role };
+      return {
+        ...state,
+        role: action.role,
+        tenantScope: {
+          ...state.tenantScope,
+          scope: action.role === "supervisor" ? "district" : "ulb",
+          municipalityId: "",
+          wards: [],
+        },
+      };
+    }
+    case "patch_tenant_scope":
+      return { ...state, tenantScope: { ...state.tenantScope, ...action.patch } };
+    case "set_busy":
+      return { ...state, busy: action.busy };
+    case "set_allot_dialog":
+      return { ...state, allotDialogOpen: action.open };
+    case "set_tab":
+      return { ...state, tab: action.tab };
     default:
       return state;
   }
 }
 
-// ─── edit listed user panel ───────────────────────────────────────────────────
+function AllotmentSummaryCard({ userId, onManage }: { userId: Id<"users">; onManage: () => void }) {
+  const allotments = useUserAllotments(userId);
+  const active = (allotments ?? []).filter((a) => a.isActive);
+  const districtCount = active.filter((a) => a.districtId && !a.municipalityId).length;
+  const ulbCount = active.filter((a) => a.municipalityId).length;
+
+  return (
+    <button
+      type="button"
+      onClick={onManage}
+      className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed border-blue-300/60 bg-linear-to-br from-blue-50/80 to-background p-4 text-left transition-all hover:border-blue-400 hover:shadow-premium-sm dark:border-blue-500/30 dark:from-blue-500/10 dark:to-background"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600 ring-1 ring-blue-200/60 dark:bg-blue-500/20 dark:text-blue-400 dark:ring-blue-500/30">
+          <Layers className="h-5 w-5" aria-hidden />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Multi-city allotments</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {allotments === undefined
+              ? "Loading…"
+              : active.length === 0
+                ? "No extra cities — tap to assign districts or ULBs"
+                : `${districtCount} district${districtCount !== 1 ? "s" : ""}, ${ulbCount} ULB${ulbCount !== 1 ? "s" : ""} active`}
+          </p>
+        </div>
+      </div>
+      <ChevronRight
+        className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+        aria-hidden
+      />
+    </button>
+  );
+}
 
 function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: () => void }) {
   const updateUserMut = useUpdateUser();
   const assignTenantMut = useAssignTenant();
-  const roleCatalog = useRoles({ requireCapability: "users.approve" });
+  const setAllotments = useSetUserAllotments();
+  const roleCatalog = useAssignableRoles({ includeInactive: false });
   const catalog = useTenantCatalog();
 
-  // react-doctor-disable-next-line react-doctor/no-derived-useState -- remounted via key={user._id}
-  const [form, dispatch] = useReducer(editListedFormReducer, {
-    role: user.role,
-    municipalityId: user.role !== "admin" ? (user.municipalityId ?? "") : "",
-    wards: user.role !== "admin" ? (user.wardAssignments ?? []) : [],
-  });
-  const { role, municipalityId, wards } = form;
-  const [busy, setBusy] = useState(false);
-  const [allotDialogOpen, setAllotDialogOpen] = useState(false);
+  const [{ role, tenantScope, busy, allotDialogOpen, tab }, dispatch] = useReducer(
+    editListedReducer,
+    { user, catalog },
+    initEditListedState,
+  );
 
-  const munis = catalog?.flatMap((d) => d.ulbs) ?? [];
-  const wardsForMuni = munis.find((m) => m._id === municipalityId)?.wards ?? [];
   const activeRoles = (roleCatalog ?? []).filter((r) => r.isActive && r.key !== "pending");
   const isAdmin = role === "admin";
+  const needsTenancy = roleRequiresTenancy(role, activeRoles.find((r) => r.key === role)?.permissionKeys);
 
+  const initialScope = resolveInitialTenantScope(user, catalog);
   const roleChanged = role !== user.role;
-  const muniChanged = municipalityId !== (user.municipalityId ?? "");
-  const wardsChanged = wards.toSorted().join() !== (user.wardAssignments ?? []).toSorted().join();
-  const dirty = roleChanged || muniChanged || wardsChanged;
+  const scopeChanged =
+    tenantScope.scope !== initialScope.scope ||
+    tenantScope.districtId !== initialScope.districtId ||
+    tenantScope.municipalityId !== initialScope.municipalityId ||
+    tenantScope.wards.toSorted().join() !== initialScope.wards.toSorted().join();
+  const dirty = roleChanged || scopeChanged;
 
   async function onToggleStatus() {
     const next = user.status === "active" ? "disabled" : "active";
     if (!confirm(`${next === "disabled" ? "Disable" : "Enable"} ${user.name}?`)) return;
-    setBusy(true);
+    dispatch({ type: "set_busy", busy: true });
     try {
       await updateUserMut({ userId: user._id, status: next as "active" | "disabled" });
       toast.success(`User ${next === "disabled" ? "disabled" : "enabled"}`);
@@ -411,26 +382,35 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
     } catch (e) {
       toast.error(parseConvexError(e).message);
     } finally {
-      setBusy(false);
+      dispatch({ type: "set_busy", busy: false });
     }
   }
 
   async function onSave() {
-    setBusy(true);
+    dispatch({ type: "set_busy", busy: true });
     try {
       const jobs: Promise<unknown>[] = [];
 
       if (roleChanged) {
         jobs.push(updateUserMut({ userId: user._id, role: role as never }));
       }
-      if (!isAdmin && municipalityId && (muniChanged || wardsChanged)) {
-        jobs.push(
-          assignTenantMut({
-            userId: user._id,
-            municipalityId: municipalityId as Id<"municipalities">,
-            wardAssignments: wards,
-          }),
-        );
+      if (!isAdmin && scopeChanged) {
+        if (tenantScope.scope === "ulb" && tenantScope.municipalityId) {
+          jobs.push(
+            assignTenantMut({
+              userId: user._id,
+              municipalityId: tenantScope.municipalityId as Id<"municipalities">,
+              wardAssignments: tenantScope.wards,
+            }),
+          );
+        } else if (tenantScope.scope === "district" && tenantScope.districtId) {
+          jobs.push(
+            setAllotments({
+              userId: user._id,
+              allotments: [{ districtId: tenantScope.districtId as Id<"districts">, isActive: true }],
+            }),
+          );
+        }
       }
 
       await Promise.all(jobs);
@@ -439,179 +419,158 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
     } catch (e) {
       toast.error(parseConvexError(e).message);
     } finally {
-      setBusy(false);
+      dispatch({ type: "set_busy", busy: false });
     }
   }
 
   return (
     <>
-      <ScrollArea className="flex-1 px-5">
-        <div className="space-y-5 py-5">
-          {/* status row */}
-          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <div
-                className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-lg",
-                  user.status === "active"
-                    ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
-                    : "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400",
-                )}
-              >
-                {user.status === "active" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</p>
-                <Badge variant="outline" className={cn("mt-0.5 text-xs", STATUS_COLORS[user.status] ?? "")}>
-                  {user.status === "active" ? "Active" : user.status.replace("_", " ")}
-                </Badge>
-              </div>
-            </div>
-            {user.role !== "admin" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className={cn(
-                  "h-7 text-xs",
-                  user.status === "active"
-                    ? "border-destructive/40 text-destructive hover:bg-destructive/10"
-                    : "border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-400",
-                )}
-                onClick={onToggleStatus}
-                disabled={busy}
-              >
-                {user.status === "active" ? (
-                  <>
-                    <Ban className="h-3 w-3" /> Disable
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="h-3 w-3" /> Enable
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
+      <Tabs
+        value={tab}
+        onValueChange={(value) => dispatch({ type: "set_tab", tab: value as "access" | "allotments" })}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <div className="shrink-0 border-b border-border/60 px-4 pt-2 sm:px-5">
+          <TabsList className="grid h-10 w-full grid-cols-2 rounded-xl bg-muted/50 p-1">
+            <TabsTrigger value="access" className="cursor-pointer rounded-lg text-xs sm:text-sm">
+              Access & role
+            </TabsTrigger>
+            <TabsTrigger value="allotments" className="cursor-pointer rounded-lg text-xs sm:text-sm" disabled={isAdmin}>
+              Allotments
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-          {/* role */}
-          <Section label="Role">
-            <Select
-              value={role}
-              onValueChange={(v) => {
-                dispatch({ type: "setRole", value: v });
-                if (v === "admin") {
-                  dispatch({ type: "setMunicipalityId", value: "" });
-                  dispatch({ type: "setWards", value: [] });
-                }
-              }}
+        <ScrollArea className="min-h-0 flex-1">
+          <TabsContent value="access" className="mt-0 space-y-4 px-4 py-4 sm:px-5">
+            <UserWorkspaceSection
+              title="Account status"
+              description="Enable or disable platform access"
+              icon={ShieldCheck}
             >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {activeRoles.map((r) => (
-                  <SelectItem key={r.key} value={r.key}>
-                    {r.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Section>
-
-          {/* municipality & wards */}
-          {!isAdmin && (
-            <>
-              <Separator />
-              <Section label="Municipality (ULB)">
-                <Select
-                  value={municipalityId}
-                  onValueChange={(v) => {
-                    dispatch({ type: "setMunicipalityId", value: v });
-                    dispatch({ type: "setWards", value: [] });
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a ULB…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {munis.map((m) => (
-                      <SelectItem key={m._id} value={m._id}>
-                        <span className="flex items-center gap-2">
-                          <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          {m.name}
-                          <span className="text-xs text-muted-foreground">({m.code})</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {user.role !== "admin" && user.municipalityName && municipalityId === (user.municipalityId ?? "") && (
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Building2 className="h-3 w-3" /> Currently: {user.municipalityName}
-                  </p>
-                )}
-              </Section>
-
-              {municipalityId && wardsForMuni.length > 0 && (
-                <>
-                  <Separator />
-                  <WardPicker
-                    wards={wardsForMuni}
-                    selected={wards}
-                    onChange={(value) => dispatch({ type: "setWards", value })}
-                  />
-                </>
-              )}
-            </>
-          )}
-
-          {/* multi-city allotments */}
-          {!isAdmin && (
-            <>
-              <Separator />
-              <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 p-4 dark:border-blue-500/30 dark:bg-blue-500/5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
-                      <Layers className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Multi-city allotments</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Assign this user to multiple districts or ULBs simultaneously
-                      </p>
-                    </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-xl",
+                      user.status === "active"
+                        ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
+                        : "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400",
+                    )}
+                  >
+                    {user.status === "active" ? (
+                      <UserCheck className="h-5 w-5" aria-hidden />
+                    ) : (
+                      <Ban className="h-5 w-5" aria-hidden />
+                    )}
                   </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {user.status === "active" ? "Active account" : "Disabled account"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {user.status === "active"
+                        ? "User can sign in and work within their scope"
+                        : "Sign-in is blocked until re-enabled"}
+                    </p>
+                  </div>
+                </div>
+                {user.role !== "admin" && (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 shrink-0 border-blue-200 text-xs text-blue-700 hover:bg-blue-100 dark:border-blue-500/40 dark:text-blue-400 dark:hover:bg-blue-500/10"
-                    onClick={() => setAllotDialogOpen(true)}
+                    className={cn(
+                      "h-9 shrink-0 rounded-xl",
+                      user.status === "active"
+                        ? "border-destructive/40 text-destructive hover:bg-destructive/10"
+                        : "border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-400",
+                    )}
+                    onClick={onToggleStatus}
+                    disabled={busy}
                   >
-                    Manage cities
+                    {user.status === "active" ? (
+                      <>
+                        <Ban className="h-3.5 w-3.5" aria-hidden /> Disable
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Enable
+                      </>
+                    )}
                   </Button>
-                </div>
+                )}
               </div>
-            </>
-          )}
-        </div>
-      </ScrollArea>
+            </UserWorkspaceSection>
 
-      <div className="border-t border-border bg-muted/20 px-5 py-4">
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button size="sm" onClick={onSave} disabled={busy || !dirty}>
-            {busy ? "Saving…" : "Save changes"}
-          </Button>
-        </div>
-      </div>
+            <UserWorkspaceSection title="Role" description="System or custom permission set" icon={Shield} delay={0.04}>
+              <Select value={role} onValueChange={(v) => dispatch({ type: "set_role", role: v })}>
+                <SelectTrigger className="h-10 w-full cursor-pointer rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <RoleSelectItems roles={activeRoles} />
+                </SelectContent>
+              </Select>
+            </UserWorkspaceSection>
+
+            {!isAdmin && needsTenancy && (
+              <UserWorkspaceSection
+                title="Primary tenant scope"
+                description="Main district, ULB, and ward assignment"
+                icon={MapPin}
+                delay={0.08}
+              >
+                <TenantScopeFields
+                  value={tenantScope}
+                  onChange={(patch) => dispatch({ type: "patch_tenant_scope", patch })}
+                  wardHint={
+                    role === "supervisor"
+                      ? "Optional ward limits for QC supervisors within the selected ULB."
+                      : undefined
+                  }
+                />
+                {user.municipalityName && (
+                  <p className="mt-3 flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2 text-xs text-muted-foreground ring-1 ring-border/50">
+                    <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Saved primary ULB: <span className="font-medium text-foreground">{user.municipalityName}</span>
+                  </p>
+                )}
+              </UserWorkspaceSection>
+            )}
+          </TabsContent>
+
+          <TabsContent value="allotments" className="mt-0 space-y-4 px-4 py-4 sm:px-5">
+            <UserWorkspaceSection
+              title="Geographic allotments"
+              description="Assign multiple districts or ULBs beyond the primary scope"
+              icon={Layers}
+            >
+              <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                Use this when a supervisor spans several cities (e.g. Agra + Mathura). Inactive rows keep history but
+                remove access immediately.
+              </p>
+              <AllotmentSummaryCard
+                userId={user._id}
+                onManage={() => dispatch({ type: "set_allot_dialog", open: true })}
+              />
+            </UserWorkspaceSection>
+          </TabsContent>
+        </ScrollArea>
+      </Tabs>
+
+      <UserSheetFooter dirty={dirty}>
+        <Button variant="outline" size="sm" className="rounded-xl" onClick={onClose} disabled={busy}>
+          Cancel
+        </Button>
+        <Button size="sm" className="rounded-xl" onClick={onSave} disabled={busy || !dirty}>
+          {busy ? "Saving…" : "Save changes"}
+        </Button>
+      </UserSheetFooter>
 
       {!isAdmin && (
         <UserAllotmentsDialog
           open={allotDialogOpen}
-          onOpenChange={setAllotDialogOpen}
+          onOpenChange={(open) => dispatch({ type: "set_allot_dialog", open })}
           user={{ _id: user._id, name: user.name, role: user.role }}
         />
       )}
@@ -622,60 +581,22 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
 // ─── main exported sheet ──────────────────────────────────────────────────────
 
 export function UserEditSheet({ user, onClose }: { user: SheetUser | null; onClose: () => void }) {
-  const role = user?.kind === "listed" ? user.role : user?.kind === "pending" ? "pending" : null;
-  const headerBg = role ? (ROLE_HEADER_BG[role] ?? "from-muted/50 to-transparent") : "";
-
   return (
     <Sheet open={!!user} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md" showCloseButton>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-xl" showCloseButton>
         {user && (
           <>
-            {/* identity header with role-tinted gradient */}
-            <SheetHeader className={cn("border-b border-border bg-linear-to-b px-5 py-5", headerBg)}>
-              <div className="flex items-start gap-4 pr-8">
-                <div className="relative">
-                  <Avatar className="h-12 w-12">
-                    <AvatarFallback className={cn("text-sm font-bold", avatarColor(user.name))}>
-                      {initials(user.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  {user.kind === "listed" && (
-                    <span
-                      className={cn(
-                        "absolute -right-0.5 -bottom-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background",
-                        user.status === "active" ? "bg-emerald-500" : "bg-red-500",
-                      )}
-                    />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <SheetTitle className="text-base leading-tight">{user.name}</SheetTitle>
-                  <p className="truncate text-sm text-muted-foreground">{user.email}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {user.kind === "pending" ? (
-                      <Badge
-                        variant="outline"
-                        className="border-amber-200 bg-amber-100 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300"
-                      >
-                        <Clock className="mr-1 h-3 w-3" /> Awaiting approval
-                      </Badge>
-                    ) : (
-                      <>
-                        <Badge variant="outline" className={cn("text-xs", ROLE_COLORS[user.role] ?? "")}>
-                          {user.role}
-                        </Badge>
-                        <Badge variant="outline" className={cn("text-xs", STATUS_COLORS[user.status] ?? "")}>
-                          {user.status === "active" ? "Active" : user.status.replace("_", " ")}
-                        </Badge>
-                      </>
-                    )}
-                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <CalendarDays className="h-3 w-3" /> {fmtDate(user.createdAt)}
-                    </span>
-                  </div>
-                </div>
-              </div>
+            <SheetHeader className="sr-only">
+              <SheetTitle>{user.kind === "pending" ? `Approve ${user.name}` : `Edit ${user.name}`}</SheetTitle>
             </SheetHeader>
+            <UserSheetHero
+              name={user.name}
+              email={user.email}
+              role={user.kind === "listed" ? user.role : null}
+              status={user.kind === "listed" ? user.status : null}
+              createdAt={user.createdAt}
+              pending={user.kind === "pending"}
+            />
 
             {user.kind === "pending" ? (
               <ApprovePendingPanel user={user} onClose={onClose} />

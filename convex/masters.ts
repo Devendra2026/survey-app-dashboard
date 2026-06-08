@@ -26,7 +26,7 @@ interface Option {
   label: string;
 }
 
-/** Indexed master categories — avoids a full-table scan + filter on `masters`. */
+/** Master categories included in `bundle` dropdown payloads. */
 const MASTER_BUNDLE_CATEGORIES = [
   "assessment_year",
   "ownership_type",
@@ -44,20 +44,16 @@ const MASTER_BUNDLE_CATEGORIES = [
 ] as const;
 
 async function loadActiveMastersByCategory(ctx: QueryCtx): Promise<Record<string, Option[]>> {
-  const grouped: Record<string, Option[]> = {};
-  const rowsByCategory = await Promise.all(
-    MASTER_BUNDLE_CATEGORIES.map((category) =>
-      ctx.db
-        .query("masters")
-        .withIndex("by_category_position", (q) => q.eq("category", category).eq("isActive", true))
-        .collect(),
-    ),
+  const categorySet = new Set<string>(MASTER_BUNDLE_CATEGORIES);
+  const rows = (await ctx.db.query("masters").collect()).filter(
+    (m) => m.isActive !== false && categorySet.has(m.category),
   );
-  for (let i = 0; i < MASTER_BUNDLE_CATEGORIES.length; i++) {
-    const category = MASTER_BUNDLE_CATEGORIES[i]!;
-    const rows = rowsByCategory[i] ?? [];
-    if (rows.length === 0) continue;
-    grouped[category] = rows.sort((a, b) => a.position - b.position).map((m) => ({ value: m.value, label: m.label }));
+  rows.sort((a, b) => a.category.localeCompare(b.category) || a.position - b.position);
+
+  const grouped: Record<string, Option[]> = {};
+  for (const row of rows) {
+    if (!grouped[row.category]) grouped[row.category] = [];
+    grouped[row.category]!.push({ value: row.value, label: row.label });
   }
   return grouped;
 }
@@ -120,41 +116,58 @@ export const bundle = query({
   args: {
     /** Web clients should pass false and load wards via `wardsForMunicipality` on demand. */
     includeWards: v.optional(v.boolean()),
+    /** Pass false when only dropdown masters are needed (e.g. floors editor) — skips tenant scope reads. */
+    includeTenantCatalog: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
     const includeWards = args.includeWards ?? true;
+    const includeTenantCatalog = args.includeTenantCatalog ?? true;
 
-    const [{ districts: visibleDistricts, municipalities: visibleMunis }, grouped] = await Promise.all([
-      resolveTenantScope(ctx, me),
-      loadActiveMastersByCategory(ctx),
-    ]);
+    const grouped = await loadActiveMastersByCategory(ctx);
 
-    const districtsById = new Map(visibleDistricts.map((d) => [d._id, d]));
+    let districtsOut: Array<{ _id: Id<"districts">; code: string; name: string; stateName: string }> = [];
+    let ulbs: Array<{
+      _id: Id<"municipalities">;
+      code: string;
+      name: string;
+      bodyType: string;
+      districtId: Id<"districts">;
+      districtName: string;
+      districtCode: string;
+      stateName: string;
+      postalCode: string | null;
+    }> = [];
+    let wardOut: Awaited<ReturnType<typeof loadWardsForMunicipalities>> = [];
 
-    const districtsOut = visibleDistricts.map((d) => ({
-      _id: d._id,
-      code: d.code,
-      name: d.name,
-      stateName: d.stateName,
-    }));
+    if (includeTenantCatalog) {
+      const { districts: visibleDistricts, municipalities: visibleMunis } = await resolveTenantScope(ctx, me);
+      const districtsById = new Map(visibleDistricts.map((d) => [d._id, d]));
 
-    const ulbs = visibleMunis.map((m) => {
-      const d = districtsById.get(m.districtId);
-      return {
-        _id: m._id,
-        code: m.code,
-        name: m.name,
-        bodyType: m.bodyType,
-        districtId: m.districtId,
-        districtName: d?.name ?? "",
-        districtCode: d?.code ?? "",
-        stateName: d?.stateName ?? "",
-        postalCode: m.postalCode ?? null,
-      };
-    });
+      districtsOut = visibleDistricts.map((d) => ({
+        _id: d._id,
+        code: d.code,
+        name: d.name,
+        stateName: d.stateName,
+      }));
 
-    const wardOut = includeWards ? await loadWardsForMunicipalities(ctx, visibleMunis) : [];
+      ulbs = visibleMunis.map((m) => {
+        const d = districtsById.get(m.districtId);
+        return {
+          _id: m._id,
+          code: m.code,
+          name: m.name,
+          bodyType: m.bodyType,
+          districtId: m.districtId,
+          districtName: d?.name ?? "",
+          districtCode: d?.code ?? "",
+          stateName: d?.stateName ?? "",
+          postalCode: m.postalCode ?? null,
+        };
+      });
+
+      wardOut = includeWards ? await loadWardsForMunicipalities(ctx, visibleMunis) : [];
+    }
 
     return {
       updatedAt: Date.now(),

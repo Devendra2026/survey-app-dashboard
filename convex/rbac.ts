@@ -2,8 +2,8 @@
  * Dynamic roles & permissions — admin-managed; reactive on web + mobile via Convex.
  */
 import { v } from "convex/values";
-import { mutation, query, type MutationCtx } from "./_generated/server";
-import { userCapabilities } from "./capabilities";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { hasCapability, userCapabilities } from "./capabilities";
 import { clientError, requireRole, requireUser, writeAudit } from "./helpers";
 import { PERMISSION_CATALOG, SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from "./permissionCatalog";
 
@@ -84,27 +84,43 @@ export const listPermissions = query({
   },
 });
 
+async function listRolesWithPermissions(ctx: QueryCtx, includeInactive: boolean | undefined) {
+  const roles = await ctx.db.query("roles").collect();
+  const filtered = roles.filter((r) => includeInactive || r.isActive);
+
+  const result = [];
+  for (const role of filtered.sort((a, b) => a.name.localeCompare(b.name))) {
+    const permRows = await ctx.db
+      .query("rolePermissions")
+      .withIndex("by_role", (q) => q.eq("roleId", role._id))
+      .collect();
+    result.push({
+      ...role,
+      permissionKeys: permRows.map((p) => p.permissionKey).sort(),
+    });
+  }
+  return result;
+}
+
 export const listRoles = query({
   args: { includeInactive: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
     requireRole(me, "admin");
+    return await listRolesWithPermissions(ctx, args.includeInactive);
+  },
+});
 
-    const roles = await ctx.db.query("roles").collect();
-    const filtered = roles.filter((r) => args.includeInactive || r.isActive);
-
-    const result = [];
-    for (const role of filtered.sort((a, b) => a.name.localeCompare(b.name))) {
-      const permRows = await ctx.db
-        .query("rolePermissions")
-        .withIndex("by_role", (q) => q.eq("roleId", role._id))
-        .collect();
-      result.push({
-        ...role,
-        permissionKeys: permRows.map((p) => p.permissionKey).sort(),
-      });
+/** Roles visible on the Users page (system + custom) for filters and assignment. */
+export const listAssignableRoles = query({
+  args: { includeInactive: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    const canList = (await hasCapability(ctx, me, "users.view")) || (await hasCapability(ctx, me, "users.approve"));
+    if (!canList) {
+      clientError("FORBIDDEN", "You don't have permission to view roles");
     }
-    return result;
+    return await listRolesWithPermissions(ctx, args.includeInactive);
   },
 });
 

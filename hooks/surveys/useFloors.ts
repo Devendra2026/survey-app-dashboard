@@ -2,10 +2,12 @@
 /** Floor hooks — bound to floors.* (list/upsert/remove/reorder). */
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { useMutation, useQuery } from "convex/react";
 
 export function useFloors(surveyId: string | undefined) {
-  return useQuery(api.floors.list, surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip");
+  const ready = useConvexAuthReady();
+  return useQuery(api.floors.list, ready && surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip");
 }
 export function useUpsertFloor() {
   return useMutation(api.floors.upsert);

@@ -22,8 +22,23 @@ async function scopeFromWardAssignments(
 ): Promise<{ districts: Doc<"districts">[]; municipalities: Doc<"municipalities">[] } | null> {
   if (me.wardAssignments.length === 0) return null;
 
-  const wards = await ctx.db.query("wards").collect();
-  const matched = wards.filter((w) => me.wardAssignments.includes(w.wardNo));
+  const wardSet = new Set(me.wardAssignments);
+  const candidateMunis = me.municipalityId
+    ? municipalitiesAll.filter((m) => m._id === me.municipalityId)
+    : me.districtId
+      ? municipalitiesAll.filter((m) => m.districtId === me.districtId)
+      : municipalitiesAll;
+
+  const matched: Doc<"wards">[] = [];
+  for (const muni of candidateMunis) {
+    const rows = await ctx.db
+      .query("wards")
+      .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", muni._id))
+      .collect();
+    for (const w of rows) {
+      if (wardSet.has(w.wardNo)) matched.push(w);
+    }
+  }
   if (matched.length === 0) return null;
 
   const muniIds = new Set(matched.map((w) => w.municipalityId));
@@ -78,11 +93,12 @@ async function resolveScopeFromAllotments(
 
   const districtIds = new Set<Id<"districts">>();
   const municipalityIds = new Set<Id<"municipalities">>();
+  const muniById = new Map(municipalitiesAll.map((m) => [m._id, m]));
 
   for (const row of rows) {
     if (row.municipalityId) {
       municipalityIds.add(row.municipalityId);
-      const muni = await ctx.db.get(row.municipalityId);
+      const muni = muniById.get(row.municipalityId);
       if (muni && isActive(muni)) districtIds.add(muni.districtId);
     } else if (row.districtId) {
       districtIds.add(row.districtId);

@@ -12,6 +12,12 @@ export function useRoles(opts?: { includeInactive?: boolean; requireCapability?:
   return useQuery(api.rbac.listRoles, allowed ? { includeInactive: opts?.includeInactive } : "skip");
 }
 
+/** Roles for the Users page (filters + assignment) — available to users.view holders. */
+export function useAssignableRoles(opts?: { includeInactive?: boolean }) {
+  const allowed = useHasCapability("users.view");
+  return useQuery(api.rbac.listAssignableRoles, allowed ? { includeInactive: opts?.includeInactive } : "skip");
+}
+
 export function usePermissions() {
   const allowed = useHasCapability("roles.manage");
   return useQuery(api.rbac.listPermissions, allowed ? {} : "skip");

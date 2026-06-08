@@ -44,3 +44,12 @@ export async function requireCapability(ctx: Ctx, user: Doc<"users">, capability
     });
   }
 }
+
+const TENANCY_CAPABILITIES = ["surveys.viewAssigned", "surveys.viewOwn", "qc.review"] as const;
+
+/** Field roles (system or custom) that need district / ULB / ward scope. */
+export async function roleRequiresTenancy(ctx: Ctx, roleKey: string): Promise<boolean> {
+  if (roleKey === "admin" || roleKey === "pending") return false;
+  const perms = await permissionsForRole(ctx, roleKey);
+  return TENANCY_CAPABILITIES.some((key) => perms.has(key));
+}

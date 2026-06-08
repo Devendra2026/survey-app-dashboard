@@ -1,12 +1,13 @@
 import type { SheetListedUser, SheetPendingUser, SheetUser } from "@/components/users/user-edit-sheet";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { roleRequiresTenancy } from "@/lib/tenancy-ui";
 import type { FunctionReturnType } from "convex/server";
 import type { Dispatch } from "react";
 
 export type PendingUser = FunctionReturnType<typeof api.admin.listPendingApprovals>[number];
 export type ListedUser = FunctionReturnType<typeof api.admin.listUsers>["page"][number];
-export type RoleRow = FunctionReturnType<typeof api.rbac.listRoles>[number];
+export type RoleRow = FunctionReturnType<typeof api.rbac.listAssignableRoles>[number];
 export type AllotUser = { _id: Id<"users">; name: string; role: string };
 
 export type UsersListUiState = {
@@ -128,7 +129,9 @@ export function toListedSheet(u: ListedUser): SheetListedUser {
   };
 }
 
-export function isFieldRole(role: string) {
+export function isFieldRole(role: string, roles?: RoleRow[]) {
+  const row = roles?.find((r) => r.key === role);
+  if (row) return roleRequiresTenancy(role, row.permissionKeys);
   return role === "supervisor" || role === "surveyor";
 }
 

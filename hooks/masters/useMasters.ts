@@ -14,15 +14,19 @@ import { api } from "@/convex/_generated/api";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { useQuery as useConvexQuery } from "convex/react";
 
-export function useMasters() {
+export function useMasters(opts?: { includeTenantCatalog?: boolean }) {
   const ready = useConvexAuthReady();
-  const bundle = useConvexQuery(api.masters.bundle, ready ? { includeWards: false } : "skip");
+  const bundle = useConvexQuery(
+    api.masters.bundle,
+    ready ? { includeWards: false, includeTenantCatalog: opts?.includeTenantCatalog ?? true } : "skip",
+  );
   return { masters: bundle, isLoading: bundle === undefined };
 }
 
 export function useWardsForMunicipality(municipalityId: string | undefined) {
+  const ready = useConvexAuthReady();
   return useConvexQuery(
     api.masters.wardsForMunicipality,
-    municipalityId ? { municipalityId: municipalityId as any } : "skip",
+    ready && municipalityId ? { municipalityId: municipalityId as any } : "skip",
   );
 }

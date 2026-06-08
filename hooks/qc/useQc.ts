@@ -2,10 +2,12 @@
 /** QC feature hooks — bound to qc.* (decide / addRemark / resolveRemark / reopen / listRemarks). */
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { useMutation, useQuery } from "convex/react";
 
 export function useQcRemarks(surveyId: string | undefined) {
-  return useQuery(api.qc.listRemarks, surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip");
+  const ready = useConvexAuthReady();
+  return useQuery(api.qc.listRemarks, ready && surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip");
 }
 
 /** Approve OR reject. decision='approve' → status+qcStatus approved.

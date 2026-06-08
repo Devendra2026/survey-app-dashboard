@@ -3,8 +3,9 @@
  * Example: supervisor active on Agra MC + Mathura MC + Hathras district-wide.
  */
 import { v } from "convex/values";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
+import { roleRequiresTenancy } from "./capabilities";
 import { clientError, requireRole, requireUser, writeAudit } from "./helpers";
 
 const allotmentInput = v.object({
@@ -12,10 +13,6 @@ const allotmentInput = v.object({
   municipalityId: v.optional(v.id("municipalities")),
   isActive: v.boolean(),
 });
-
-function isFieldRole(role: Doc<"users">["role"]): boolean {
-  return role === "surveyor" || role === "supervisor";
-}
 
 async function validateAllotmentTarget(
   ctx: MutationCtx,
@@ -110,8 +107,8 @@ export const setForUser = mutation({
 
     const target = await ctx.db.get(args.userId);
     if (!target) clientError("NOT_FOUND", "User not found");
-    if (!isFieldRole(target.role)) {
-      clientError("BAD_REQUEST", "Allotments apply to surveyors and supervisors only");
+    if (!(await roleRequiresTenancy(ctx, target.role))) {
+      clientError("BAD_REQUEST", "Allotments apply to field roles with tenant scope only");
     }
 
     await replaceUserAllotments(ctx, {

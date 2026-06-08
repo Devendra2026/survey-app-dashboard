@@ -9,7 +9,9 @@
  */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { assertCanReadWard, clientError, requireRole, requireUser, writeAudit } from "./helpers";
+import { requireCapability } from "./capabilities";
+import { assertCanReadWard, clientError, requireUser, writeAudit } from "./helpers";
+import { assertMunicipalityInScope } from "./tenancy";
 
 export const listRemarks = query({
   args: { surveyId: v.id("surveys") },
@@ -125,15 +127,13 @@ export const decide = mutation({
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "supervisor", "admin");
+    await requireCapability(ctx, me, "qc.decide");
 
     const survey = await ctx.db.get(args.surveyId);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
-    if (me.role === "supervisor") {
-      // Supervisor can only act inside their own municipality
-      if (me.municipalityId !== survey.municipalityId) {
-        clientError("FORBIDDEN", "Cross-municipality QC denied");
-      }
+    if (me.role !== "admin") {
+      await assertMunicipalityInScope(ctx, me, survey.municipalityId);
+      assertCanReadWard(me, survey.municipalityId, survey.wardNo);
     }
     if (survey.status === "draft") {
       clientError("BAD_STATE", "Draft surveys cannot be reviewed");
@@ -196,9 +196,13 @@ export const reopen = mutation({
   args: { surveyId: v.id("surveys"), reason: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "supervisor", "admin");
+    await requireCapability(ctx, me, "qc.reopen");
     const survey = await ctx.db.get(args.surveyId);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
+    if (me.role !== "admin") {
+      await assertMunicipalityInScope(ctx, me, survey.municipalityId);
+      assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+    }
     if (survey.qcStatus !== "approved") {
       clientError("BAD_STATE", "Only approved surveys can be reopened");
     }

@@ -4,7 +4,12 @@ import { PageTransition } from "@/components/design-system/motion";
 import { RoleGate } from "@/components/shared/role-gate";
 import { UserAllotmentsDialog } from "@/components/users/user-allotments-dialog";
 import { UserEditSheet, type SheetUser } from "@/components/users/user-edit-sheet";
-import { UsersHero, UsersMetricsSection, UsersPendingAlert } from "@/components/users/users-page-sections";
+import {
+  UsersHero,
+  UsersMetricsSection,
+  UsersPendingAlert,
+  UsersTenancyGuide,
+} from "@/components/users/users-page-sections";
 import {
   ALL,
   type AllotUser,
@@ -12,7 +17,7 @@ import {
   type UsersListUiState,
 } from "@/components/users/users-page-shared";
 import { UsersPageTabs } from "@/components/users/users-page-tabs";
-import { useRoles } from "@/hooks/rbac/useRbac";
+import { useAssignableRoles } from "@/hooks/rbac/useRbac";
 import { usePendingApprovals, useUserListPaginated, type UserListFilters } from "@/hooks/users/useUsers";
 import { useMemo, useReducer, useState } from "react";
 
@@ -35,7 +40,7 @@ function usersListUiReducer(state: UsersListUiState, action: UsersListUiAction):
 
 export default function UsersPage() {
   const pending = usePendingApprovals();
-  const allRoles = useRoles({ includeInactive: false });
+  const allRoles = useAssignableRoles({ includeInactive: false });
   const [listUi, dispatchListUi] = useReducer(usersListUiReducer, {
     roleFilter: ALL,
     statusFilter: ALL,
@@ -101,6 +106,7 @@ export default function UsersPage() {
         <UsersHero />
         <UsersPendingAlert pending={pending} />
         <UsersMetricsSection pending={pending} users={users} activeCount={activeCount} disabledCount={disabledCount} />
+        <UsersTenancyGuide />
         <UsersPageTabs pending={pending} users={users} directory={directory} setSheetUser={setSheetUser} />
 
         <UserEditSheet user={sheetUser} onClose={() => setSheetUser(null)} />

@@ -43,7 +43,7 @@ export function FloorsEditor({
   const upsert = useUpsertFloor();
   const remove = useRemoveFloor();
   const saveDraft = useSaveDraft();
-  const { masters } = useMasters();
+  const { masters } = useMasters({ includeTenantCatalog: false });
   const [draft, setDraft] = useState<FloorDraft | null>(null);
   const [savingPlot, setSavingPlot] = useState(false);
   const plotSqft = initialPlot ?? 0;

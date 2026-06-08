@@ -93,16 +93,13 @@ export function requireRole(user: Doc<"users">, ...allowed: Role[]): void {
 }
 
 /**
- * Tenant + ward check. Surveyors can only act on their assigned wards
- * inside their assigned municipality. Supervisors get ULB-wide access.
- * Admins bypass everything.
+ * Tenant + ward check. When ward assignments are set, surveyors and supervisors
+ * are limited to those wards. Admins bypass everything. Municipality scope is
+ * enforced separately via assertMunicipalityInScope.
  */
 export function assertCanReadWard(user: Doc<"users">, municipalityId: Id<"municipalities">, wardNo: string): void {
   if (user.role === "admin") return;
-  // Municipality / district scope is enforced separately via assertMunicipalityInScope.
-  if (user.role === "supervisor") return;
-  // surveyor — restrict to assigned wards when any are listed
-  if (user.role === "surveyor" && user.wardAssignments.length > 0 && !user.wardAssignments.includes(wardNo)) {
+  if (user.wardAssignments.length > 0 && !user.wardAssignments.includes(wardNo)) {
     throw new ConvexError({
       code: "FORBIDDEN",
       message: "This ward is not assigned to you.",

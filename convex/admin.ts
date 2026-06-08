@@ -11,6 +11,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { replaceUserAllotments, upsertAllotmentForUser } from "./allotments";
+import { roleRequiresTenancy } from "./capabilities";
 import { clientError, requireRole, requireUser, writeAudit } from "./helpers";
 import { userRole } from "./schema";
 import { resolveMasterCategory } from "./taxationMasters";
@@ -296,8 +297,8 @@ export const assignTenant = mutation({
 
     const target = await ctx.db.get(args.userId);
     if (!target) clientError("NOT_FOUND", "User not found");
-    if (target.role !== "surveyor" && target.role !== "supervisor") {
-      clientError("BAD_REQUEST", "Tenant assignment applies to surveyors and supervisors only");
+    if (!(await roleRequiresTenancy(ctx, target.role))) {
+      clientError("BAD_REQUEST", "Tenant assignment applies to field roles with tenant scope only");
     }
 
     const muni = await ctx.db.get(args.municipalityId);

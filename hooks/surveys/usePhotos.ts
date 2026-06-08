@@ -2,12 +2,14 @@
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import type { PhotoSlot } from "@/lib/domain";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback } from "react";
 
 export function usePhotos(surveyId: string | undefined) {
-  return useQuery(api.photos.list, surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip");
+  const ready = useConvexAuthReady();
+  return useQuery(api.photos.list, ready && surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip");
 }
 export function useRemovePhotoSlot() {
   return useMutation(api.photos.removeBySurveySlot);
@@ -44,10 +46,7 @@ export function useUploadPhoto() {
 
   return useCallback(
     async (surveyId: string, slot: PhotoSlot, file: File) => {
-      const [{ blob, width, height }, uploadUrl] = await Promise.all([
-        compressImage(file),
-        generateUploadUrl({}),
-      ]);
+      const [{ blob, width, height }, uploadUrl] = await Promise.all([compressImage(file), generateUploadUrl({})]);
       const res = await fetch(uploadUrl, {
         method: "POST",
         headers: { "Content-Type": "image/jpeg" },

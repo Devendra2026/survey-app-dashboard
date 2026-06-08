@@ -26,11 +26,14 @@ export function UsersPageTabs({
     <FadeIn delay={0.08}>
       <div id="users-registry">
         <GlassCard padding="none" className="overflow-hidden">
-          <div className="border-b border-border/60 px-5 py-4">
-            <SectionHeader title="User Registry" description="Approval queue and full directory with role filters" />
+          <div className="border-b border-border/60 px-4 py-4 sm:px-5">
+            <SectionHeader
+              title="User Registry"
+              description="Approval queue and directory — filter by system or custom roles"
+            />
           </div>
           <Tabs defaultValue="pending">
-            <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5">
+            <div className="border-b border-border/60 bg-muted/20 px-3 py-2.5 sm:px-4">
               <TabsList className={ADMIN_TABS_LIST}>
                 <AdminTabPill
                   value="pending"
