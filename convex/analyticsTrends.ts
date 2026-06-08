@@ -20,8 +20,9 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
+import { requireCapability } from "./capabilities";
 import { collectSurveysInFieldScope } from "./fieldAccess";
-import { requireRole, requireUser } from "./helpers";
+import { requireUser } from "./helpers";
 import { resolveTenantScope } from "./tenancy";
 
 async function loadScopedSurveys(ctx: QueryCtx, me: Doc<"users">): Promise<Doc<"surveys">[]> {
@@ -56,7 +57,7 @@ export const dailyTrend = query({
   ),
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "admin", "supervisor");
+    await requireCapability(ctx, me, "analytics.view");
     const days = Math.min(Math.max(args.days ?? 30, 1), 180);
 
     let rows = await loadScopedSurveys(ctx, me);
@@ -110,7 +111,7 @@ export const wardCoverage = query({
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "admin", "supervisor");
+    await requireCapability(ctx, me, "analytics.view");
 
     let rows = await loadScopedSurveys(ctx, me);
     if (args.districtId) rows = rows.filter((r) => r.districtId === args.districtId);

@@ -7,8 +7,9 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
+import { requireCapability } from "./capabilities";
 import { collectSurveysInFieldScope } from "./fieldAccess";
-import { clientError, requireRole, requireUser } from "./helpers";
+import { clientError, requireUser } from "./helpers";
 import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
 
 export const surveyCountsShape = {
@@ -158,7 +159,7 @@ export const surveyStatsBreakdown = query({
   }),
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "admin", "supervisor");
+    await requireCapability(ctx, me, "analytics.view");
 
     const scope = await resolveTenantScope(ctx, me);
     const districtIds = tenantDistrictIds(scope);

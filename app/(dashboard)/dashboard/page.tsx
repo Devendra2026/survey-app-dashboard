@@ -13,6 +13,7 @@ import { FadeIn, StaggerGrid, StaggerItem } from "@/components/design-system/mot
 import { CardsSkeleton } from "@/components/shared/loading";
 import { useDailyTrend, useDashboardCounts, useStatsBreakdown, useWardCoverage } from "@/hooks/analytics/useAnalytics";
 import { useSurveyList } from "@/hooks/surveys/useSurveys";
+import { useHasCapability } from "@/hooks/use-capability";
 import { can } from "@/lib/permissions";
 import { useCurrentUser } from "@/lib/session";
 import {
@@ -32,7 +33,7 @@ import { useMemo } from "react";
 export default function DashboardPage() {
   const { user, role } = useCurrentUser();
   const counts = useDashboardCounts();
-  const showAnalytics = can(role, "analytics.view");
+  const showAnalytics = useHasCapability("analytics.view");
   const breakdown = useStatsBreakdown();
   const trend = useDailyTrend(30);
   const coverage = useWardCoverage();
