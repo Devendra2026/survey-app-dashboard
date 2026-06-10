@@ -24,7 +24,7 @@ export function MastersMetricsSection({
   categories,
   tenantStats,
 }: {
-  activeTab: "masters" | "tenants";
+  activeTab: "masters" | "tenants" | "tax-rates";
   categories: number;
   tenantStats: { districts: number; ulbs: number; wards: number } | null;
 }) {

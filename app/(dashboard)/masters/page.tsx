@@ -6,6 +6,7 @@ import { GlassCard } from "@/components/design-system/glass-card";
 import { PageTransition } from "@/components/design-system/motion";
 import { MasterDataTab } from "@/components/masters/master-data-tab";
 import { MastersHero, MastersMetricsSection } from "@/components/masters/masters-page-sections";
+import { TaxRatesTab } from "@/components/masters/tax-rates-tab";
 import { TenantsTab } from "@/components/masters/tenants-tab";
 import { TableSkeleton } from "@/components/shared/loading";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -13,12 +14,12 @@ import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { useTenantAdmin } from "@/hooks/tenants/useTenants";
 import { useClientMounted } from "@/hooks/use-client-mounted";
 import { MASTER_CATEGORIES } from "@/lib/domain";
-import { Database, MapPin } from "lucide-react";
+import { Database, IndianRupee, MapPin } from "lucide-react";
 import { useMemo, useState } from "react";
 
 export default function MastersPage() {
   const mounted = useClientMounted();
-  const [activeTab, setActiveTab] = useState<"masters" | "tenants">("masters");
+  const [activeTab, setActiveTab] = useState<"masters" | "tenants" | "tax-rates">("masters");
   const tenants = useTenantAdmin();
 
   const tenantStats = useMemo(() => {
@@ -50,7 +51,7 @@ export default function MastersPage() {
                   description="Reference dropdowns and geographic tenant hierarchy"
                 />
               </div>
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "masters" | "tenants")}>
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "masters" | "tenants" | "tax-rates")}>
                 <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5">
                   <TabsList className={ADMIN_TABS_LIST}>
                     <AdminTabPill
@@ -65,6 +66,12 @@ export default function MastersPage() {
                       icon={<MapPin className="h-3.5 w-3.5" aria-hidden />}
                       activeColor="data-[state=active]:bg-brand-navy data-[state=active]:text-white dark:data-[state=active]:bg-primary"
                     />
+                    <AdminTabPill
+                      value="tax-rates"
+                      label="Tax Rates"
+                      icon={<IndianRupee className="h-3.5 w-3.5" aria-hidden />}
+                      activeColor="data-[state=active]:bg-emerald-700 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-600"
+                    />
                   </TabsList>
                 </div>
 
@@ -74,6 +81,10 @@ export default function MastersPage() {
 
                 <TabsContent value="tenants" className="mt-0 p-4 lg:p-5">
                   <TenantsTab />
+                </TabsContent>
+
+                <TabsContent value="tax-rates" className="mt-0 p-4 lg:p-5">
+                  <TaxRatesTab />
                 </TabsContent>
               </Tabs>
             </GlassCard>

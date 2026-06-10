@@ -8,11 +8,13 @@ import {
   DemandNoticeKpiStrip,
 } from "@/components/qc/demand-notice-sections";
 import { Button } from "@/components/ui/button";
+import { api } from "@/convex/_generated/api";
 import { useMasters } from "@/hooks/masters/useMasters";
 import { buildOfficeTitles, buildSurveyAddress, computeDemandNotice, formatNoticeDate } from "@/lib/qc/demand-notice";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import type { SurveyDetail } from "@/schema/surveys/index";
+import { useQuery } from "convex/react";
 import { ArrowLeft, ChevronRight, Printer, Receipt } from "lucide-react";
 import Link from "next/link";
 
@@ -24,6 +26,8 @@ type DemandNoticeViewProps = {
 
 export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}/report` }: DemandNoticeViewProps) {
   const { masters } = useMasters();
+  const dynamicRates = useQuery(api.taxRates.getForMunicipality, { municipalityId: survey.municipalityId });
+
   const ulbCodes = buildUlbCodeMap(masters?.ulbs);
   const propertyId = resolveDisplayPropertyId(survey, ulbCodes) ?? survey.propertyId ?? survey.parcelNo;
   const ownerName = survey.respondentName || survey.owners?.[0]?.name || "—";
@@ -34,7 +38,17 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
   const office = buildOfficeTitles(cityName, stateName);
   const taxZone = labelFromOptions(masters?.taxRateZones, survey.taxRateZone);
   const address = buildSurveyAddress(survey);
-  const notice = computeDemandNotice(survey, survey.floors ?? [], masters ?? undefined);
+  const rateConfig = dynamicRates
+    ? {
+        rateMatrix: dynamicRates.rateMatrix,
+        roadTypeFactors: dynamicRates.roadTypeFactors,
+        propertyTaxPct: dynamicRates.propertyTaxPct,
+        waterTaxPct: dynamicRates.waterTaxPct,
+        drainageTaxPct: dynamicRates.drainageTaxPct,
+        usageMultipliers: dynamicRates.usageMultipliers,
+      }
+    : null;
+  const notice = computeDemandNotice(survey, survey.floors ?? [], masters ?? undefined, rateConfig);
   const noticeDate = formatNoticeDate(survey.submittedAt ?? Date.now());
   const assessmentYear = survey.assessmentYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
   const frontPhoto = survey.photos?.find((p) => p.slot === "front")?.url;
@@ -97,6 +111,7 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
           noticeDate={noticeDate}
           assessmentYear={assessmentYear}
           frontPhoto={frontPhoto}
+          rateConfig={rateConfig}
         />
       </FadeIn>
 

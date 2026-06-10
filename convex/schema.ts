@@ -343,6 +343,32 @@ export default defineSchema({
     .index("by_role_permission", ["roleId", "permissionKey"]),
 
   /**
+   * taxRates — per-municipality dynamic pricing for property tax calculation.
+   *
+   * Each ULB sets its own ALV zone rates, tax percentages, and usage multipliers.
+   * The demand notice engine falls back to system defaults when no row exists.
+   * Admin manages via `taxRates.upsert`; any update overwrites the single row.
+   */
+  taxRates: defineTable({
+    municipalityId: v.id("municipalities"),
+    /**
+     * 2D rate matrix: road-width zone → construction type → ₹/sqft/year (annual ALV base rate).
+     * e.g. rateMatrix["below_9m"]["pakka_rcc_rb"] = 6.12
+     */
+    rateMatrix: v.record(v.string(), v.record(v.string(), v.number())),
+    /** Road surface type multipliers: rcc | dambar | kaccha → factor (e.g. 0.9). */
+    roadTypeFactors: v.record(v.string(), v.number()),
+    /** Tax percentages stored as decimals (e.g. 0.10 = 10%). */
+    propertyTaxPct: v.number(),
+    waterTaxPct: v.number(),
+    drainageTaxPct: v.number(),
+    /** Usage multipliers keyed by usageFactor / propertyUse value. */
+    usageMultipliers: v.record(v.string(), v.number()),
+    updatedBy: v.id("users"),
+    updatedAt: v.number(),
+  }).index("by_municipality", ["municipalityId"]),
+
+  /**
    * Multi-city supervisor/surveyor allotment (district-wide or per-ULB).
    * Active rows define tenant scope; inactive rows keep history.
    */

@@ -37,6 +37,7 @@ import type * as survey from "../survey.js";
 import type * as surveyEditRules from "../surveyEditRules.js";
 import type * as surveyExport from "../surveyExport.js";
 import type * as surveys from "../surveys.js";
+import type * as taxRates from "../taxRates.js";
 import type * as taxationMasters from "../taxationMasters.js";
 import type * as tenancy from "../tenancy.js";
 import type * as tenants from "../tenants.js";
@@ -78,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   surveyEditRules: typeof surveyEditRules;
   surveyExport: typeof surveyExport;
   surveys: typeof surveys;
+  taxRates: typeof taxRates;
   taxationMasters: typeof taxationMasters;
   tenancy: typeof tenancy;
   tenants: typeof tenants;

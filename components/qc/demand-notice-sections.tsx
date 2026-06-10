@@ -129,6 +129,7 @@ export function DemandNoticeDocument({
   noticeDate,
   assessmentYear,
   frontPhoto,
+  rateConfig,
 }: {
   survey: SurveyDetail;
   propertyId: string;
@@ -140,6 +141,7 @@ export function DemandNoticeDocument({
   noticeDate: string;
   assessmentYear: string;
   frontPhoto?: string | null;
+  rateConfig?: { propertyTaxPct: number; waterTaxPct: number; drainageTaxPct: number } | null;
 }) {
   return (
     <article className="demand-notice-document mx-auto max-w-5xl overflow-hidden rounded-2xl border border-border/60 bg-card shadow-premium-lg">
@@ -180,7 +182,7 @@ export function DemandNoticeDocument({
 
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_320px]">
           <DemandNoticeSiteDocs survey={survey} frontPhoto={frontPhoto} />
-          <DemandNoticeDemandSidebar notice={notice} />
+          <DemandNoticeDemandSidebar notice={notice} rateConfig={rateConfig} />
         </div>
 
         <section className="space-y-3 border-t border-border/50 pt-6 text-sm leading-relaxed text-muted-foreground">
@@ -237,8 +239,11 @@ function DemandNoticeFloorTable({ notice }: { notice: DemandNoticeData }) {
                 <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">
                   Area (SqFt)
                 </TableHead>
+                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">
+                  Rate (₹/sqft)
+                </TableHead>
                 <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">ALV (₹)</TableHead>
-                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">Tax (10%)</TableHead>
+                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">Tax</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -250,6 +255,12 @@ function DemandNoticeFloorTable({ notice }: { notice: DemandNoticeData }) {
                     <TableCell className="text-muted-foreground">{row.constructionLabel}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
                       {formatAmountPlain(row.areaSqft)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-xs">
+                      {formatAmountPlain(row.baseRate)}
+                      {row.roadFactor !== 1 && (
+                        <span className="ml-1 text-muted-foreground">×{row.roadFactor.toFixed(2)}</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{formatAmountPlain(row.alv)}</TableCell>
                     <TableCell className="text-right font-mono font-semibold tabular-nums">
@@ -272,6 +283,7 @@ function DemandNoticeFloorTable({ notice }: { notice: DemandNoticeData }) {
                   <TableCell className="text-right font-mono tabular-nums">
                     {formatAmountPlain(notice.totalArea)}
                   </TableCell>
+                  <TableCell />
                   <TableCell className="text-right font-mono tabular-nums">
                     {formatAmountPlain(notice.totalAlv)}
                   </TableCell>
@@ -314,7 +326,21 @@ function DemandNoticeSiteDocs({ survey, frontPhoto }: { survey: SurveyDetail; fr
   );
 }
 
-function DemandNoticeDemandSidebar({ notice }: { notice: DemandNoticeData }) {
+function pctLabel(val: number) {
+  return `${(val * 100).toFixed(1)}%`;
+}
+
+function DemandNoticeDemandSidebar({
+  notice,
+  rateConfig,
+}: {
+  notice: DemandNoticeData;
+  rateConfig?: { propertyTaxPct: number; waterTaxPct: number; drainageTaxPct: number } | null;
+}) {
+  const propPct = rateConfig ? pctLabel(rateConfig.propertyTaxPct) : "10%";
+  const waterPct = rateConfig ? pctLabel(rateConfig.waterTaxPct) : "7%";
+  const drainPct = rateConfig ? pctLabel(rateConfig.drainageTaxPct) : "2.5%";
+
   return (
     <section className="overflow-hidden rounded-xl border-2 border-brand-red/25 bg-brand-red/6 dark:border-brand-red/35 dark:bg-brand-red/10">
       <div className="border-b border-brand-red/20 px-4 py-3">
@@ -324,17 +350,17 @@ function DemandNoticeDemandSidebar({ notice }: { notice: DemandNoticeData }) {
       </div>
       <ul className="divide-y divide-border/50 px-4">
         <li className="flex items-center justify-between py-3 text-sm">
-          <span className="text-muted-foreground">Property Tax (10%)</span>
+          <span className="text-muted-foreground">Property Tax ({propPct})</span>
           <span className="font-mono font-semibold tabular-nums">{formatInr(notice.propertyTax)}</span>
         </li>
         <li className="flex items-center justify-between py-3 text-sm">
-          <span className="text-muted-foreground">Water Tax (7%)</span>
+          <span className="text-muted-foreground">Water Tax ({waterPct})</span>
           <span className="font-mono font-semibold tabular-nums">
             {notice.waterTax > 0 ? formatInr(notice.waterTax) : "—"}
           </span>
         </li>
         <li className="flex items-center justify-between py-3 text-sm">
-          <span className="text-muted-foreground">Drainage / Sewer (2.5%)</span>
+          <span className="text-muted-foreground">Drainage / Sewer ({drainPct})</span>
           <span className="font-mono font-semibold tabular-nums">{formatInr(notice.drainageTax)}</span>
         </li>
       </ul>
@@ -345,6 +371,9 @@ function DemandNoticeDemandSidebar({ notice }: { notice: DemandNoticeData }) {
         <p className="mt-1 font-display text-2xl font-bold tabular-nums text-brand-red">
           {notice.totalAnnualDemand > 0 ? formatInr(notice.totalAnnualDemand) : "—"}
         </p>
+        {rateConfig && (
+          <p className="mt-1.5 text-[10px] text-muted-foreground">Custom rates · this ULB</p>
+        )}
       </div>
     </section>
   );

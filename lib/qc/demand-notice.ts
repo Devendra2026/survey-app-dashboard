@@ -1,4 +1,11 @@
 import type { MasterOption } from "@/convex/areaMasters";
+import {
+  DEFAULT_RATE_MATRIX,
+  DEFAULT_ROAD_TYPE_FACTORS,
+  DEFAULT_TAX_RATES,
+  DEFAULT_USAGE_MULTIPLIERS,
+  FALLBACK_RATE,
+} from "@/lib/qc/tax-rate-defaults";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import type { FloorRow, SurveyDetail } from "@/schema/surveys/index";
 import { formatInr } from "./demand-estimate";
@@ -8,12 +15,16 @@ export type FloorAssessmentRow = {
   usageLabel: string;
   constructionLabel: string;
   areaSqft: number;
+  baseRate: number;
+  roadFactor: number;
+  usageMult: number;
   alv: number;
   tax: number;
 };
 
 export type DemandNoticeData = {
   floorRows: FloorAssessmentRow[];
+  roadTypeFactor: number;
   totalArea: number;
   totalAlv: number;
   totalTax: number;
@@ -23,39 +34,41 @@ export type DemandNoticeData = {
   totalAnnualDemand: number;
 };
 
-const ZONE_ALV_PER_SQFT: Record<string, number> = {
-  below_9m: 12.44,
-  "9_to_12m": 10.5,
-  "12_to_24m": 9.0,
-  above_24m: 7.5,
-  rate_zone_1: 12.44,
-  rate_zone_2: 10.5,
-  rate_zone_3: 9.0,
-  rate_zone_4: 7.5,
-  rate_zone_5: 6.5,
-};
+/** Dynamic rate config from the taxRates table; null means use system defaults. */
+export type TaxRateConfig = {
+  rateMatrix: Record<string, Record<string, number>>;
+  roadTypeFactors: Record<string, number>;
+  propertyTaxPct: number;
+  waterTaxPct: number;
+  drainageTaxPct: number;
+  usageMultipliers: Record<string, number>;
+} | null;
 
-const USAGE_ALV_MULTIPLIER: Record<string, number> = {
-  residential: 1,
-  commercial: 1.45,
-  mix_property: 1.2,
-  open_land: 0.6,
-  religious_property: 0.4,
-};
-
-const PROPERTY_TAX_RATE = 0.1;
-const WATER_TAX_RATE = 0.07;
-const DRAINAGE_TAX_RATE = 0.025;
-
-function usageMultiplier(usageType: string, propertyUse?: string): number {
-  const key = usageType?.toLowerCase() || propertyUse || "residential";
-  if (key.includes("commercial") || key.includes("shop")) return USAGE_ALV_MULTIPLIER.commercial;
-  if (key.includes("mix")) return USAGE_ALV_MULTIPLIER.mix_property;
-  return USAGE_ALV_MULTIPLIER[key] ?? USAGE_ALV_MULTIPLIER.residential;
+function resolveBaseRate(
+  zone: string | undefined,
+  constructionType: string,
+  matrix: Record<string, Record<string, number>>,
+): number {
+  const zoneRow = matrix[zone ?? ""] ?? matrix["below_9m"] ?? {};
+  return zoneRow[constructionType] ?? zoneRow["pakka_rcc_rb"] ?? FALLBACK_RATE;
 }
 
-function alvRateForZone(taxRateZone?: string): number {
-  return ZONE_ALV_PER_SQFT[taxRateZone ?? ""] ?? 10;
+function resolveRoadFactor(roadType: string | undefined, factors: Record<string, number>): number {
+  return factors[roadType ?? ""] ?? factors["rcc"] ?? 1.0;
+}
+
+function resolveUsageMult(
+  usageFactor: string,
+  usageType: string,
+  multipliers: Record<string, number>,
+  propertyUse?: string,
+): number {
+  const key = usageFactor || usageType?.toLowerCase() || propertyUse || "residential";
+  if (key.includes("commercial") || key.includes("shop")) return multipliers.commercial ?? 1.45;
+  if (key.includes("mix")) return multipliers.mix ?? multipliers.mix_property ?? 1.2;
+  if (key.includes("open_land") || key.includes("agriculture")) return multipliers.open_land ?? 0.6;
+  if (key.includes("godown")) return multipliers.godown ?? 1.1;
+  return multipliers[key] ?? multipliers.residential ?? 1.0;
 }
 
 export function buildSurveyAddress(survey: SurveyDetail): string {
@@ -78,13 +91,23 @@ export function computeDemandNotice(
     usageFactors?: MasterOption[];
     constructionTypes?: MasterOption[];
   },
+  rateConfig?: TaxRateConfig,
 ): DemandNoticeData {
-  const zoneRate = alvRateForZone(survey.taxRateZone);
+  const matrix = rateConfig?.rateMatrix ?? DEFAULT_RATE_MATRIX;
+  const roadFactors = rateConfig?.roadTypeFactors ?? DEFAULT_ROAD_TYPE_FACTORS;
+  const multipliers = rateConfig?.usageMultipliers ?? DEFAULT_USAGE_MULTIPLIERS;
+  const propertyTaxRate = rateConfig?.propertyTaxPct ?? DEFAULT_TAX_RATES.propertyTaxPct;
+  const waterTaxRate = rateConfig?.waterTaxPct ?? DEFAULT_TAX_RATES.waterTaxPct;
+  const drainageTaxRate = rateConfig?.drainageTaxPct ?? DEFAULT_TAX_RATES.drainageTaxPct;
+
+  const roadTypeFactor = resolveRoadFactor(survey.roadType, roadFactors);
+
   const floorRows: FloorAssessmentRow[] = floors.map((floor) => {
     const area = floor.areaSqft ?? 0;
-    const multiplier = usageMultiplier(floor.usageType, survey.propertyUse);
-    const alv = Math.round(area * zoneRate * multiplier * 100) / 100;
-    const tax = Math.round(alv * PROPERTY_TAX_RATE * 100) / 100;
+    const baseRate = resolveBaseRate(survey.taxRateZone, floor.constructionType, matrix);
+    const usageMult = resolveUsageMult(floor.usageFactor ?? "", floor.usageType, multipliers, survey.propertyUse);
+    const alv = Math.round(area * baseRate * roadTypeFactor * usageMult * 100) / 100;
+    const tax = Math.round(alv * propertyTaxRate * 100) / 100;
     return {
       floorLabel: labelFromOptions(masters?.floors, floor.floorName),
       usageLabel:
@@ -92,6 +115,9 @@ export function computeDemandNotice(
         labelFromOptions(masters?.usageFactors, floor.usageFactor),
       constructionLabel: labelFromOptions(masters?.constructionTypes, floor.constructionType),
       areaSqft: area,
+      baseRate,
+      roadFactor: roadTypeFactor,
+      usageMult,
       alv,
       tax,
     };
@@ -101,12 +127,13 @@ export function computeDemandNotice(
   const totalAlv = floorRows.reduce((s, r) => s + r.alv, 0);
   const totalTax = floorRows.reduce((s, r) => s + r.tax, 0);
   const propertyTax = totalTax;
-  const waterTax = survey.municipalWaterConnection ? Math.round(totalAlv * WATER_TAX_RATE * 100) / 100 : 0;
-  const drainageTax = Math.round(totalAlv * DRAINAGE_TAX_RATE * 100) / 100;
+  const waterTax = survey.municipalWaterConnection ? Math.round(totalAlv * waterTaxRate * 100) / 100 : 0;
+  const drainageTax = Math.round(totalAlv * drainageTaxRate * 100) / 100;
   const totalAnnualDemand = Math.round((propertyTax + waterTax + drainageTax) * 100) / 100;
 
   return {
     floorRows,
+    roadTypeFactor,
     totalArea,
     totalAlv,
     totalTax,
