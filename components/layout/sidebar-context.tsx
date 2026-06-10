@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  getServerSidebarCollapsed,
+  getSidebarCollapsed,
+  setSidebarCollapsed,
+  subscribeSidebarCollapsed,
+} from "@/lib/sidebar-storage";
+import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
 type SidebarContextValue = {
   collapsed: boolean;
@@ -14,20 +20,15 @@ type SidebarContextValue = {
 const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useSyncExternalStore(subscribeSidebarCollapsed, getSidebarCollapsed, getServerSidebarCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("sdv-sidebar-collapsed");
-    if (stored === "true") setCollapsed(true);
+  const setCollapsed = useCallback((value: boolean) => {
+    setSidebarCollapsed(value);
   }, []);
 
   const toggleCollapsed = useCallback(() => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem("sdv-sidebar-collapsed", String(next));
-      return next;
-    });
+    setSidebarCollapsed(!getSidebarCollapsed());
   }, []);
 
   const toggleMobile = useCallback(() => setMobileOpen((p) => !p), []);
@@ -41,7 +42,7 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
       setMobileOpen,
       toggleMobile,
     }),
-    [collapsed, mobileOpen, toggleCollapsed, toggleMobile],
+    [collapsed, mobileOpen, setCollapsed, toggleCollapsed, toggleMobile],
   );
 
   return <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>;

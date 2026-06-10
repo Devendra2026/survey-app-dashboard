@@ -1,38 +1,65 @@
 /**
  * Dynamic tax rate configuration per municipality (ULB).
  *
- * Rate model:
- *   ALV = area × rateMatrix[zone][constructionType] × roadTypeFactors[roadType] × usageMultipliers[usage]
- *   Tax = ALV × propertyTaxPct
- *
- * Admin sets these from Masters → Tax Rates. Falls back to system defaults when no row exists.
+ * Rate model (monthly master rate → annual ALV):
+ *   Gross ALV = area × yearlyRate × usageMultipliers[usage]
+ *   Assessable = gross ALV × 80%
+ *   Assessable (80%) tax = assessable / 100 × (propertyTaxPct / 0.80 × 100)
+ *   Water / drainage = assessable / 100 × (pct × 100)
+ *   Total demand (yearly) = Yearly assessable + water + drainage
  */
 import { v } from "convex/values";
-import {
-  DEFAULT_RATE_MATRIX,
-  DEFAULT_ROAD_TYPE_FACTORS,
-  DEFAULT_TAX_RATES,
-  DEFAULT_USAGE_MULTIPLIERS,
-} from "../lib/qc/tax-rate-defaults";
+import { normalizeStoredTaxRates } from "../lib/qc/normalize-tax-rates";
+import { DEFAULT_RATE_MATRIX, DEFAULT_TAX_RATES, DEFAULT_USAGE_MULTIPLIERS } from "../lib/qc/tax-rate-defaults";
 import { mutation, query } from "./_generated/server";
 import { clientError, requireRole, requireUser, writeAudit } from "./helpers";
 
-export { DEFAULT_RATE_MATRIX, DEFAULT_ROAD_TYPE_FACTORS, DEFAULT_TAX_RATES, DEFAULT_USAGE_MULTIPLIERS };
+export { DEFAULT_RATE_MATRIX, DEFAULT_TAX_RATES, DEFAULT_USAGE_MULTIPLIERS };
+
+const rateMatrixValidator = v.record(v.string(), v.record(v.string(), v.number()));
+
+const normalizedTaxRatesValidator = v.object({
+  rateMatrix: rateMatrixValidator,
+  wardRates: v.record(v.string(), rateMatrixValidator),
+  propertyTaxPct: v.number(),
+  waterTaxPct: v.number(),
+  drainageTaxPct: v.number(),
+  usageMultipliers: v.record(v.string(), v.number()),
+});
 
 /** Returns the rate config for a ULB, or null (caller should use defaults). */
 export const getForMunicipality = query({
   args: { municipalityId: v.id("municipalities") },
+  returns: v.union(normalizedTaxRatesValidator, v.null()),
   handler: async (ctx, { municipalityId }) => {
-    return ctx.db
+    const doc = await ctx.db
       .query("taxRates")
       .withIndex("by_municipality", (q) => q.eq("municipalityId", municipalityId))
       .unique();
+
+    if (!doc) return null;
+    return normalizeStoredTaxRates(doc);
   },
 });
 
 /** Admin overview — all municipalities with their rate status. */
 export const listAll = query({
   args: {},
+  returns: v.array(
+    v.object({
+      municipality: v.object({
+        _id: v.id("municipalities"),
+        _creationTime: v.number(),
+        name: v.string(),
+        code: v.string(),
+        bodyType: v.union(v.literal("municipal_council"), v.literal("town_panchayat")),
+        districtId: v.id("districts"),
+        postalCode: v.optional(v.string()),
+        isActive: v.boolean(),
+      }),
+      rates: v.union(normalizedTaxRatesValidator, v.null()),
+    }),
+  ),
   handler: async (ctx) => {
     const me = await requireUser(ctx);
     requireRole(me, "admin");
@@ -44,24 +71,28 @@ export const listAll = query({
 
     const ratesByMuni = new Map(rates.map((r) => [r.municipalityId, r]));
 
-    return municipalities.map((m) => ({
-      municipality: m,
-      rates: ratesByMuni.get(m._id) ?? null,
-    }));
+    return municipalities.map((m) => {
+      const row = ratesByMuni.get(m._id);
+      return {
+        municipality: m,
+        rates: row ? normalizeStoredTaxRates(row) : null,
+      };
+    });
   },
 });
 
-/** Admin: set or replace the rate config for a specific municipality. */
-export const upsert = mutation({
+/** Admin: save one ward's rate matrix (merges into existing ULB config). */
+export const saveWard = mutation({
   args: {
     municipalityId: v.id("municipalities"),
-    rateMatrix: v.record(v.string(), v.record(v.string(), v.number())),
-    roadTypeFactors: v.record(v.string(), v.number()),
+    wardNo: v.string(),
+    wardRateMatrix: rateMatrixValidator,
     propertyTaxPct: v.number(),
     waterTaxPct: v.number(),
     drainageTaxPct: v.number(),
     usageMultipliers: v.record(v.string(), v.number()),
   },
+  returns: v.id("taxRates"),
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
     requireRole(me, "admin");
@@ -71,20 +102,21 @@ export const upsert = mutation({
 
     if (args.propertyTaxPct < 0 || args.propertyTaxPct > 1)
       clientError("BAD_REQUEST", "Property tax must be 0–1 (e.g. 0.10 = 10%)");
-    if (args.waterTaxPct < 0 || args.waterTaxPct > 1)
-      clientError("BAD_REQUEST", "Water tax must be 0–1");
-    if (args.drainageTaxPct < 0 || args.drainageTaxPct > 1)
-      clientError("BAD_REQUEST", "Drainage tax must be 0–1");
+    if (args.waterTaxPct < 0 || args.waterTaxPct > 1) clientError("BAD_REQUEST", "Water tax must be 0–1");
+    if (args.drainageTaxPct < 0 || args.drainageTaxPct > 1) clientError("BAD_REQUEST", "Drainage tax must be 0–1");
 
     const existing = await ctx.db
       .query("taxRates")
       .withIndex("by_municipality", (q) => q.eq("municipalityId", args.municipalityId))
       .unique();
 
+    const normalized = existing ? normalizeStoredTaxRates(existing) : null;
+    const wardRates = { ...(normalized?.wardRates ?? {}), [args.wardNo.trim()]: args.wardRateMatrix };
+
     const payload = {
       municipalityId: args.municipalityId,
-      rateMatrix: args.rateMatrix,
-      roadTypeFactors: args.roadTypeFactors,
+      rateMatrix: normalized?.rateMatrix ?? DEFAULT_RATE_MATRIX,
+      wardRates,
       propertyTaxPct: args.propertyTaxPct,
       waterTaxPct: args.waterTaxPct,
       drainageTaxPct: args.drainageTaxPct,
@@ -94,7 +126,72 @@ export const upsert = mutation({
     };
 
     if (existing) {
-      await ctx.db.patch(existing._id, payload);
+      await ctx.db.replace(existing._id, payload);
+      await writeAudit(ctx, {
+        actorId: me._id,
+        action: "taxRates.wardSaved",
+        entity: "taxRates",
+        entityId: existing._id,
+        metadata: { municipalityId: args.municipalityId, wardNo: args.wardNo, municipalityName: muni.name },
+      });
+      return existing._id;
+    }
+
+    const id = await ctx.db.insert("taxRates", payload);
+    await writeAudit(ctx, {
+      actorId: me._id,
+      action: "taxRates.wardSaved",
+      entity: "taxRates",
+      entityId: id,
+      metadata: { municipalityId: args.municipalityId, wardNo: args.wardNo, municipalityName: muni.name },
+    });
+    return id;
+  },
+});
+
+/** Admin: set or replace the rate config for a specific municipality. */
+export const upsert = mutation({
+  args: {
+    municipalityId: v.id("municipalities"),
+    rateMatrix: rateMatrixValidator,
+    wardRates: v.record(v.string(), rateMatrixValidator),
+    propertyTaxPct: v.number(),
+    waterTaxPct: v.number(),
+    drainageTaxPct: v.number(),
+    usageMultipliers: v.record(v.string(), v.number()),
+  },
+  returns: v.id("taxRates"),
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    requireRole(me, "admin");
+
+    const muni = await ctx.db.get(args.municipalityId);
+    if (!muni) clientError("BAD_REQUEST", "Unknown municipality");
+
+    if (args.propertyTaxPct < 0 || args.propertyTaxPct > 1)
+      clientError("BAD_REQUEST", "Property tax must be 0–1 (e.g. 0.10 = 10%)");
+    if (args.waterTaxPct < 0 || args.waterTaxPct > 1) clientError("BAD_REQUEST", "Water tax must be 0–1");
+    if (args.drainageTaxPct < 0 || args.drainageTaxPct > 1) clientError("BAD_REQUEST", "Drainage tax must be 0–1");
+
+    const existing = await ctx.db
+      .query("taxRates")
+      .withIndex("by_municipality", (q) => q.eq("municipalityId", args.municipalityId))
+      .unique();
+
+    const payload = {
+      municipalityId: args.municipalityId,
+      rateMatrix: args.rateMatrix,
+      wardRates: args.wardRates,
+      propertyTaxPct: args.propertyTaxPct,
+      waterTaxPct: args.waterTaxPct,
+      drainageTaxPct: args.drainageTaxPct,
+      usageMultipliers: args.usageMultipliers,
+      updatedBy: me._id,
+      updatedAt: Date.now(),
+    };
+
+    if (existing) {
+      await ctx.db.replace(existing._id, payload);
       await writeAudit(ctx, {
         actorId: me._id,
         action: "taxRates.updated",
@@ -117,9 +214,43 @@ export const upsert = mutation({
   },
 });
 
+/** Admin: rewrite legacy zoneRates rows into the new matrix format. */
+export const migrateLegacyRows = mutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const me = await requireUser(ctx);
+    requireRole(me, "admin");
+
+    const all = await ctx.db.query("taxRates").collect();
+    let migrated = 0;
+
+    for (const doc of all) {
+      if (doc.rateMatrix && doc.wardRates) continue;
+
+      const normalized = normalizeStoredTaxRates(doc);
+      await ctx.db.replace(doc._id, {
+        municipalityId: doc.municipalityId,
+        rateMatrix: normalized.rateMatrix,
+        wardRates: normalized.wardRates,
+        propertyTaxPct: normalized.propertyTaxPct,
+        waterTaxPct: normalized.waterTaxPct,
+        drainageTaxPct: normalized.drainageTaxPct,
+        usageMultipliers: normalized.usageMultipliers,
+        updatedBy: me._id,
+        updatedAt: Date.now(),
+      });
+      migrated += 1;
+    }
+
+    return migrated;
+  },
+});
+
 /** Admin: delete custom config so system defaults apply again. */
 export const resetToDefaults = mutation({
   args: { municipalityId: v.id("municipalities") },
+  returns: v.null(),
   handler: async (ctx, { municipalityId }) => {
     const me = await requireUser(ctx);
     requireRole(me, "admin");
@@ -139,5 +270,7 @@ export const resetToDefaults = mutation({
         metadata: { municipalityId },
       });
     }
+
+    return null;
   },
 });

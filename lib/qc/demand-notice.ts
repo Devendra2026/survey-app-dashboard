@@ -1,32 +1,56 @@
 import type { MasterOption } from "@/convex/areaMasters";
 import {
+  annualRateToMonthly,
   DEFAULT_RATE_MATRIX,
-  DEFAULT_ROAD_TYPE_FACTORS,
   DEFAULT_TAX_RATES,
   DEFAULT_USAGE_MULTIPLIERS,
-  FALLBACK_RATE,
+  TAX_RATE_ZONE_ROWS,
 } from "@/lib/qc/tax-rate-defaults";
+import {
+  hasWardCustomRates,
+  resolveAnnualRate,
+  resolveConstructionTypeKey,
+  resolveTaxRateZoneKey,
+} from "@/lib/qc/tax-rate-matrix";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import type { FloorRow, SurveyDetail } from "@/schema/surveys/index";
 import { formatInr } from "./demand-estimate";
+import { computeFloorPropertyTax, computeTotalAnnualDemand } from "./property-tax-calc";
 
 export type FloorAssessmentRow = {
   floorLabel: string;
   usageLabel: string;
   constructionLabel: string;
   areaSqft: number;
+  monthlyRate: number;
   baseRate: number;
   roadFactor: number;
   usageMult: number;
   alv: number;
+  assessableAlv: number;
   tax: number;
+};
+
+/** Annual rate resolved from ward matrix + road-width zone + construction (master data). */
+export type MasterBaseRate = {
+  wardNo: string;
+  zoneKey: string;
+  zoneLabel: string;
+  constructionKey: string;
+  constructionLabel: string;
+  monthlyRate: number;
+  annualRate: number;
 };
 
 export type DemandNoticeData = {
   floorRows: FloorAssessmentRow[];
+  masterBaseRate: MasterBaseRate | null;
   roadTypeFactor: number;
+  rateSource: "ward" | "ulb" | "system";
   totalArea: number;
   totalAlv: number;
+  totalAssessableAlv: number;
+  assessableValuePct: number;
   totalTax: number;
   propertyTax: number;
   waterTax: number;
@@ -37,25 +61,12 @@ export type DemandNoticeData = {
 /** Dynamic rate config from the taxRates table; null means use system defaults. */
 export type TaxRateConfig = {
   rateMatrix: Record<string, Record<string, number>>;
-  roadTypeFactors: Record<string, number>;
+  wardRates?: Record<string, Record<string, Record<string, number>>>;
   propertyTaxPct: number;
   waterTaxPct: number;
   drainageTaxPct: number;
   usageMultipliers: Record<string, number>;
 } | null;
-
-function resolveBaseRate(
-  zone: string | undefined,
-  constructionType: string,
-  matrix: Record<string, Record<string, number>>,
-): number {
-  const zoneRow = matrix[zone ?? ""] ?? matrix["below_9m"] ?? {};
-  return zoneRow[constructionType] ?? zoneRow["pakka_rcc_rb"] ?? FALLBACK_RATE;
-}
-
-function resolveRoadFactor(roadType: string | undefined, factors: Record<string, number>): number {
-  return factors[roadType ?? ""] ?? factors["rcc"] ?? 1.0;
-}
 
 function resolveUsageMult(
   usageFactor: string,
@@ -90,24 +101,70 @@ export function computeDemandNotice(
     usageTypes?: MasterOption[];
     usageFactors?: MasterOption[];
     constructionTypes?: MasterOption[];
+    taxRateZones?: MasterOption[];
   },
   rateConfig?: TaxRateConfig,
 ): DemandNoticeData {
-  const matrix = rateConfig?.rateMatrix ?? DEFAULT_RATE_MATRIX;
-  const roadFactors = rateConfig?.roadTypeFactors ?? DEFAULT_ROAD_TYPE_FACTORS;
+  const fallbackMatrix = rateConfig?.rateMatrix ?? DEFAULT_RATE_MATRIX;
+  const usesWardRates = hasWardCustomRates(survey.wardNo, rateConfig?.wardRates);
+  const rateSource: DemandNoticeData["rateSource"] = usesWardRates ? "ward" : rateConfig ? "ulb" : "system";
+
   const multipliers = rateConfig?.usageMultipliers ?? DEFAULT_USAGE_MULTIPLIERS;
+  const assessableValuePct = DEFAULT_TAX_RATES.assessableValuePct;
   const propertyTaxRate = rateConfig?.propertyTaxPct ?? DEFAULT_TAX_RATES.propertyTaxPct;
   const waterTaxRate = rateConfig?.waterTaxPct ?? DEFAULT_TAX_RATES.waterTaxPct;
   const drainageTaxRate = rateConfig?.drainageTaxPct ?? DEFAULT_TAX_RATES.drainageTaxPct;
 
-  const roadTypeFactor = resolveRoadFactor(survey.roadType, roadFactors);
+  const primaryFloor = floors[0];
+  const primaryConstruction = primaryFloor?.constructionType ?? "pakka_rcc_rb";
+  const zoneKey = resolveTaxRateZoneKey(survey.taxRateZone);
+  const constructionKey = resolveConstructionTypeKey(primaryConstruction);
+  const annualBaseRate = resolveAnnualRate(
+    survey.wardNo,
+    survey.taxRateZone,
+    primaryConstruction,
+    rateConfig?.wardRates,
+    fallbackMatrix,
+  );
+  const zoneLabel =
+    labelFromOptions(masters?.taxRateZones, survey.taxRateZone) ??
+    TAX_RATE_ZONE_ROWS.find((z) => z.key === zoneKey)?.label ??
+    zoneKey;
+  const constructionLabel =
+    labelFromOptions(masters?.constructionTypes, primaryConstruction) ??
+    labelFromOptions(masters?.constructionTypes, constructionKey) ??
+    constructionKey;
+
+  const masterBaseRate: MasterBaseRate | null =
+    floors.length > 0
+      ? {
+          wardNo: survey.wardNo,
+          zoneKey,
+          zoneLabel,
+          constructionKey,
+          constructionLabel,
+          monthlyRate: annualRateToMonthly(annualBaseRate),
+          annualRate: annualBaseRate,
+        }
+      : null;
 
   const floorRows: FloorAssessmentRow[] = floors.map((floor) => {
     const area = floor.areaSqft ?? 0;
-    const baseRate = resolveBaseRate(survey.taxRateZone, floor.constructionType, matrix);
+    const baseRate = resolveAnnualRate(
+      survey.wardNo,
+      survey.taxRateZone,
+      floor.constructionType,
+      rateConfig?.wardRates,
+      fallbackMatrix,
+    );
     const usageMult = resolveUsageMult(floor.usageFactor ?? "", floor.usageType, multipliers, survey.propertyUse);
-    const alv = Math.round(area * baseRate * roadTypeFactor * usageMult * 100) / 100;
-    const tax = Math.round(alv * propertyTaxRate * 100) / 100;
+    const { monthlyRate, alv, assessableAlv, tax } = computeFloorPropertyTax(
+      area,
+      baseRate,
+      propertyTaxRate,
+      usageMult,
+      assessableValuePct,
+    );
     return {
       floorLabel: labelFromOptions(masters?.floors, floor.floorName),
       usageLabel:
@@ -115,27 +172,38 @@ export function computeDemandNotice(
         labelFromOptions(masters?.usageFactors, floor.usageFactor),
       constructionLabel: labelFromOptions(masters?.constructionTypes, floor.constructionType),
       areaSqft: area,
+      monthlyRate,
       baseRate,
-      roadFactor: roadTypeFactor,
+      roadFactor: 1,
       usageMult,
       alv,
+      assessableAlv,
       tax,
     };
   });
 
   const totalArea = floorRows.reduce((s, r) => s + r.areaSqft, 0);
   const totalAlv = floorRows.reduce((s, r) => s + r.alv, 0);
+  const totalAssessableAlv = floorRows.reduce((s, r) => s + r.assessableAlv, 0);
   const totalTax = floorRows.reduce((s, r) => s + r.tax, 0);
   const propertyTax = totalTax;
-  const waterTax = survey.municipalWaterConnection ? Math.round(totalAlv * waterTaxRate * 100) / 100 : 0;
-  const drainageTax = Math.round(totalAlv * drainageTaxRate * 100) / 100;
-  const totalAnnualDemand = Math.round((propertyTax + waterTax + drainageTax) * 100) / 100;
+  const { waterTax, drainageTax, totalAnnualDemand } = computeTotalAnnualDemand(
+    totalAssessableAlv,
+    propertyTax,
+    waterTaxRate,
+    drainageTaxRate,
+    Boolean(survey.municipalWaterConnection),
+  );
 
   return {
     floorRows,
-    roadTypeFactor,
+    masterBaseRate,
+    roadTypeFactor: 1,
+    rateSource,
     totalArea,
     totalAlv,
+    totalAssessableAlv,
+    assessableValuePct,
     totalTax,
     propertyTax,
     waterTax,

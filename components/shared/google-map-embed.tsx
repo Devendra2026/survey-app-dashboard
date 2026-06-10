@@ -45,6 +45,7 @@ export function GoogleMapEmbed({
           className="h-full w-full border-0"
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
+          sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms"
           allowFullScreen
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-brand-navy/90 to-transparent px-4 py-3 dark:from-background/95">

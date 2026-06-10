@@ -8,6 +8,7 @@ import {
   DemandNoticeKpiStrip,
 } from "@/components/qc/demand-notice-sections";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
 import { useMasters } from "@/hooks/masters/useMasters";
 import { buildOfficeTitles, buildSurveyAddress, computeDemandNotice, formatNoticeDate } from "@/lib/qc/demand-notice";
@@ -38,20 +39,53 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
   const office = buildOfficeTitles(cityName, stateName);
   const taxZone = labelFromOptions(masters?.taxRateZones, survey.taxRateZone);
   const address = buildSurveyAddress(survey);
-  const rateConfig = dynamicRates
-    ? {
-        rateMatrix: dynamicRates.rateMatrix,
-        roadTypeFactors: dynamicRates.roadTypeFactors,
-        propertyTaxPct: dynamicRates.propertyTaxPct,
-        waterTaxPct: dynamicRates.waterTaxPct,
-        drainageTaxPct: dynamicRates.drainageTaxPct,
-        usageMultipliers: dynamicRates.usageMultipliers,
-      }
-    : null;
-  const notice = computeDemandNotice(survey, survey.floors ?? [], masters ?? undefined, rateConfig);
+  const rateConfig =
+    dynamicRates !== undefined && dynamicRates !== null
+      ? {
+          rateMatrix: dynamicRates.rateMatrix,
+          wardRates: dynamicRates.wardRates,
+          propertyTaxPct: dynamicRates.propertyTaxPct,
+          waterTaxPct: dynamicRates.waterTaxPct,
+          drainageTaxPct: dynamicRates.drainageTaxPct,
+          usageMultipliers: dynamicRates.usageMultipliers,
+        }
+      : dynamicRates === null
+        ? null
+        : undefined;
+
+  const ratesLoading = dynamicRates === undefined;
+  const notice =
+    rateConfig !== undefined
+      ? computeDemandNotice(survey, survey.floors ?? [], masters ?? undefined, rateConfig)
+      : null;
   const noticeDate = formatNoticeDate(survey.submittedAt ?? Date.now());
   const assessmentYear = survey.assessmentYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
   const frontPhoto = survey.photos?.find((p) => p.slot === "front")?.url;
+
+  if (ratesLoading || !notice) {
+    return (
+      <PageTransition className="demand-notice space-y-6 lg:space-y-8">
+        <div className="print-hidden flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Button asChild variant="outline" size="sm" className="w-fit cursor-pointer rounded-xl">
+            <Link href={backHref}>
+              <ArrowLeft className="h-4 w-4" aria-hidden /> Back to QC Report
+            </Link>
+          </Button>
+        </div>
+        <div className="space-y-4 rounded-2xl border border-border/60 bg-card p-8">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-full max-w-xl" />
+          <div className="grid gap-3 pt-4 sm:grid-cols-3">
+            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-16 rounded-xl" />
+          </div>
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <p className="text-center text-sm text-muted-foreground">Loading ward rates from master data…</p>
+        </div>
+      </PageTransition>
+    );
+  }
 
   return (
     <PageTransition className="demand-notice space-y-6 lg:space-y-8">
@@ -97,7 +131,12 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
         />
       </FadeIn>
 
-      <DemandNoticeKpiStrip notice={notice} noticeDate={noticeDate} assessmentYear={assessmentYear} />
+      <DemandNoticeKpiStrip
+        notice={notice}
+        noticeDate={noticeDate}
+        assessmentYear={assessmentYear}
+        propertyTaxPct={rateConfig?.propertyTaxPct}
+      />
 
       <FadeIn delay={0.06}>
         <DemandNoticeDocument

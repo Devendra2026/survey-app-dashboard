@@ -5,9 +5,11 @@ import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-car
 import { MetricCard } from "@/components/design-system/metric-card";
 import { StaggerGrid, StaggerItem } from "@/components/design-system/motion";
 import { GoogleMapEmbed } from "@/components/shared/google-map-embed";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buildOfficeTitles, formatAmountPlain, formatInr, type DemandNoticeData } from "@/lib/qc/demand-notice";
+import { DEFAULT_TAX_RATES } from "@/lib/qc/tax-rate-defaults";
 import type { SurveyDetail } from "@/schema/surveys/index";
 import { Building2, Camera, FileText, ImageOff, Layers, MapPin, Receipt, Ruler, Scale } from "lucide-react";
 import Image from "next/image";
@@ -50,14 +52,20 @@ export function NoticePhoto({ url, label }: { url?: string | null; label: string
   );
 }
 
+function pctHint(pct: number) {
+  return `${(pct * 100).toFixed(0)}% of ALV`;
+}
+
 export function DemandNoticeKpiStrip({
   notice,
   noticeDate,
   assessmentYear,
+  propertyTaxPct = DEFAULT_TAX_RATES.propertyTaxPct,
 }: {
   notice: DemandNoticeData;
   noticeDate: string;
   assessmentYear: string;
+  propertyTaxPct?: number;
 }) {
   return (
     <section aria-labelledby="notice-kpi-heading" className="print-hidden">
@@ -70,9 +78,9 @@ export function DemandNoticeKpiStrip({
       <StaggerGrid className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
         <StaggerItem>
           <MetricCard
-            label="Total Annual Demand"
+            label="Total Demand (Yearly)"
             value={notice.totalAnnualDemand > 0 ? formatInr(notice.totalAnnualDemand) : "—"}
-            hint="property + water + drainage"
+            hint="yearly assessable + water + drainage"
             icon={Receipt}
             tone="ai"
           />
@@ -97,9 +105,9 @@ export function DemandNoticeKpiStrip({
         </StaggerItem>
         <StaggerItem>
           <MetricCard
-            label="Property Tax"
+            label="Yearly Assessable"
             value={notice.propertyTax > 0 ? formatInr(notice.propertyTax) : "—"}
-            hint="10% of ALV"
+            hint="80% assessable base · yearly"
             icon={Building2}
             tone="warning"
           />
@@ -165,20 +173,52 @@ export function DemandNoticeDocument({
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <NoticeField label="Property Zone" value={taxZone.toUpperCase()} />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <NoticeField label="Road Width Zone" value={taxZone.toUpperCase()} />
+          <NoticeField label="Ward" value={`Ward ${survey.wardNo}`} />
           <NoticeField
-            label={<BilingualLabel en="Ward" hi="वार्ड संख्या" />}
-            value={`वार्ड नंबर ${survey.wardNo} (Ward No. ${survey.wardNo})`}
+            label="Annual Base Rate"
+            value={notice.masterBaseRate ? `₹${formatAmountPlain(notice.masterBaseRate.annualRate)}/sqft` : "—"}
           />
           <NoticeField label={<BilingualLabel en="Unique ID" hi="यूनिक आईडी" />} value={propertyId} />
         </div>
+        {notice.masterBaseRate && notice.rateSource !== "system" && (
+          <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Badge
+              variant="outline"
+              className="border-emerald-500/40 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+            >
+              Master data
+            </Badge>
+            Ward {notice.masterBaseRate.wardNo} · {notice.masterBaseRate.zoneLabel} ·{" "}
+            {notice.masterBaseRate.constructionLabel} · ₹{formatAmountPlain(notice.masterBaseRate.annualRate)}/sqft/yr
+            (₹{formatAmountPlain(notice.masterBaseRate.monthlyRate)}/sqft/mo reference)
+          </p>
+        )}
+        {notice.totalAlv > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <NoticeField label="Gross ALV" value={`₹${formatAmountPlain(notice.totalAlv)}`} />
+            <NoticeField
+              label={`Yearly Assessable (${(notice.assessableValuePct * 100).toFixed(0)}%)`}
+              value={`₹${formatAmountPlain(notice.totalAssessableAlv)}`}
+            />
+            <NoticeField
+              label="Property Tax Base"
+              value={`${(notice.assessableValuePct * 100).toFixed(0)}% of gross ALV for tax calculation`}
+            />
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <NoticeField label="Property Owner" value={ownerName} />
           <NoticeField label="Address" value={address || "—"} />
         </div>
 
-        <DemandNoticeFloorTable notice={notice} />
+        <DemandNoticeFloorTable
+          notice={notice}
+          propertyTaxPct={rateConfig?.propertyTaxPct ?? DEFAULT_TAX_RATES.propertyTaxPct}
+          waterTaxPct={rateConfig?.waterTaxPct ?? DEFAULT_TAX_RATES.waterTaxPct}
+          drainageTaxPct={rateConfig?.drainageTaxPct ?? DEFAULT_TAX_RATES.drainageTaxPct}
+        />
 
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_320px]">
           <DemandNoticeSiteDocs survey={survey} frontPhoto={frontPhoto} />
@@ -216,7 +256,23 @@ export function DemandNoticeDocument({
   );
 }
 
-function DemandNoticeFloorTable({ notice }: { notice: DemandNoticeData }) {
+function DemandNoticeFloorTable({
+  notice,
+  propertyTaxPct,
+  waterTaxPct,
+  drainageTaxPct,
+}: {
+  notice: DemandNoticeData;
+  propertyTaxPct: number;
+  waterTaxPct: number;
+  drainageTaxPct: number;
+}) {
+  const effectivePct = (propertyTaxPct * 100).toFixed(1).replace(/\.0$/, "");
+  const assessablePct = (notice.assessableValuePct * 100).toFixed(0);
+  const taxOnAssessablePct = ((propertyTaxPct / notice.assessableValuePct) * 100).toFixed(1).replace(/\.0$/, "");
+  const waterPerHundred = (waterTaxPct * 100).toFixed(1).replace(/\.0$/, "");
+  const drainagePerHundred = (drainageTaxPct * 100).toFixed(1).replace(/\.0$/, "");
+
   return (
     <section>
       <h2 className="mb-3 font-heading text-xs font-bold uppercase tracking-[0.14em] text-brand-navy/70 dark:text-primary/80">
@@ -240,9 +296,14 @@ function DemandNoticeFloorTable({ notice }: { notice: DemandNoticeData }) {
                   Area (SqFt)
                 </TableHead>
                 <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">
-                  Rate (₹/sqft)
+                  Yearly Rate (₹/sqft/yr)
                 </TableHead>
-                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">ALV (₹)</TableHead>
+                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">
+                  Gross ALV (₹)
+                </TableHead>
+                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">
+                  Yearly Assessable ({assessablePct}%)
+                </TableHead>
                 <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest">Tax</TableHead>
               </TableRow>
             </TableHeader>
@@ -257,12 +318,28 @@ function DemandNoticeFloorTable({ notice }: { notice: DemandNoticeData }) {
                       {formatAmountPlain(row.areaSqft)}
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums text-xs">
-                      {formatAmountPlain(row.baseRate)}
-                      {row.roadFactor !== 1 && (
-                        <span className="ml-1 text-muted-foreground">×{row.roadFactor.toFixed(2)}</span>
-                      )}
+                      <span className="inline-flex flex-col items-end gap-0.5">
+                        <span className="inline-flex items-center gap-1.5">
+                          {formatAmountPlain(row.baseRate)}
+                          {notice.rateSource !== "system" && (
+                            <Badge
+                              variant="outline"
+                              className="h-4 px-1 text-[8px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400"
+                              title="Yearly rate from ward master data"
+                            >
+                              Master
+                            </Badge>
+                          )}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          ₹{formatAmountPlain(row.monthlyRate)}/mo ref
+                        </span>
+                      </span>
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{formatAmountPlain(row.alv)}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
+                      {formatAmountPlain(row.assessableAlv)}
+                    </TableCell>
                     <TableCell className="text-right font-mono font-semibold tabular-nums">
                       {formatAmountPlain(row.tax)}
                     </TableCell>
@@ -270,7 +347,7 @@ function DemandNoticeFloorTable({ notice }: { notice: DemandNoticeData }) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
                     No floor assessment data available
                   </TableCell>
                 </TableRow>
@@ -287,6 +364,9 @@ function DemandNoticeFloorTable({ notice }: { notice: DemandNoticeData }) {
                   <TableCell className="text-right font-mono tabular-nums">
                     {formatAmountPlain(notice.totalAlv)}
                   </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
+                    {formatAmountPlain(notice.totalAssessableAlv)}
+                  </TableCell>
                   <TableCell className="text-right font-mono text-base tabular-nums text-foreground">
                     ₹ {formatAmountPlain(notice.totalTax)}
                   </TableCell>
@@ -295,6 +375,15 @@ function DemandNoticeFloorTable({ notice }: { notice: DemandNoticeData }) {
             </TableBody>
           </Table>
         </div>
+        {notice.floorRows.length > 0 && (
+          <p className="border-t border-border/50 bg-muted/15 px-4 py-3 text-[11px] leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground">Formula:</span> Gross ALV = Area × yearly rate
+            {notice.floorRows.some((r) => r.usageMult !== 1) && " × usage multiplier"} · Yearly Assessable = Gross ALV ×{" "}
+            {assessablePct}% · Yearly assessable tax = Yearly Assessable ÷ 100 × {taxOnAssessablePct} ({effectivePct}%
+            effective) · Water = Yearly Assessable ÷ 100 × {waterPerHundred} · Drainage = Yearly Assessable ÷ 100 ×{" "}
+            {drainagePerHundred} · Yearly assessable + Water + Drainage = Total demand (yearly)
+          </p>
+        )}
       </div>
     </section>
   );
@@ -330,6 +419,19 @@ function pctLabel(val: number) {
   return `${(val * 100).toFixed(1)}%`;
 }
 
+function rateSourceCaption(notice: DemandNoticeData): string {
+  const zone = notice.masterBaseRate?.zoneLabel;
+  if (notice.rateSource === "ward") {
+    return zone
+      ? `Ward ${notice.masterBaseRate!.wardNo} · ${zone} · ward master data`
+      : `Ward ${notice.masterBaseRate?.wardNo ?? "—"} · ward master data`;
+  }
+  if (notice.rateSource === "ulb") {
+    return zone ? `${zone} · ULB master data` : "ULB master data";
+  }
+  return "System default rates";
+}
+
 function DemandNoticeDemandSidebar({
   notice,
   rateConfig,
@@ -337,7 +439,7 @@ function DemandNoticeDemandSidebar({
   notice: DemandNoticeData;
   rateConfig?: { propertyTaxPct: number; waterTaxPct: number; drainageTaxPct: number } | null;
 }) {
-  const propPct = rateConfig ? pctLabel(rateConfig.propertyTaxPct) : "10%";
+  const propPct = rateConfig ? pctLabel(rateConfig.propertyTaxPct) : pctLabel(DEFAULT_TAX_RATES.propertyTaxPct);
   const waterPct = rateConfig ? pctLabel(rateConfig.waterTaxPct) : "7%";
   const drainPct = rateConfig ? pctLabel(rateConfig.drainageTaxPct) : "2.5%";
 
@@ -350,30 +452,35 @@ function DemandNoticeDemandSidebar({
       </div>
       <ul className="divide-y divide-border/50 px-4">
         <li className="flex items-center justify-between py-3 text-sm">
-          <span className="text-muted-foreground">Property Tax ({propPct})</span>
+          <span className="text-muted-foreground">Yearly Assessable</span>
           <span className="font-mono font-semibold tabular-nums">{formatInr(notice.propertyTax)}</span>
         </li>
         <li className="flex items-center justify-between py-3 text-sm">
-          <span className="text-muted-foreground">Water Tax ({waterPct})</span>
+          <span className="text-muted-foreground">Water</span>
           <span className="font-mono font-semibold tabular-nums">
             {notice.waterTax > 0 ? formatInr(notice.waterTax) : "—"}
           </span>
         </li>
         <li className="flex items-center justify-between py-3 text-sm">
-          <span className="text-muted-foreground">Drainage / Sewer ({drainPct})</span>
+          <span className="text-muted-foreground">Drainage</span>
           <span className="font-mono font-semibold tabular-nums">{formatInr(notice.drainageTax)}</span>
         </li>
       </ul>
       <div className="border-t border-brand-red/25 bg-brand-red/10 px-4 py-4 dark:bg-brand-red/15">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          <BilingualLabel en="Total Annual Demand" hi="कुल वार्षिक मांग" />
+          <BilingualLabel en="Total Demand (Yearly)" hi="कुल वार्षिक मांग" />
+        </p>
+        <p className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+          {formatInr(notice.propertyTax)}
+          {notice.waterTax > 0 ? ` + ${formatInr(notice.waterTax)}` : ""} + {formatInr(notice.drainageTax)} =
         </p>
         <p className="mt-1 font-display text-2xl font-bold tabular-nums text-brand-red">
           {notice.totalAnnualDemand > 0 ? formatInr(notice.totalAnnualDemand) : "—"}
         </p>
-        {rateConfig && (
-          <p className="mt-1.5 text-[10px] text-muted-foreground">Custom rates · this ULB</p>
-        )}
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          Yearly assessable + Water + Drainage = Total demand (yearly)
+        </p>
+        <p className="mt-1.5 text-[10px] text-muted-foreground">{rateSourceCaption(notice)}</p>
       </div>
     </section>
   );

@@ -5,16 +5,22 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 const iconTransition =
   "transition-all duration-300 motion-reduce:transition-none motion-reduce:rotate-0 motion-reduce:scale-100";
 
+function subscribeNoop() {
+  return () => {};
+}
+
 export function ModeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
 
   if (!mounted) {
     return <div className="size-8 shrink-0 rounded-xl bg-muted/50" aria-hidden />;

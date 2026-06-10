@@ -355,9 +355,13 @@ export default defineSchema({
      * 2D rate matrix: road-width zone → construction type → ₹/sqft/year (annual ALV base rate).
      * e.g. rateMatrix["below_9m"]["pakka_rcc_rb"] = 6.12
      */
-    rateMatrix: v.record(v.string(), v.record(v.string(), v.number())),
+    rateMatrix: v.optional(v.record(v.string(), v.record(v.string(), v.number()))),
+    /** Per-ward rate matrix: wardNo → zone → construction → annual ₹/sqft. */
+    wardRates: v.optional(v.record(v.string(), v.record(v.string(), v.record(v.string(), v.number())))),
     /** Road surface type multipliers: rcc | dambar | kaccha → factor (e.g. 0.9). */
-    roadTypeFactors: v.record(v.string(), v.number()),
+    roadTypeFactors: v.optional(v.record(v.string(), v.number())),
+    /** @deprecated Legacy flat zone rates — migrated to rateMatrix on read/save. */
+    zoneRates: v.optional(v.record(v.string(), v.number())),
     /** Tax percentages stored as decimals (e.g. 0.10 = 10%). */
     propertyTaxPct: v.number(),
     waterTaxPct: v.number(),
