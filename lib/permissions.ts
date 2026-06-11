@@ -54,12 +54,20 @@ const MATRIX: Record<Role, Capability[]> = {
   supervisor: [
     "surveys.viewAssigned",
     "surveys.editDraft",
+    "surveys.submit",
+    "surveys.uploadPhotos",
+    "analytics.view",
+    "users.view",
+    "reports.export",
+  ],
+
+  qc_supervisor: [
     "qc.review",
     "qc.decide",
     "qc.requestCorrection",
     "qc.reopen",
+    "surveys.uploadPhotos",
     "analytics.view",
-    "users.view",
     "reports.export",
   ],
 
@@ -115,17 +123,27 @@ export function canAnyWithCapabilities(
   return capabilities.some((c) => canWithCapabilities(serverCapabilities, role, c));
 }
 
+/** True when the user may only access the QC portal (no survey module). */
+export function isQcOnlyUser(serverCapabilities: string[] | undefined, role: Role | undefined): boolean {
+  if (serverCapabilities && serverCapabilities.length > 0) {
+    const hasQc = serverCapabilities.some((c) => c.startsWith("qc."));
+    const hasSurveys = serverCapabilities.some((c) => c.startsWith("surveys.") && c !== "surveys.uploadPhotos");
+    return hasQc && !hasSurveys;
+  }
+  return role === "qc_supervisor";
+}
+
 /** Nav keys from server capabilities (falls back to static NAV_VISIBILITY). */
 export function navKeysForUser(serverCapabilities: string[] | undefined, role: Role | undefined): string[] {
   if (serverCapabilities && serverCapabilities.length > 0) {
     const keys = new Set<string>();
-    if (serverCapabilities.some((c) => c.startsWith("analytics.") || c.startsWith("surveys."))) {
+    const hasSurveysNav = serverCapabilities.some((c) => c.startsWith("surveys.") && c !== "surveys.uploadPhotos");
+    const hasQc = serverCapabilities.some((c) => c.startsWith("qc."));
+    if (serverCapabilities.some((c) => c.startsWith("analytics.")) || hasSurveysNav || hasQc) {
       keys.add("dashboard");
     }
-    if (serverCapabilities.some((c) => c.startsWith("surveys.") || c.startsWith("qc."))) {
-      keys.add("surveys");
-    }
-    if (serverCapabilities.some((c) => c.startsWith("qc."))) keys.add("qc");
+    if (hasSurveysNav) keys.add("surveys");
+    if (hasQc) keys.add("qc");
     if (serverCapabilities.some((c) => c.startsWith("users."))) keys.add("users");
     if (serverCapabilities.includes("roles.manage")) keys.add("roles");
     if (serverCapabilities.some((c) => c.startsWith("masters."))) keys.add("masters");
@@ -141,6 +159,7 @@ export function navKeysForUser(serverCapabilities: string[] | undefined, role: R
 export const NAV_VISIBILITY: Record<Role, string[]> = {
   pending: [],
   surveyor: ["dashboard", "surveys", "settings"],
-  supervisor: ["dashboard", "surveys", "qc", "users", "reports", "settings"],
+  supervisor: ["dashboard", "surveys", "users", "reports", "settings"],
+  qc_supervisor: ["dashboard", "qc", "reports", "settings"],
   admin: ["dashboard", "surveys", "qc", "users", "roles", "masters", "reports", "audit", "settings"],
 };

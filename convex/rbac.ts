@@ -45,13 +45,19 @@ export async function seedSystemRbac(ctx: MutationCtx) {
       });
     }
 
-    const desired = SYSTEM_ROLE_PERMISSIONS[r.key] ?? [];
+    const desired = new Set<string>(SYSTEM_ROLE_PERMISSIONS[r.key] ?? []);
     const existingPerms = await ctx.db
       .query("rolePermissions")
       .withIndex("by_role", (q) => q.eq("roleId", roleId))
       .collect();
-    const existingKeys = new Set(existingPerms.map((row) => row.permissionKey));
 
+    for (const row of existingPerms) {
+      if (!desired.has(row.permissionKey)) {
+        await ctx.db.delete(row._id);
+      }
+    }
+
+    const existingKeys = new Set(existingPerms.map((row) => row.permissionKey));
     for (const key of desired) {
       if (!existingKeys.has(key)) {
         await ctx.db.insert("rolePermissions", { roleId, permissionKey: key });

@@ -1,3 +1,5 @@
+import { can, type Capability, type Role } from "@/lib/permissions";
+
 /**
  * domain.ts — the canonical dropdown options, enums and status maps used by
  * the web forms and tables.
@@ -16,19 +18,19 @@
 
 export {
   OWNERSHIP_TYPES,
+  PROPERTY_USE_SUBCATEGORIES,
   PROPERTY_USES,
   PROPERTY_USES_REQUIRING_SUBCATEGORY,
-  PROPERTY_USE_SUBCATEGORIES,
   ROAD_TYPES,
   SITUATIONS,
   TAX_RATE_ZONES,
 } from "@/convex/taxationMasters";
 
-export { SANITATION_TYPES, SANITATION_TYPE_VALUES, WATER_SOURCES, WATER_SOURCE_VALUES } from "@/convex/serviceMasters";
+export { SANITATION_TYPE_VALUES, SANITATION_TYPES, WATER_SOURCE_VALUES, WATER_SOURCES } from "@/convex/serviceMasters";
 
 export { CONSTRUCTION_TYPES, FLOOR_NAMES, FLOOR_USAGE_FACTORS, FLOOR_USAGE_TYPES } from "@/convex/areaMasters";
 
-export { MAX_SURVEY_OWNERS, RESPONDENT_RELATIONSHIPS, RESPONDENT_RELATIONSHIP_VALUES } from "@/convex/ownerConstants";
+export { MAX_SURVEY_OWNERS, RESPONDENT_RELATIONSHIP_VALUES, RESPONDENT_RELATIONSHIPS } from "@/convex/ownerConstants";
 
 export {
   GPS_ACCEPT_MAX_ACCURACY_METERS,
@@ -47,7 +49,7 @@ export type QcStatus = (typeof QC_STATUSES)[number];
 export const PHOTO_SLOTS = ["front", "inside", "side", "document"] as const;
 export type PhotoSlot = (typeof PHOTO_SLOTS)[number];
 
-export const USER_ROLES = ["pending", "surveyor", "supervisor", "admin"] as const;
+export const USER_ROLES = ["pending", "surveyor", "supervisor", "qc_supervisor", "admin"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 export const USER_STATUSES = ["pending_approval", "active", "disabled"] as const;
@@ -56,7 +58,8 @@ export type UserStatus = (typeof USER_STATUSES)[number];
 export const USER_ROLE_LABEL: Record<UserRole, string> = {
   pending: "Pending",
   surveyor: "Surveyor",
-  supervisor: "Supervisor",
+  supervisor: "Field Supervisor",
+  qc_supervisor: "QC Supervisor",
   admin: "Administrator",
 };
 
@@ -159,4 +162,31 @@ export function canSaveSurveyEdits(survey: { qcStatus: QcStatus }): boolean {
  */
 export function needsQcSaveBar(survey: { status: SurveyStatus; qcStatus: QcStatus }): boolean {
   return isSurveyAwaitingQc(survey);
+}
+
+type EditCaps = {
+  capabilities?: string[];
+  role?: string;
+};
+
+function hasCap(caps: string[] | undefined, role: string | undefined, key: Capability): boolean {
+  if (caps && caps.length > 0) return caps.includes(key);
+  return can(role as Role, key);
+}
+
+/** Whether the current user may open the survey/QC editor for this record. */
+export function canUserEditSurvey(
+  survey: { status: SurveyStatus; qcStatus: QcStatus },
+  { capabilities, role }: EditCaps,
+): boolean {
+  if (survey.qcStatus === "approved") {
+    return role === "admin" || (capabilities?.includes("surveys.viewAll") ?? false);
+  }
+  if (isSurveyAwaitingQc(survey)) {
+    return hasCap(capabilities, role, "qc.review") || role === "admin";
+  }
+  if (survey.status === "draft" || isSurveyResubmit(survey)) {
+    return hasCap(capabilities, role, "surveys.editDraft");
+  }
+  return role === "admin";
 }

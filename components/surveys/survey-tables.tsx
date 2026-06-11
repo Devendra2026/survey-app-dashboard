@@ -6,6 +6,7 @@ import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-bad
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMasters } from "@/hooks/masters/useMasters";
+import { useFrontThumbnails } from "@/hooks/surveys/usePhotos";
 import { SURVEY_ROW_TONE } from "@/lib/design-system";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
@@ -18,7 +19,8 @@ import {
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Eye } from "lucide-react";
+import { ArrowUpDown, Eye, ImageIcon } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -62,6 +64,8 @@ export function SurveyTable({
   const { masters } = useMasters();
   const ulbCodes = useMemo(() => buildUlbCodeMap(masters?.ulbs), [masters?.ulbs]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "propertyId", desc: false }]);
+  const surveyIds = useMemo(() => (rows ?? []).map((r) => r._id), [rows]);
+  const thumbnails = useFrontThumbnails(surveyIds);
 
   const columns = useMemo(
     () => [
@@ -69,6 +73,29 @@ export function SurveyTable({
         id: "serialNo",
         header: "S.No",
         cell: (c) => <span className="tabular-nums text-muted-foreground">{c.row.index + 1}</span>,
+      }),
+      col.display({
+        id: "photo",
+        header: "Photo",
+        cell: (c) => {
+          const url = thumbnails?.[c.row.original._id];
+          return (
+            <div className="flex h-10 w-14 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted/30">
+              {url ? (
+                <Image
+                  src={url}
+                  alt="Property front"
+                  width={56}
+                  height={40}
+                  className="h-full w-full object-cover"
+                  unoptimized
+                />
+              ) : (
+                <ImageIcon className="h-4 w-4 text-muted-foreground/50" aria-hidden />
+              )}
+            </div>
+          );
+        },
       }),
       col.accessor((row) => resolveDisplayPropertyId(row, ulbCodes) ?? "", {
         id: "propertyId",
@@ -125,7 +152,7 @@ export function SurveyTable({
         ),
       }),
     ],
-    [hrefBase, ulbCodes, isQc, actionLabel],
+    [hrefBase, ulbCodes, isQc, actionLabel, thumbnails],
   );
 
   const table = useReactTable({

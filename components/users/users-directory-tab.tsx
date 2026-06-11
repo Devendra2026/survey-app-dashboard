@@ -78,7 +78,7 @@ export function AllUsersDirectoryTab({
                         </span>
                       </SelectItem>
                     ))
-                  : ["admin", "supervisor", "surveyor", "pending"].map((r) => (
+                  : ["admin", "supervisor", "qc_supervisor", "surveyor", "pending"].map((r) => (
                       <SelectItem key={r} value={r}>
                         {r}
                       </SelectItem>

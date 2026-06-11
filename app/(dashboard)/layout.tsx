@@ -1,6 +1,7 @@
 "use client";
 
 import { MotionProvider, PageTransition } from "@/components/design-system/motion";
+import { ModuleGuard } from "@/components/layout/module-guard";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SidebarProvider } from "@/components/layout/sidebar-context";
 import { Topbar } from "@/components/layout/Topbar";
@@ -51,7 +52,7 @@ function AccountGate({ children }: { children: React.ReactNode }) {
           <main className="app-mesh-bg premium-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
             <MotionProvider>
               <PageTransition className="mx-auto w-full max-w-360 space-y-6 p-4 pb-10 sm:p-5 lg:space-y-8 lg:p-8 lg:pb-12">
-                {children}
+                <ModuleGuard>{children}</ModuleGuard>
               </PageTransition>
             </MotionProvider>
           </main>

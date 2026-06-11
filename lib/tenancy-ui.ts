@@ -2,7 +2,7 @@ import { SYSTEM_ROLE_PERMISSIONS, type PermissionKey } from "@/convex/permission
 
 const TENANCY_PERMISSIONS: PermissionKey[] = ["surveys.viewAssigned", "surveys.viewOwn", "qc.review"];
 
-export const SYSTEM_ROLE_KEYS = new Set(["pending", "surveyor", "supervisor", "admin"]);
+export const SYSTEM_ROLE_KEYS = new Set(["pending", "surveyor", "supervisor", "qc_supervisor", "admin"]);
 
 export function roleRequiresTenancy(roleKey: string, permissionKeys?: readonly string[]): boolean {
   if (roleKey === "admin" || roleKey === "pending") return false;
@@ -12,6 +12,11 @@ export function roleRequiresTenancy(roleKey: string, permissionKeys?: readonly s
 
 export function isSystemRoleKey(roleKey: string): boolean {
   return SYSTEM_ROLE_KEYS.has(roleKey);
+}
+
+/** Field supervisor and QC supervisor default to district-level tenant scope. */
+export function isDistrictScopedRole(roleKey: string): boolean {
+  return roleKey === "supervisor" || roleKey === "qc_supervisor";
 }
 
 export function partitionRoles<T extends { key: string; name: string; isSystem?: boolean }>(roles: T[]) {

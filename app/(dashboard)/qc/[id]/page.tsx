@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { isSurveyAwaitingQc, wasEditedAfterSubmit } from "@/lib/domain";
-import { ArrowLeft, Building2, ClipboardCheck, ExternalLink, FileText, MapPin, Pencil } from "lucide-react";
+import { ArrowLeft, Building2, ClipboardCheck, FileText, MapPin, Pencil } from "lucide-react";
 import Link from "next/link";
 import { use } from "react";
 
@@ -81,15 +81,10 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
                   <FileText className="h-4 w-4" aria-hidden /> QC Report
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="sm" className="cursor-pointer rounded-xl">
-                <Link href={`/surveys/${id}`}>
-                  <ExternalLink className="h-4 w-4" aria-hidden /> Survey detail
-                </Link>
-              </Button>
               {survey.qcStatus !== "approved" && (
-                <RoleGate anyOf={["surveys.editDraft", "qc.review"]} fallback={null}>
-                  <Button asChild size="sm" variant="outline" className="cursor-pointer rounded-xl">
-                    <Link href={`/surveys/${id}/edit?from=qc`}>
+                <RoleGate capability="qc.review" fallback={null}>
+                  <Button asChild size="sm" variant="outline" className="cursor-pointer rounded-xl border-amber-300/60">
+                    <Link href={`/qc/${id}/edit`}>
                       <Pencil className="h-4 w-4" aria-hidden /> Edit &amp; correct
                     </Link>
                   </Button>

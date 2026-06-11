@@ -11,8 +11,10 @@
  */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { hasCapability } from "./capabilities";
 import { assertCanReadWard, clientError, requireUser, writeAudit } from "./helpers";
 import { photoSlot } from "./schema";
+import { assertSurveyWritable } from "./surveyEditRules";
 
 /** Returns a one-time upload URL. Valid for ~1 hour by Convex defaults. */
 export const generateUploadUrl = mutation({
@@ -48,9 +50,17 @@ export const linkPhoto = mutation({
       clientError("NOT_FOUND", "Survey not found");
     }
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
-    if (survey.qcStatus === "approved" && me.role === "surveyor") {
+    try {
+      await assertSurveyWritable(ctx, me, survey);
+    } catch {
       await ctx.storage.delete(args.storageId);
-      clientError("LOCKED", "Survey is locked");
+      clientError("LOCKED", "Survey is locked — you cannot upload photos in its current state");
+    }
+    const canUpload =
+      (await hasCapability(ctx, me, "surveys.uploadPhotos")) || (await hasCapability(ctx, me, "qc.review"));
+    if (!canUpload) {
+      await ctx.storage.delete(args.storageId);
+      clientError("FORBIDDEN", "You don't have permission to upload photos");
     }
     if (args.sizeKb <= 0 || args.sizeKb > 1024) {
       await ctx.storage.delete(args.storageId);
@@ -180,6 +190,40 @@ export const removeBySurveySlot = mutation({
       entityId: args.surveyId,
       metadata: { slot: args.slot },
     });
+  },
+});
+
+/** Front-photo preview URLs for survey list tables (batch, max 50 ids). */
+export const frontThumbnails = query({
+  args: { surveyIds: v.array(v.id("surveys")) },
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    if (me.role === "pending") return {};
+
+    const ids = args.surveyIds.slice(0, 50);
+    const out: Record<string, string | null> = {};
+
+    for (const surveyId of ids) {
+      const survey = await ctx.db.get(surveyId);
+      if (!survey) {
+        out[surveyId] = null;
+        continue;
+      }
+      try {
+        assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+      } catch {
+        out[surveyId] = null;
+        continue;
+      }
+
+      const front = await ctx.db
+        .query("photos")
+        .withIndex("by_survey_slot", (q) => q.eq("surveyId", surveyId).eq("slot", "front"))
+        .unique();
+      out[surveyId] = front ? await ctx.storage.getUrl(front.storageId) : null;
+    }
+
+    return out;
   },
 });
 

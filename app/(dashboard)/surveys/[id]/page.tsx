@@ -11,7 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useRemoveSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
+import { canUserEditSurvey } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
+import { useCurrentUser } from "@/lib/session";
 import { ArrowLeft, Download, FileSearch, MapPin, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,6 +26,8 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
   const survey = useSurvey(id);
   const remarks = useQcRemarks(id);
   const removeSurvey = useRemoveSurvey();
+  const { role, capabilities } = useCurrentUser();
+  const canEdit = survey ? canUserEditSurvey(survey, { role, capabilities }) : false;
 
   if (survey === undefined) {
     return (
@@ -100,7 +104,7 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
               <Download className="h-4 w-4" aria-hidden /> PDF
             </Button>
             <RoleGate capability="surveys.editDraft" fallback={null}>
-              {survey.qcStatus !== "approved" && (
+              {canEdit && (
                 <Button
                   asChild
                   size="sm"

@@ -65,7 +65,7 @@ export function QcPanel({ survey }: { survey: Pick<SurveyListItem, "_id" | "stat
               <p className="rounded-lg border border-amber-300/50 bg-amber-100/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-700/40 dark:bg-amber-900/30 dark:text-amber-100">
                 This survey is in <strong>draft</strong> — it must be re-submitted before approval. You can leave
                 correction remarks or{" "}
-                <Link href={`/surveys/${survey._id}/edit?from=qc`} className="font-semibold underline">
+                <Link href={`/qc/${survey._id}/edit`} className="font-semibold underline">
                   edit directly
                 </Link>
                 .
@@ -167,13 +167,13 @@ export function QcPanel({ survey }: { survey: Pick<SurveyListItem, "_id" | "stat
                 </Button>
               )}
               {survey.qcStatus !== "approved" && (
-                <RoleGate anyOf={["surveys.editDraft", "qc.review"]} fallback={null}>
+                <RoleGate capability="qc.review" fallback={null}>
                   <Button
                     asChild
                     variant="outline"
                     className="w-full rounded-full border-amber-300 text-amber-800 dark:border-amber-700 dark:text-amber-200"
                   >
-                    <Link href={`/surveys/${survey._id}/edit?from=qc`}>
+                    <Link href={`/qc/${survey._id}/edit`}>
                       <Pencil className="h-4 w-4" /> Edit &amp; correct
                     </Link>
                   </Button>

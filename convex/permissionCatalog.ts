@@ -32,15 +32,24 @@ export type PermissionKey = (typeof PERMISSION_CATALOG)[number]["key"];
 export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> = {
   pending: [],
   surveyor: ["surveys.viewOwn", "surveys.editDraft", "surveys.submit", "surveys.uploadPhotos", "surveys.delete"],
+  /** Field supervisor — collects and submits surveys; no QC module access. */
   supervisor: [
     "surveys.viewAssigned",
     "surveys.editDraft",
+    "surveys.submit",
+    "surveys.uploadPhotos",
+    "analytics.view",
+    "users.view",
+    "reports.export",
+  ],
+  /** QC supervisor — verification portal only; corrections update survey rows in place. */
+  qc_supervisor: [
     "qc.review",
     "qc.decide",
     "qc.requestCorrection",
     "qc.reopen",
+    "surveys.uploadPhotos",
     "analytics.view",
-    "users.view",
     "reports.export",
   ],
   admin: PERMISSION_CATALOG.map((p) => p.key),
@@ -49,6 +58,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> =
 export const SYSTEM_ROLES = [
   { key: "pending", name: "Pending", isSystem: true },
   { key: "surveyor", name: "Surveyor", isSystem: true },
-  { key: "supervisor", name: "Supervisor", isSystem: true },
+  { key: "supervisor", name: "Field Supervisor", isSystem: true },
+  { key: "qc_supervisor", name: "QC Supervisor", isSystem: true },
   { key: "admin", name: "Administrator", isSystem: true },
 ] as const;

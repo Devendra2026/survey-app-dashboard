@@ -29,12 +29,16 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     items: [{ key: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
   },
   {
-    title: "Operations",
-    items: [
-      { key: "surveys", href: "/surveys", label: "Surveys", icon: ClipboardList },
-      { key: "qc", href: "/qc", label: "Quality Control", icon: ShieldCheck },
-      { key: "reports", href: "/reports", label: "Reports", icon: FileBarChart },
-    ],
+    title: "Field Surveys",
+    items: [{ key: "surveys", href: "/surveys", label: "Surveys", icon: ClipboardList }],
+  },
+  {
+    title: "Quality Control",
+    items: [{ key: "qc", href: "/qc", label: "QC Portal", icon: ShieldCheck }],
+  },
+  {
+    title: "Insights",
+    items: [{ key: "reports", href: "/reports", label: "Reports", icon: FileBarChart }],
   },
   {
     title: "Administration",
@@ -125,12 +129,16 @@ function NavLink({
 function NavItems({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   const { role, capabilities } = useCurrentUser();
-  const visible = navKeysForUser(capabilities, (role ?? "pending") as Role);
+  const visibleKeys = new Set(navKeysForUser(capabilities, (role ?? "pending") as Role));
 
-  const sections = NAV_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter((item) => visible.includes(item.key)),
-  })).filter((section) => section.items.length > 0);
+  const sections = (() => {
+    const result: typeof NAV_SECTIONS = [];
+    for (const section of NAV_SECTIONS) {
+      const items = section.items.filter((item) => visibleKeys.has(item.key));
+      if (items.length > 0) result.push({ ...section, items });
+    }
+    return result;
+  })();
 
   return (
     <nav

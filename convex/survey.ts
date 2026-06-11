@@ -4,6 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { addressTenantContext, normalizeAddressFields, validateAddressSection } from "./addressRules";
 import { presentFloorRow, validateAreaSection } from "./areaMasters";
+import { requireCapability } from "./capabilities";
 import { fieldSurveyAccess, isOwnScopeSurveyor, querySurveysInFieldScope } from "./fieldAccess";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS, GPS_TARGET_ACCURACY_METERS } from "./gpsAccuracy";
 import { assertCanReadWard, canReadWard, clientError, requireUser, writeAudit } from "./helpers";
@@ -605,7 +606,8 @@ export const submit = mutation({
   handler: async (ctx, args) => {
     const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
-    if (survey.surveyorId !== me._id && me.role === "surveyor") {
+    await requireCapability(ctx, me, "surveys.submit");
+    if (survey.surveyorId !== me._id && (await isOwnScopeSurveyor(ctx, me))) {
       clientError("FORBIDDEN", "Not your survey");
     }
     if (survey.status !== "draft" && survey.status !== "rejected") {

@@ -14,9 +14,15 @@ import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { hasCapability } from "./capabilities";
-import { fieldSurveyAccess, isOwnScopeSurveyor } from "./fieldAccess";
+import { isOwnScopeSurveyor } from "./fieldAccess";
 import { clientError } from "./helpers";
 import { assertMunicipalityInScope } from "./tenancy";
+
+/** Admin emergency edit — any survey state except when explicitly locked downstream. */
+async function canAdminEmergencyEdit(ctx: MutationCtx, user: Doc<"users">): Promise<boolean> {
+  if (user.role === "admin") return true;
+  return await hasCapability(ctx, user, "surveys.viewAll");
+}
 
 /** Gate draft saves — dynamic roles use `surveys.editDraft`; legacy supervisors may only have `qc.review`. */
 export async function requireSurveyDraftEdit(ctx: MutationCtx, user: Doc<"users">): Promise<void> {
@@ -32,9 +38,35 @@ export async function requireSurveyDraftEdit(ctx: MutationCtx, user: Doc<"users"
 }
 
 export async function assertSurveyWritable(ctx: MutationCtx, me: Doc<"users">, survey: Doc<"surveys">): Promise<void> {
-  if (survey.qcStatus === "approved" && (await fieldSurveyAccess(ctx, me)) === "own") {
-    clientError("LOCKED", "This survey is locked — request your supervisor to re-open it");
+  const [isAdmin, canQcReview, canEditDraft] = await Promise.all([
+    canAdminEmergencyEdit(ctx, me),
+    hasCapability(ctx, me, "qc.review"),
+    hasCapability(ctx, me, "surveys.editDraft"),
+  ]);
+
+  if (isAdmin) return;
+
+  if (survey.qcStatus === "approved") {
+    clientError("LOCKED", "This survey is approved — contact an administrator to re-open it");
   }
+
+  // In QC queue: only QC staff may correct data; field roles cannot edit after submit.
+  if (survey.status === "submitted" && survey.qcStatus === "pending") {
+    if (canQcReview) return;
+    clientError("LOCKED", "Survey is in QC review — only QC staff can edit until a decision is made");
+  }
+
+  // Draft / returned for correction — field surveyor or field supervisor.
+  if (survey.status === "draft") {
+    const ownScope = await isOwnScopeSurveyor(ctx, me);
+    if (ownScope && survey.surveyorId !== me._id) {
+      clientError("FORBIDDEN", "Not your survey");
+    }
+    if (canEditDraft) return;
+    clientError("FORBIDDEN", "You don't have permission to edit this survey");
+  }
+
+  clientError("LOCKED", "This survey cannot be edited in its current state");
 }
 
 /** Status axes after a successful save — never implicitly resubmit or approve. */

@@ -11,18 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useSubmitSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
-import {
-  canSubmitSurvey,
-  isSurveyAwaitingQc,
-  isSurveyResubmit,
-  needsQcSaveBar,
-  wasEditedAfterSubmit,
-} from "@/lib/domain";
+import { canSubmitSurvey, canUserEditSurvey, isSurveyAwaitingQc, isSurveyResubmit } from "@/lib/domain";
 import { convexValidationSummary } from "@/lib/errors";
 import { useCurrentUser } from "@/lib/session";
 import { ArrowLeft, Eye, PencilLine } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Suspense, use, useState } from "react";
 import { toast } from "sonner";
 
@@ -39,12 +33,10 @@ function SurveyEditPageSkeleton() {
 function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const fromQc = searchParams.get("from") === "qc";
   const survey = useSurvey(id);
   const remarks = useQcRemarks(id);
   const submitSurvey = useSubmitSurvey();
-  const { role } = useCurrentUser();
+  const { role, capabilities } = useCurrentUser();
   const [submitting, setSubmitting] = useState(false);
 
   if (survey === undefined) {
@@ -55,14 +47,13 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
     return <EmptyState title="Survey not found" description="It may have been deleted or is outside your scope." />;
   }
 
-  const locked = survey.qcStatus === "approved";
-  const canSubmit = canSubmitSurvey(survey);
+  const canEdit = canUserEditSurvey(survey, { role, capabilities });
+  const locked = survey.qcStatus === "approved" && !canEdit;
+  const canSubmit = canSubmitSurvey(survey) && canEdit;
   const isResubmit = isSurveyResubmit(survey);
   const awaitingQc = isSurveyAwaitingQc(survey);
-  const isQcReviewer = role === "supervisor" || role === "admin";
-  const qcEditMode = fromQc && isQcReviewer && needsQcSaveBar(survey);
   const propertyLabel = survey.propertyId || `Parcel ${survey.parcelNo}`;
-  const backHref = fromQc ? `/qc/${id}` : `/surveys/${id}`;
+  const backHref = `/surveys/${id}`;
 
   async function onSubmit() {
     setSubmitting(true);
@@ -78,11 +69,7 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
   }
 
   return (
-    <RoleGate
-      mode="page"
-      anyOf={["surveys.editDraft", "qc.review"]}
-      deniedDescription="You don't have permission to edit surveys."
-    >
+    <RoleGate mode="page" capability="surveys.editDraft" deniedDescription="You don't have permission to edit surveys.">
       <PageTransition className="space-y-6 lg:space-y-8">
         <Button
           asChild
@@ -92,18 +79,14 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
         >
           <Link href={backHref}>
             <ArrowLeft className="h-4 w-4" aria-hidden />
-            {fromQc ? "Back to QC review" : "Back to detail"}
+            Back to detail
           </Link>
         </Button>
 
         <ExecutiveHero
-          eyebrow={qcEditMode ? "QC Correction" : "Survey Edit"}
+          eyebrow="Survey Edit"
           title={propertyLabel}
-          description={
-            qcEditMode
-              ? `${survey.city} · Ward ${survey.wardNo} — fix data, save corrections, then approve from QC review.`
-              : `${survey.city} · Ward ${survey.wardNo} — complete all tabs before submitting for QC.`
-          }
+          description={`${survey.city} · Ward ${survey.wardNo} — complete all tabs before submitting for QC.`}
           icon={PencilLine}
           gradient="brand"
           actions={
@@ -124,10 +107,14 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
           }
         />
 
-        {locked ? (
+        {locked || !canEdit ? (
           <EmptyState
-            title="Survey locked"
-            description="This survey has been approved and can no longer be edited. Contact a supervisor to re-open it."
+            title={awaitingQc ? "Awaiting QC review" : "Survey locked"}
+            description={
+              awaitingQc
+                ? "This survey has been submitted and is locked until QC completes verification. Contact an administrator for emergency edits."
+                : "This survey has been approved and can no longer be edited. Contact an administrator to re-open it."
+            }
             action={
               <Button asChild variant="outline" className="rounded-xl">
                 <Link href={`/surveys/${id}`}>View detail</Link>
@@ -137,36 +124,11 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
         ) : (
           <>
             {isResubmit && <QcCorrectionBanner remarks={remarks} />}
-            {awaitingQc && (
-              <output className="block rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
-                {isQcReviewer ? (
-                  <>
-                    This survey is in the QC queue. Save corrections here — it stays submitted for review
-                    {wasEditedAfterSubmit(survey) ? " (updated since last submit)" : ""}. Approve or return from the QC
-                    review screen when done.
-                  </>
-                ) : (
-                  <>
-                    This survey is awaiting QC review. You can save edits, but it cannot be re-submitted until QC
-                    returns it for correction.
-                  </>
-                )}
-              </output>
-            )}
             <SurveyEditor
               localId={survey.localId}
               surveyId={id}
               existing={survey}
-              showSaveBar={needsQcSaveBar(survey)}
-              saveBarLabel="Save corrections"
-              saveBarDescription="Saves property details and plot area. The survey stays submitted for QC — approve or return from the QC review screen."
-              saveBarSecondaryAction={
-                fromQc ? (
-                  <Button asChild variant="outline" className="cursor-pointer rounded-xl">
-                    <Link href={`/qc/${id}`}>Return to QC review</Link>
-                  </Button>
-                ) : undefined
-              }
+              showSaveBar={!canSubmit}
               showSubmitBar={canSubmit}
               onSubmit={onSubmit}
               submitting={submitting}

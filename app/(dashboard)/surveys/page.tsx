@@ -134,145 +134,152 @@ export default function SurveysPage() {
   const submittedCount = (filteredByDate as any[]).filter((r) => r.status === "submitted").length;
 
   return (
-    <PageTransition className="space-y-6 lg:space-y-8">
-      <ExecutiveHero
-        eyebrow="Survey Dashboard"
-        title="Survey Management"
-        description="Search, filter, and manage property surveys across your assigned scope."
-        icon={LayoutList}
-        gradient="brand"
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <RoleGate
-              capability="reports.export"
-              fallback={<SurveyExcelActions filters={listFilters} disabled={isLoading} />}
-            >
-              <SurveyExcelActions filters={listFilters} canImport disabled={isLoading} />
-            </RoleGate>
-            <RoleGate capability="surveys.editDraft" fallback={null}>
-              <Button asChild className="btn-brand cursor-pointer rounded-xl shadow-md">
-                <Link href="/surveys/new">
-                  <Plus className="h-4 w-4" aria-hidden /> New Survey
-                </Link>
-              </Button>
-            </RoleGate>
-          </div>
-        }
-      />
+    <RoleGate
+      mode="page"
+      anyOf={["surveys.viewOwn", "surveys.viewAssigned", "surveys.viewAll"]}
+      deniedDescription="The Surveys module is for field surveyors and supervisors. QC staff should use the QC Portal."
+      redirectTo="/qc"
+    >
+      <PageTransition className="space-y-6 lg:space-y-8">
+        <ExecutiveHero
+          eyebrow="Survey Dashboard"
+          title="Survey Management"
+          description="Search, filter, and manage property surveys across your assigned scope."
+          icon={LayoutList}
+          gradient="brand"
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <RoleGate
+                capability="reports.export"
+                fallback={<SurveyExcelActions filters={listFilters} disabled={isLoading} />}
+              >
+                <SurveyExcelActions filters={listFilters} canImport disabled={isLoading} />
+              </RoleGate>
+              <RoleGate capability="surveys.editDraft" fallback={null}>
+                <Button asChild className="btn-brand cursor-pointer rounded-xl shadow-md">
+                  <Link href="/surveys/new">
+                    <Plus className="h-4 w-4" aria-hidden /> New Survey
+                  </Link>
+                </Button>
+              </RoleGate>
+            </div>
+          }
+        />
 
-      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
-        <MetricCard
-          label="Total Surveys"
-          value={stats.total.toLocaleString()}
-          hint="in active filters"
-          icon={BarChart3}
-          tone="default"
-        />
-        <MetricCard
-          label="QC Pending"
-          value={stats.qcPending.toLocaleString()}
-          hint="awaiting review"
-          icon={Clock3}
-          tone="warning"
-        />
-        <MetricCard
-          label="Approved"
-          value={stats.approved.toLocaleString()}
-          hint="QC approved"
-          icon={CheckCircle2}
-          tone="success"
-        />
-        <MetricCard
-          label="Today"
-          value={stats.today.toLocaleString()}
-          hint="surveys today"
-          icon={CalendarDays}
-          tone="info"
-        />
-        <MetricCard
-          label="Rejection Rate"
-          value={`${stats.rejectionRate}%`}
-          hint={`${stats.rejected} rejected`}
-          icon={TrendingDown}
-          tone="destructive"
-        />
-      </div>
-
-      <GlassCard padding="md">
-        <SectionHeader
-          title="Smart Filters"
-          description="Narrow by geography, status, and date range"
-          action={<Filter className="h-4 w-4 text-primary" aria-hidden />}
-          className="mb-4"
-        />
-        <SurveyFilters value={filters} onChange={handleFiltersChange} />
-      </GlassCard>
-
-      <GlassCard padding="none" className="overflow-hidden">
-        <div className="border-b border-border/60 px-5 py-4">
-          <SectionHeader
-            title="Survey Registry"
-            description={`${filteredByTab.length.toLocaleString()} surveys${activeTab !== "all" ? " in selected tab" : ""}`}
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
+          <MetricCard
+            label="Total Surveys"
+            value={stats.total.toLocaleString()}
+            hint="in active filters"
+            icon={BarChart3}
+            tone="default"
+          />
+          <MetricCard
+            label="QC Pending"
+            value={stats.qcPending.toLocaleString()}
+            hint="awaiting review"
+            icon={Clock3}
+            tone="warning"
+          />
+          <MetricCard
+            label="Approved"
+            value={stats.approved.toLocaleString()}
+            hint="QC approved"
+            icon={CheckCircle2}
+            tone="success"
+          />
+          <MetricCard
+            label="Today"
+            value={stats.today.toLocaleString()}
+            hint="surveys today"
+            icon={CalendarDays}
+            tone="info"
+          />
+          <MetricCard
+            label="Rejection Rate"
+            value={`${stats.rejectionRate}%`}
+            hint={`${stats.rejected} rejected`}
+            icon={TrendingDown}
+            tone="destructive"
           />
         </div>
-        <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5">
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
-              <TabPill
-                value="all"
-                label="All"
-                count={filteredByDate.length}
-                activeColor="data-[state=active]:bg-brand-navy data-[state=active]:text-white dark:data-[state=active]:bg-primary"
-              />
-              <TabPill
-                value="qcPending"
-                label="QC Pending"
-                count={stats.qcPending}
-                activeColor="data-[state=active]:bg-warning data-[state=active]:text-amber-950"
-              />
-              <TabPill
-                value="qcApproved"
-                label="Approved"
-                count={stats.approved}
-                activeColor="data-[state=active]:bg-success data-[state=active]:text-white"
-              />
-              <TabPill
-                value="qcRejected"
-                label="Rejected"
-                count={stats.rejected}
-                activeColor="data-[state=active]:bg-brand-red data-[state=active]:text-white"
-              />
-              <TabPill
-                value="draft"
-                label="Draft"
-                count={draftCount}
-                activeColor="data-[state=active]:bg-muted-foreground/80 data-[state=active]:text-white"
-              />
-              <TabPill
-                value="submitted"
-                label="Submitted"
-                count={submittedCount}
-                activeColor="data-[state=active]:bg-brand-navy data-[state=active]:text-white dark:data-[state=active]:bg-primary"
-              />
-            </TabsList>
-          </Tabs>
-        </div>
-        <div className="p-4">
-          <SurveyTable rows={isLoading ? undefined : (pagedRows as Parameters<typeof SurveyTable>[0]["rows"])} />
-        </div>
-      </GlassCard>
 
-      <TablePagination
-        pageNumber={pageNumber}
-        pageSize={pageSize}
-        itemCount={pagedRows.length}
-        canGoPrev={canGoPrev}
-        canGoNext={canGoNext}
-        onPrev={() => setPageNumber((p) => Math.max(1, p - 1))}
-        onNext={() => setPageNumber((p) => (canGoNext ? p + 1 : p))}
-        pageSizeOptions={[10, 20, 50, 100]}
-        onPageSizeChange={handlePageSizeChange}
-      />
-    </PageTransition>
+        <GlassCard padding="md">
+          <SectionHeader
+            title="Smart Filters"
+            description="Narrow by geography, status, and date range"
+            action={<Filter className="h-4 w-4 text-primary" aria-hidden />}
+            className="mb-4"
+          />
+          <SurveyFilters value={filters} onChange={handleFiltersChange} />
+        </GlassCard>
+
+        <GlassCard padding="none" className="overflow-hidden">
+          <div className="border-b border-border/60 px-5 py-4">
+            <SectionHeader
+              title="Survey Registry"
+              description={`${filteredByTab.length.toLocaleString()} surveys${activeTab !== "all" ? " in selected tab" : ""}`}
+            />
+          </div>
+          <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5">
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
+              <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
+                <TabPill
+                  value="all"
+                  label="All"
+                  count={filteredByDate.length}
+                  activeColor="data-[state=active]:bg-brand-navy data-[state=active]:text-white dark:data-[state=active]:bg-primary"
+                />
+                <TabPill
+                  value="qcPending"
+                  label="QC Pending"
+                  count={stats.qcPending}
+                  activeColor="data-[state=active]:bg-warning data-[state=active]:text-amber-950"
+                />
+                <TabPill
+                  value="qcApproved"
+                  label="Approved"
+                  count={stats.approved}
+                  activeColor="data-[state=active]:bg-success data-[state=active]:text-white"
+                />
+                <TabPill
+                  value="qcRejected"
+                  label="Rejected"
+                  count={stats.rejected}
+                  activeColor="data-[state=active]:bg-brand-red data-[state=active]:text-white"
+                />
+                <TabPill
+                  value="draft"
+                  label="Draft"
+                  count={draftCount}
+                  activeColor="data-[state=active]:bg-muted-foreground/80 data-[state=active]:text-white"
+                />
+                <TabPill
+                  value="submitted"
+                  label="Submitted"
+                  count={submittedCount}
+                  activeColor="data-[state=active]:bg-brand-navy data-[state=active]:text-white dark:data-[state=active]:bg-primary"
+                />
+              </TabsList>
+            </Tabs>
+          </div>
+          <div className="p-4">
+            <SurveyTable rows={isLoading ? undefined : (pagedRows as Parameters<typeof SurveyTable>[0]["rows"])} />
+          </div>
+        </GlassCard>
+
+        <TablePagination
+          pageNumber={pageNumber}
+          pageSize={pageSize}
+          itemCount={pagedRows.length}
+          canGoPrev={canGoPrev}
+          canGoNext={canGoNext}
+          onPrev={() => setPageNumber((p) => Math.max(1, p - 1))}
+          onNext={() => setPageNumber((p) => (canGoNext ? p + 1 : p))}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      </PageTransition>
+    </RoleGate>
   );
 }

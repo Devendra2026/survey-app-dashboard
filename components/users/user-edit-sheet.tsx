@@ -19,7 +19,7 @@ import {
   useUpdateUser,
 } from "@/hooks/users/useUsers";
 import { parseConvexError } from "@/lib/errors";
-import { isSystemRoleKey, roleRequiresTenancy } from "@/lib/tenancy-ui";
+import { isDistrictScopedRole, isSystemRoleKey, roleRequiresTenancy } from "@/lib/tenancy-ui";
 import { tenantScopeIsComplete, tenantScopeToApproveArgs, type TenantScopeValue } from "@/lib/users/tenant-scope";
 import { cn } from "@/lib/utils";
 import {
@@ -75,17 +75,18 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
   const catalog = useTenantCatalog();
 
   const activeRoles = (roleCatalog ?? []).filter((r) => r.isActive && r.key !== "pending");
+
   const preferredRole =
     user.requestedRole &&
     activeRoles.some((r) => r.key === user.requestedRole && (r.isSystem || isSystemRoleKey(r.key)))
       ? user.requestedRole
-      : user.requestedRole === "supervisor"
-        ? "supervisor"
+      : isDistrictScopedRole(user.requestedRole ?? "")
+        ? user.requestedRole!
         : "surveyor";
 
   const [role, setRole] = useState<string>(preferredRole);
   const [tenantScope, setTenantScope] = useState<TenantScopeValue>({
-    scope: preferredRole === "supervisor" ? "district" : "ulb",
+    scope: isDistrictScopedRole(preferredRole) ? "district" : "ulb",
     districtId: catalog?.[0]?._id ?? "",
     municipalityId: "",
     wards: [],
@@ -163,7 +164,7 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
                 setRole(v);
                 setTenantScope((s) => ({
                   ...s,
-                  scope: v === "supervisor" ? "district" : "ulb",
+                  scope: isDistrictScopedRole(v) ? "district" : "ulb",
                   municipalityId: "",
                   wards: [],
                 }));
@@ -194,7 +195,9 @@ function ApprovePendingPanel({ user, onClose }: { user: SheetPendingUser; onClos
                 value={tenantScope}
                 onChange={(patch) => setTenantScope((s) => ({ ...s, ...patch }))}
                 wardHint={
-                  role === "supervisor" ? "Optional — limit QC review to specific wards inside the ULB." : undefined
+                  isDistrictScopedRole(role)
+                    ? "Optional — limit QC review to specific wards inside the ULB."
+                    : undefined
                 }
               />
             </UserWorkspaceSection>
@@ -288,7 +291,7 @@ function editListedReducer(state: EditListedState, action: EditListedAction): Ed
         role: action.role,
         tenantScope: {
           ...state.tenantScope,
-          scope: action.role === "supervisor" ? "district" : "ulb",
+          scope: isDistrictScopedRole(action.role) ? "district" : "ulb",
           municipalityId: "",
           wards: [],
         },
@@ -546,7 +549,7 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
                   value={tenantScope}
                   onChange={(patch) => dispatch({ type: "patch_tenant_scope", patch })}
                   wardHint={
-                    role === "supervisor"
+                    isDistrictScopedRole(role)
                       ? "Optional ward limits for QC supervisors within the selected ULB."
                       : undefined
                   }
