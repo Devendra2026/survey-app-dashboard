@@ -3,20 +3,13 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Id } from "@/convex/_generated/dataModel";
 import { useTenantCatalog } from "@/hooks/users/useUsers";
+import type { TenantScopeValue } from "@/lib/users/tenant-scope";
 import { cn } from "@/lib/utils";
 import { Building2, Check, MapPin, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 type Ward = { _id: string; wardNo: string };
-
-export type TenantScopeValue = {
-  scope: "ulb" | "district";
-  districtId: string;
-  municipalityId: string;
-  wards: string[];
-};
 
 function ScopeTypePicker({
   value,
@@ -315,19 +308,4 @@ export function TenantScopeFields({
       )}
     </div>
   );
-}
-
-export function tenantScopeIsComplete(value: TenantScopeValue): boolean {
-  if (!value.districtId) return false;
-  if (value.scope === "district") return true;
-  return !!value.municipalityId;
-}
-
-export function tenantScopeToApproveArgs(value: TenantScopeValue) {
-  return {
-    districtId: value.districtId ? (value.districtId as Id<"districts">) : undefined,
-    municipalityId:
-      value.scope === "ulb" && value.municipalityId ? (value.municipalityId as Id<"municipalities">) : undefined,
-    wardAssignments: value.wards,
-  };
 }

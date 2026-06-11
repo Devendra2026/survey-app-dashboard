@@ -1,7 +1,7 @@
 "use client";
 
 import { CoverageChart, MunicipalityPerformanceCard } from "@/components/analytics/charts";
-import { ActivityFeed, buildActivityFeed } from "@/components/design-system/activity-feed";
+import { ActivityFeed } from "@/components/design-system/activity-feed";
 import { ExecutiveHero, SectionHeader } from "@/components/design-system/executive-hero";
 import { MetricCard } from "@/components/design-system/metric-card";
 import { FadeIn, StaggerGrid, StaggerItem } from "@/components/design-system/motion";
@@ -9,6 +9,7 @@ import { CardsSkeleton } from "@/components/shared/loading";
 import { useDailyTrend, useDashboardCounts, useStatsBreakdown, useWardCoverage } from "@/hooks/analytics/useAnalytics";
 import { useSurveyList } from "@/hooks/surveys/useSurveys";
 import { useHasCapability } from "@/hooks/use-capability";
+import { buildActivityFeed } from "@/lib/activity-feed";
 import { can } from "@/lib/permissions";
 import { useCurrentUser } from "@/lib/session";
 import {

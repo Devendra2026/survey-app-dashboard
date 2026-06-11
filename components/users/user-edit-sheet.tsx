@@ -6,12 +6,7 @@ import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RoleSelectItems } from "@/components/users/role-select-items";
-import {
-  TenantScopeFields,
-  tenantScopeIsComplete,
-  tenantScopeToApproveArgs,
-  type TenantScopeValue,
-} from "@/components/users/tenant-scope-fields";
+import { TenantScopeFields } from "@/components/users/tenant-scope-fields";
 import { UserSheetFooter, UserSheetHero, UserWorkspaceSection } from "@/components/users/user-sheet-layout";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useAssignableRoles, useSetUserAllotments, useUserAllotments } from "@/hooks/rbac/useRbac";
@@ -24,6 +19,7 @@ import {
 } from "@/hooks/users/useUsers";
 import { parseConvexError } from "@/lib/errors";
 import { isSystemRoleKey, roleRequiresTenancy } from "@/lib/tenancy-ui";
+import { tenantScopeIsComplete, tenantScopeToApproveArgs, type TenantScopeValue } from "@/lib/users/tenant-scope";
 import { cn } from "@/lib/utils";
 import {
   Ban,

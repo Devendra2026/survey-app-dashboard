@@ -148,7 +148,7 @@ function NavItems({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?:
           >
             {section.title}
           </p>
-          <ul className="space-y-0.5" role="list">
+          <ul className="space-y-0.5">
             {section.items.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (

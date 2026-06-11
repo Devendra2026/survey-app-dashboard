@@ -3,17 +3,9 @@
 import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { AiInsight } from "@/lib/ai-insights";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Brain, Sparkles } from "lucide-react";
-
-export type AiInsight = {
-  id: string;
-  title: string;
-  body: string;
-  severity: "info" | "warning" | "critical" | "opportunity";
-  metric?: string;
-  action?: { label: string; href: string };
-};
 
 const severityStyles = {
   info: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20",
@@ -29,76 +21,6 @@ const severityLabel = {
   opportunity: "Opportunity",
 };
 
-/** Derives heuristic insights from dashboard metrics — no external AI API required. */
-export function deriveAiInsights(input: {
-  total: number;
-  pendingQc: number;
-  rejected: number;
-  approved: number;
-  today: number;
-  rejectionRate: number;
-  wardCoverageLow?: number;
-}): AiInsight[] {
-  const insights: AiInsight[] = [];
-
-  if (input.pendingQc > 0 && input.total > 0) {
-    const pct = Math.round((input.pendingQc / input.total) * 100);
-    if (pct >= 20) {
-      insights.push({
-        id: "qc-backlog",
-        title: "QC backlog building",
-        body: `${input.pendingQc} surveys (${pct}%) await review. Prioritize oldest submissions to maintain SLA.`,
-        severity: pct >= 35 ? "critical" : "warning",
-        metric: `${input.pendingQc} pending`,
-        action: { label: "Open QC queue", href: "/qc" },
-      });
-    }
-  }
-
-  if (input.rejectionRate >= 8) {
-    insights.push({
-      id: "rejection-rate",
-      title: "Elevated rejection rate",
-      body: `Rejection rate at ${input.rejectionRate}% — review common remark tags and surveyor training gaps.`,
-      severity: input.rejectionRate >= 15 ? "critical" : "warning",
-      metric: `${input.rejectionRate}%`,
-      action: { label: "View rejected", href: "/surveys" },
-    });
-  }
-
-  if (input.today > 0 && input.approved > 0) {
-    insights.push({
-      id: "momentum",
-      title: "Field momentum detected",
-      body: `${input.today} surveys captured today with ${input.approved} total approvals in scope.`,
-      severity: "opportunity",
-      metric: `+${input.today} today`,
-    });
-  }
-
-  if (input.wardCoverageLow !== undefined && input.wardCoverageLow > 0) {
-    insights.push({
-      id: "coverage-gap",
-      title: "Coverage gaps identified",
-      body: `${input.wardCoverageLow} wards below 50% coverage target. Reallocate surveyor capacity.`,
-      severity: "info",
-      metric: `${input.wardCoverageLow} wards`,
-      action: { label: "View coverage", href: "/dashboard" },
-    });
-  }
-
-  if (insights.length === 0) {
-    insights.push({
-      id: "healthy",
-      title: "Operations within normal range",
-      body: "Pipeline metrics are balanced. No immediate intervention required.",
-      severity: "info",
-    });
-  }
-
-  return insights.slice(0, 4);
-}
-
 export function AiInsightsPanel({ insights, className }: { insights: AiInsight[]; className?: string }) {
   return (
     <GlassCard variant="ai" padding="md" className={className}>
@@ -113,7 +35,7 @@ export function AiInsightsPanel({ insights, className }: { insights: AiInsight[]
           </Badge>
         }
       />
-      <ul className="space-y-3" role="list" aria-label="AI insights">
+      <ul className="space-y-3" aria-label="AI insights">
         {insights.map((insight) => (
           <li
             key={insight.id}

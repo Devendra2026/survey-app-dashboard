@@ -149,7 +149,7 @@ export default function ReportsPage() {
           <div className="col-span-12 lg:col-span-4">
             <SectionHeader title="Saved Reports" description="Quick access to recent exports" className="mb-4" />
             <GlassCard padding="md">
-              <ul className="space-y-2" role="list">
+              <ul className="space-y-2">
                 {SAVED_REPORTS.map((report) => (
                   <li
                     key={report.id}
