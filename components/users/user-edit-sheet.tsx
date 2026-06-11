@@ -10,6 +10,7 @@ import { TenantScopeFields } from "@/components/users/tenant-scope-fields";
 import { UserSheetFooter, UserSheetHero, UserWorkspaceSection } from "@/components/users/user-sheet-layout";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useAssignableRoles, useSetUserAllotments, useUserAllotments } from "@/hooks/rbac/useRbac";
+import { useHasCapability } from "@/hooks/use-capability";
 import {
   useApproveUser,
   useAssignTenant,
@@ -347,6 +348,9 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
   const setAllotments = useSetUserAllotments();
   const roleCatalog = useAssignableRoles({ includeInactive: false });
   const catalog = useTenantCatalog();
+  const canDisableUsers = useHasCapability("users.disable");
+  const canChangeRole = useHasCapability("users.approve");
+  const canAssignTenant = useHasCapability("users.assignTenant");
 
   const [{ role, tenantScope, busy, allotDialogOpen, tab }, dispatch] = useReducer(
     editListedReducer,
@@ -366,8 +370,11 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
     tenantScope.municipalityId !== initialScope.municipalityId ||
     tenantScope.wards.toSorted().join() !== initialScope.wards.toSorted().join();
   const dirty = roleChanged || scopeChanged;
+  const canSave =
+    (roleChanged && canChangeRole) || (scopeChanged && canAssignTenant) || (!roleChanged && !scopeChanged && dirty);
 
   async function onToggleStatus() {
+    if (!canDisableUsers) return;
     const next = user.status === "active" ? "disabled" : "active";
     if (!confirm(`${next === "disabled" ? "Disable" : "Enable"} ${user.name}?`)) return;
     dispatch({ type: "set_busy", busy: true });
@@ -383,14 +390,22 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
   }
 
   async function onSave() {
+    if (roleChanged && !canChangeRole) {
+      toast.error("You don't have permission to change roles.");
+      return;
+    }
+    if (scopeChanged && !canAssignTenant) {
+      toast.error("You don't have permission to change tenant scope.");
+      return;
+    }
     dispatch({ type: "set_busy", busy: true });
     try {
       const jobs: Promise<unknown>[] = [];
 
-      if (roleChanged) {
+      if (roleChanged && canChangeRole) {
         jobs.push(updateUserMut({ userId: user._id, role: role as never }));
       }
-      if (!isAdmin && scopeChanged) {
+      if (!isAdmin && scopeChanged && canAssignTenant) {
         if (tenantScope.scope === "ulb" && tenantScope.municipalityId) {
           jobs.push(
             assignTenantMut({
@@ -431,7 +446,11 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
             <TabsTrigger value="access" className="cursor-pointer rounded-lg text-xs sm:text-sm">
               Access & role
             </TabsTrigger>
-            <TabsTrigger value="allotments" className="cursor-pointer rounded-lg text-xs sm:text-sm" disabled={isAdmin}>
+            <TabsTrigger
+              value="allotments"
+              className="cursor-pointer rounded-lg text-xs sm:text-sm"
+              disabled={isAdmin || !canAssignTenant}
+            >
               Allotments
             </TabsTrigger>
           </TabsList>
@@ -471,7 +490,7 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
                     </p>
                   </div>
                 </div>
-                {user.role !== "admin" && (
+                {user.role !== "admin" && canDisableUsers && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -499,7 +518,11 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
             </UserWorkspaceSection>
 
             <UserWorkspaceSection title="Role" description="System or custom permission set" icon={Shield} delay={0.04}>
-              <Select value={role} onValueChange={(v) => dispatch({ type: "set_role", role: v })}>
+              <Select
+                value={role}
+                onValueChange={(v) => dispatch({ type: "set_role", role: v })}
+                disabled={!canChangeRole}
+              >
                 <SelectTrigger className="h-10 w-full cursor-pointer rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
@@ -507,9 +530,12 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
                   <RoleSelectItems roles={activeRoles} />
                 </SelectContent>
               </Select>
+              {!canChangeRole && (
+                <p className="mt-2 text-xs text-muted-foreground">Only administrators can change user roles.</p>
+              )}
             </UserWorkspaceSection>
 
-            {!isAdmin && needsTenancy && (
+            {!isAdmin && needsTenancy && canAssignTenant && (
               <UserWorkspaceSection
                 title="Primary tenant scope"
                 description="Main district, ULB, and ward assignment"
@@ -554,13 +580,15 @@ function EditListedPanel({ user, onClose }: { user: SheetListedUser; onClose: ()
         </ScrollArea>
       </Tabs>
 
-      <UserSheetFooter dirty={dirty}>
+      <UserSheetFooter dirty={dirty && canSave}>
         <Button variant="outline" size="sm" className="rounded-xl" onClick={onClose} disabled={busy}>
           Cancel
         </Button>
-        <Button size="sm" className="rounded-xl" onClick={onSave} disabled={busy || !dirty}>
-          {busy ? "Saving…" : "Save changes"}
-        </Button>
+        {canSave && (
+          <Button size="sm" className="rounded-xl" onClick={onSave} disabled={busy || !dirty}>
+            {busy ? "Saving…" : "Save changes"}
+          </Button>
+        )}
       </UserSheetFooter>
 
       {!isAdmin && (

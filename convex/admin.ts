@@ -11,7 +11,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { replaceUserAllotments, upsertAllotmentForUser } from "./allotments";
-import { roleRequiresTenancy } from "./capabilities";
+import { hasCapability, roleRequiresTenancy } from "./capabilities";
 import { clientError, requireRole, requireUser, writeAudit } from "./helpers";
 import { userRole } from "./schema";
 import { resolveMasterCategory } from "./taxationMasters";
@@ -21,6 +21,35 @@ const allotmentInput = v.object({
   municipalityId: v.optional(v.id("municipalities")),
   isActive: v.boolean(),
 });
+
+/** Capability checks for `updateUser` — supports custom roles, not only `role === "admin"`. */
+async function assertCanPatchUser(
+  ctx: Parameters<typeof hasCapability>[0],
+  me: Doc<"users">,
+  args: {
+    role?: string;
+    status?: "active" | "disabled";
+    municipalityId?: unknown;
+    districtId?: unknown;
+    wardAssignments?: unknown;
+  },
+): Promise<void> {
+  const required: string[] = [];
+  if (args.status !== undefined) required.push("users.disable");
+  if (args.role !== undefined) required.push("users.approve");
+  if (args.municipalityId !== undefined || args.districtId !== undefined || args.wardAssignments !== undefined) {
+    required.push("users.assignTenant");
+  }
+  if (required.length === 0) return;
+
+  const allowed = await Promise.all(required.map((cap) => hasCapability(ctx, me, cap)));
+  if (!allowed.every(Boolean)) {
+    throw new ConvexError({
+      code: "FORBIDDEN",
+      message: "You don't have permission for this action.",
+    });
+  }
+}
 
 /* ────────────────────────── approval workflow ────────────────────────── */
 
@@ -395,7 +424,7 @@ export const updateUser = mutation({
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "admin");
+    await assertCanPatchUser(ctx, me, args);
 
     const target = await ctx.db.get(args.userId);
     if (!target) clientError("NOT_FOUND", "User not found");
