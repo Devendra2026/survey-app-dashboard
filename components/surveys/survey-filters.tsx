@@ -14,6 +14,7 @@ export interface FilterState {
   districtId?: string;
   municipalityId?: string;
   wardNo?: string;
+  surveyorId?: string;
   status?: string;
   qcStatus?: string;
   month?: string;
@@ -31,18 +32,25 @@ function pickFilterValue(v: string) {
   return v === ALL ? undefined : v;
 }
 
+export type SurveyorOption = { _id: string; name: string; role: string };
+
 export function SurveyFilters({
   value,
   onChange,
   showStatus = true,
   showQcStatus = true,
   showSearch = true,
+  showSurveyorFilter = false,
+  surveyorOptions = [],
 }: {
   value: FilterState;
   onChange: (next: FilterState) => void;
   showStatus?: boolean;
   showQcStatus?: boolean;
   showSearch?: boolean;
+  /** Admin: filter drafts/surveys by assigned field collector. */
+  showSurveyorFilter?: boolean;
+  surveyorOptions?: SurveyorOption[];
 }) {
   const { masters } = useMasters();
   const wardsForMuni = useWardsForMunicipality(value.municipalityId);
@@ -73,6 +81,7 @@ export function SurveyFilters({
     value.districtId ||
     value.municipalityId ||
     value.wardNo ||
+    value.surveyorId ||
     value.status ||
     value.qcStatus ||
     value.month ||
@@ -84,6 +93,7 @@ export function SurveyFilters({
     value.districtId,
     value.municipalityId,
     value.wardNo,
+    value.surveyorId,
     value.status,
     value.qcStatus,
     value.month || value.fromDate || value.toDate,
@@ -200,6 +210,25 @@ export function SurveyFilters({
             </SelectContent>
           </Select>
         </div>
+
+        {showSurveyorFilter && (
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Surveyor</Label>
+            <Select value={value.surveyorId ?? ALL} onValueChange={(v) => set({ surveyorId: pickFilterValue(v) })}>
+              <SelectTrigger className="h-10 w-full rounded-lg border-primary/20">
+                <SelectValue placeholder="All surveyors" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All surveyors</SelectItem>
+                {surveyorOptions.map((u) => (
+                  <SelectItem key={u._id} value={u._id}>
+                    {u.name} · {u.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {showStatus && (
           <div className="space-y-1.5">

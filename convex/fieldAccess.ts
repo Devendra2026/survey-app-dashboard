@@ -16,7 +16,9 @@ export async function isOwnScopeSurveyor(ctx: QueryCtx, user: Doc<"users">): Pro
 }
 
 export async function fieldSurveyAccess(ctx: QueryCtx, user: Doc<"users">): Promise<FieldSurveyAccess> {
-  if (user.role === "admin") return "admin";
+  if (user.role === "admin" || (await hasCapability(ctx, user, "surveys.viewAll"))) {
+    return "admin";
+  }
   // Assigned / QC scope is broader than own — check it first so dual-capability users
   // (e.g. supervisor profile with leftover viewOwn) still see the full ULB.
   if ((await hasCapability(ctx, user, "surveys.viewAssigned")) || (await hasCapability(ctx, user, "qc.review"))) {
@@ -67,6 +69,7 @@ async function queryByDistrict(
 /** Ward narrowing is for surveyors and QC supervisors with ward assignments. */
 async function wardLimitsApply(ctx: QueryCtx, user: Doc<"users">): Promise<boolean> {
   if (user.role === "admin" || user.role === "supervisor") return false;
+  if (await hasCapability(ctx, user, "surveys.viewAll")) return false;
   if (user.role === "qc_supervisor") return user.wardAssignments.length > 0;
   if (user.wardAssignments.length === 0) return false;
   const [viewAssigned, qcReview, viewOwn] = await Promise.all([
@@ -88,6 +91,8 @@ async function filterSurveysInScope(
   return rows.filter((r) => {
     if (!muniIds.has(r.municipalityId)) return false;
     if (!applyWardLimits) return true;
+    // In-progress drafts may not have ward set yet — always show the collector their own rows.
+    if (!r.wardNo?.trim() && r.surveyorId === me._id) return true;
     return canReadWard(me, r.municipalityId, r.wardNo);
   });
 }

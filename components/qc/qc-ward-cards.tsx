@@ -6,20 +6,22 @@ import { Button } from "@/components/ui/button";
 import type { QcWardRow } from "@/lib/qc/ward-stats";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import { CheckCircle2, ClipboardCheck, Clock3, FileText, Home, Receipt, Table2 } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, Clock3, FileEdit, FileText, Home, Receipt, Table2 } from "lucide-react";
 import Link from "next/link";
 
-type WardMetricTone = "pending" | "approved" | "total";
+type WardMetricTone = "pending" | "approved" | "drafts" | "total";
 
 const WARD_METRIC_TONES: Record<WardMetricTone, string> = {
   pending: "text-amber-800 dark:text-amber-200",
   approved: "text-emerald-700 dark:text-emerald-300",
+  drafts: "text-violet-800 dark:text-violet-300",
   total: "text-sky-800 dark:text-sky-200",
 };
 
 const WARD_METRIC_ICONS: Record<WardMetricTone, LucideIcon> = {
   pending: Clock3,
   approved: CheckCircle2,
+  drafts: FileEdit,
   total: Home,
 };
 
@@ -77,7 +79,8 @@ function WardCard({ row }: { row: QcWardRow }) {
         </span>
       </header>
 
-      <div className="grid grid-cols-3 divide-x divide-border/50 px-2 py-4">
+      <div className="grid grid-cols-2 divide-x divide-y divide-border/50 px-2 py-4 sm:grid-cols-4 sm:divide-y-0">
+        <WardMetric label="Field Drafts" value={row.drafts} tone="drafts" />
         <WardMetric label="QC Pending" value={row.pending} tone="pending" />
         <WardMetric label="QC Approved" value={row.approved} tone="approved" />
         <WardMetric label="Total Property" value={row.total} tone="total" />

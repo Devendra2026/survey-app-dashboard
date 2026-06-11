@@ -55,10 +55,13 @@ export function SurveyTable({
   rows,
   hrefBase = "/surveys",
   variant = "default",
+  showSurveyor = false,
 }: {
   rows?: SurveyRow[];
   hrefBase?: string;
   variant?: "default" | "qc";
+  /** Show assigned field collector — admin/supervisor views only. */
+  showSurveyor?: boolean;
 }) {
   const isQc = variant === "qc";
   const actionLabel = isQc ? "Review" : "View";
@@ -114,6 +117,14 @@ export function SurveyTable({
       }),
       col.accessor("wardNo", { header: "Ward", cell: (c) => `W${c.getValue()}` }),
       col.accessor("city", { header: "ULB" }),
+      ...(showSurveyor
+        ? [
+            col.accessor("surveyorName", {
+              header: "Surveyor",
+              cell: (c) => <span className="text-muted-foreground">{c.getValue() || "—"}</span>,
+            }),
+          ]
+        : []),
       col.accessor("status", { header: "Status", cell: (c) => <SurveyStatusBadge status={c.getValue()} /> }),
       col.accessor("qcStatus", { header: "QC", cell: (c) => <QcStatusBadge status={c.getValue()} /> }),
       ...(isQc
@@ -153,7 +164,7 @@ export function SurveyTable({
         ),
       }),
     ],
-    [hrefBase, ulbCodes, isQc, actionLabel, thumbnails],
+    [hrefBase, ulbCodes, isQc, actionLabel, thumbnails, showSurveyor],
   );
 
   const table = useReactTable({

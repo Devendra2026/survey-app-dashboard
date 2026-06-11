@@ -8,16 +8,60 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { SurveyExcelActions } from "@/components/surveys/survey-excel-actions";
 import { SurveyFilters, type FilterState } from "@/components/surveys/survey-filters";
+import { SurveyReassignDialog } from "@/components/surveys/survey-reassign-dialog";
 import { SurveyTable } from "@/components/surveys/survey-tables";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { api } from "@/convex/_generated/api";
 import { useMasters } from "@/hooks/masters/useMasters";
 import { searchSurveys, useSurveyList } from "@/hooks/surveys/useSurveys";
+import { useHasCapability } from "@/hooks/use-capability";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
-import { BarChart3, CalendarDays, CheckCircle2, Clock3, Filter, LayoutList, Plus, TrendingDown } from "lucide-react";
+import { useQuery } from "convex/react";
+import {
+  ArrowRightLeft,
+  BarChart3,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  FileEdit,
+  Filter,
+  LayoutList,
+  Plus,
+  TrendingDown,
+} from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useReducer, useState } from "react";
+
+type SurveysListUiState = {
+  filters: FilterState;
+  pageSize: number;
+  activeTab: string;
+  pageNumber: number;
+};
+
+type SurveysListUiAction =
+  | { type: "setFilters"; value: FilterState }
+  | { type: "setPageSize"; value: number }
+  | { type: "setActiveTab"; value: string }
+  | { type: "setPageNumber"; value: number };
+
+function surveysListUiReducer(state: SurveysListUiState, action: SurveysListUiAction): SurveysListUiState {
+  switch (action.type) {
+    case "setFilters":
+      return { ...state, filters: action.value, pageNumber: 1 };
+    case "setPageSize":
+      return { ...state, pageSize: action.value, pageNumber: 1 };
+    case "setActiveTab":
+      return { ...state, activeTab: action.value, pageNumber: 1 };
+    case "setPageNumber":
+      return { ...state, pageNumber: action.value };
+    default:
+      return state;
+  }
+}
 
 function TabPill({
   value,
@@ -44,25 +88,31 @@ function TabPill({
 }
 
 export default function SurveysPage() {
+  const canViewAll = useHasCapability("surveys.viewAll");
+  const canReassign = useHasCapability("surveys.reassign");
+  const authReady = useConvexAuthReady();
+  const { page: fieldUserPage } =
+    useQuery(
+      api.admin.listUsers,
+      authReady && canViewAll ? { paginationOpts: { numItems: 200, cursor: null }, status: "active" } : "skip",
+    ) ?? {};
+  const surveyorOptions = useMemo(
+    () =>
+      (fieldUserPage ?? []).flatMap((u) =>
+        u.role === "surveyor" || u.role === "supervisor" ? [{ _id: u._id, name: u.name, role: u.role }] : [],
+      ),
+    [fieldUserPage],
+  );
+  const [reassignOpen, setReassignOpen] = useState(false);
   const { masters } = useMasters();
   const ulbCodes = useMemo(() => buildUlbCodeMap(masters?.ulbs), [masters?.ulbs]);
-  const [filters, setFilters] = useState<FilterState>({ search: "" });
-  const [pageSize, setPageSize] = useState(20);
-  const [activeTab, setActiveTab] = useState("all");
-  const [pageNumber, setPageNumber] = useState(1);
-
-  const handleFiltersChange = (next: FilterState) => {
-    setFilters(next);
-    setPageNumber(1);
-  };
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    setPageNumber(1);
-  };
-  const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setPageNumber(1);
-  };
+  const [listUi, dispatchListUi] = useReducer(surveysListUiReducer, {
+    filters: { search: "" },
+    pageSize: 20,
+    activeTab: "all",
+    pageNumber: 1,
+  });
+  const { filters, pageSize, activeTab, pageNumber } = listUi;
 
   const listFilters = useMemo(
     () => ({
@@ -71,8 +121,9 @@ export default function SurveysPage() {
       wardNo: filters.wardNo,
       districtId: filters.districtId,
       municipalityId: filters.municipalityId,
+      surveyorId: canViewAll ? filters.surveyorId : undefined,
     }),
-    [filters],
+    [filters, canViewAll],
   );
   const surveys = useSurveyList({ ...listFilters, limit: 2000 });
   const isLoading = surveys === undefined;
@@ -155,6 +206,16 @@ export default function SurveysPage() {
               >
                 <SurveyExcelActions filters={listFilters} canImport disabled={isLoading} />
               </RoleGate>
+              {canReassign && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="cursor-pointer rounded-xl"
+                  onClick={() => setReassignOpen(true)}
+                >
+                  <ArrowRightLeft className="h-4 w-4" aria-hidden /> Reassign drafts
+                </Button>
+              )}
               <RoleGate capability="surveys.editDraft" fallback={null}>
                 <Button asChild className="btn-brand cursor-pointer rounded-xl shadow-md">
                   <Link href="/surveys/new">
@@ -166,7 +227,14 @@ export default function SurveysPage() {
           }
         />
 
-        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-6">
+          <MetricCard
+            label="Field Drafts"
+            value={draftCount.toLocaleString()}
+            hint="in progress on mobile/web"
+            icon={FileEdit}
+            tone="default"
+          />
           <MetricCard
             label="Total Surveys"
             value={stats.total.toLocaleString()}
@@ -211,7 +279,12 @@ export default function SurveysPage() {
             action={<Filter className="h-4 w-4 text-primary" aria-hidden />}
             className="mb-4"
           />
-          <SurveyFilters value={filters} onChange={handleFiltersChange} />
+          <SurveyFilters
+            value={filters}
+            onChange={(next) => dispatchListUi({ type: "setFilters", value: next })}
+            showSurveyorFilter={canViewAll}
+            surveyorOptions={surveyorOptions}
+          />
         </GlassCard>
 
         <GlassCard padding="none" className="overflow-hidden">
@@ -222,7 +295,7 @@ export default function SurveysPage() {
             />
           </div>
           <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5">
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <Tabs value={activeTab} onValueChange={(tab) => dispatchListUi({ type: "setActiveTab", value: tab })}>
               <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
                 <TabPill
                   value="all"
@@ -264,7 +337,10 @@ export default function SurveysPage() {
             </Tabs>
           </div>
           <div className="p-4">
-            <SurveyTable rows={isLoading ? undefined : (pagedRows as Parameters<typeof SurveyTable>[0]["rows"])} />
+            <SurveyTable
+              rows={isLoading ? undefined : (pagedRows as Parameters<typeof SurveyTable>[0]["rows"])}
+              showSurveyor={canViewAll}
+            />
           </div>
         </GlassCard>
 
@@ -274,10 +350,19 @@ export default function SurveysPage() {
           itemCount={pagedRows.length}
           canGoPrev={canGoPrev}
           canGoNext={canGoNext}
-          onPrev={() => setPageNumber((p) => Math.max(1, p - 1))}
-          onNext={() => setPageNumber((p) => (canGoNext ? p + 1 : p))}
+          onPrev={() => dispatchListUi({ type: "setPageNumber", value: Math.max(1, pageNumber - 1) })}
+          onNext={() => dispatchListUi({ type: "setPageNumber", value: canGoNext ? pageNumber + 1 : pageNumber })}
           pageSizeOptions={[10, 20, 50, 100]}
-          onPageSizeChange={handlePageSizeChange}
+          onPageSizeChange={(size) => dispatchListUi({ type: "setPageSize", value: size })}
+        />
+        <SurveyReassignDialog
+          open={reassignOpen}
+          onOpenChange={setReassignOpen}
+          scope={{
+            districtId: filters.districtId,
+            municipalityId: filters.municipalityId,
+            wardNo: filters.wardNo,
+          }}
         />
       </PageTransition>
     </RoleGate>

@@ -97,6 +97,7 @@ export function requireRole(user: Doc<"users">, ...allowed: Role[]): void {
  * Field supervisors see every ward in their allotted ULBs.
  */
 export function canReadWard(user: Doc<"users">, municipalityId: Id<"municipalities">, wardNo: string): boolean {
+  if (!wardNo?.trim()) return true;
   if (user.role === "admin" || user.role === "supervisor") return true;
   if (user.wardAssignments.length === 0) return true;
   if (user.municipalityId && user.municipalityId !== municipalityId) return true;

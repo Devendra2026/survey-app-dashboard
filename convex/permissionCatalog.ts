@@ -17,6 +17,7 @@ export const PERMISSION_CATALOG = [
   { key: "surveys.submit", label: "Submit surveys", category: "surveys" },
   { key: "surveys.uploadPhotos", label: "Upload survey photos", category: "surveys" },
   { key: "surveys.delete", label: "Delete surveys", category: "surveys" },
+  { key: "surveys.reassign", label: "Reassign draft surveys", category: "surveys" },
   { key: "qc.review", label: "Review QC queue", category: "qc" },
   { key: "qc.decide", label: "Approve / reject surveys", category: "qc" },
   { key: "qc.requestCorrection", label: "Request QC corrections", category: "qc" },

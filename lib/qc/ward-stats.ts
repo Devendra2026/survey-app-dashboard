@@ -7,6 +7,7 @@ export type QcWardRow = {
   city: string;
   pending: number;
   approved: number;
+  drafts: number;
   total: number;
   firstPendingId?: string;
 };
@@ -15,7 +16,7 @@ export function wardGroupKey(row: Pick<SurveyRow, "municipalityId" | "wardNo">):
   return `${row.municipalityId ?? ""}:${row.wardNo}`;
 }
 
-/** Aggregate QC counts per ward within the current filter scope. */
+/** Aggregate QC and draft counts per ward within the current filter scope. */
 export function computeQcWardStats(rows: SurveyRow[], wardLabels?: Map<string, string>): QcWardRow[] {
   const byKey = new Map<string, QcWardRow>();
 
@@ -30,11 +31,15 @@ export function computeQcWardStats(rows: SurveyRow[], wardLabels?: Map<string, s
         city: row.city,
         pending: 0,
         approved: 0,
+        drafts: 0,
         total: 0,
       };
       byKey.set(key, entry);
     }
     entry.total += 1;
+    if (row.status === "draft") {
+      entry.drafts += 1;
+    }
     if (row.qcStatus === "pending" && row.status === "submitted") {
       entry.pending += 1;
       if (!entry.firstPendingId) entry.firstPendingId = row._id;

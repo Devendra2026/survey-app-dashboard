@@ -36,6 +36,7 @@ export type Capability =
   | "surveys.submit"
   | "surveys.uploadPhotos"
   | "surveys.delete"
+  | "surveys.reassign"
   // qc
   | "qc.review"
   | "qc.decide" // approve / reject
@@ -84,6 +85,7 @@ const MATRIX: Record<Role, Capability[]> = {
     "surveys.submit",
     "surveys.uploadPhotos",
     "surveys.delete",
+    "surveys.reassign",
     "qc.review",
     "qc.decide",
     "qc.requestCorrection",

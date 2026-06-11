@@ -13,7 +13,7 @@ import { useMasters } from "@/hooks/masters/useMasters";
 import type { QcQueueStats } from "@/hooks/qc/useQcQueue";
 import type { QcWardRow } from "@/lib/qc/ward-stats";
 import { isQcScopeComplete, type QcWorkScope } from "@/lib/qc/work-scope";
-import { CalendarDays, CheckCircle2, Clock3, Filter, MapPin, ShieldCheck, Table2 } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, FileEdit, Filter, MapPin, ShieldCheck, Table2 } from "lucide-react";
 import Link from "next/link";
 
 function TabPill({
@@ -78,9 +78,18 @@ export function QcMetricsSection({ stats, isLoading }: { stats: QcQueueStats; is
         className="mb-4"
       />
       {isLoading ? (
-        <CardsSkeleton count={3} />
+        <CardsSkeleton count={4} />
       ) : (
-        <StaggerGrid className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+        <StaggerGrid className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+          <StaggerItem>
+            <MetricCard
+              label="Field Drafts"
+              value={stats.drafts.toLocaleString()}
+              hint="not yet submitted"
+              icon={FileEdit}
+              tone="default"
+            />
+          </StaggerItem>
           <StaggerItem>
             <MetricCard
               label="Pending QC"
@@ -121,7 +130,7 @@ export function QcWardSection({ wardStats, isLoading }: { wardStats: QcWardRow[]
         <SectionHeader
           id="qc-ward-heading"
           title="Ward Wise QC Data"
-          description="QC pending, approved, and total properties per ward — open registry, report, or demand notice"
+          description="Field drafts, QC pending, approved, and total properties per ward"
           className="mb-4"
         />
         <QcWardCards rows={isLoading ? undefined : wardStats} isLoading={isLoading} />

@@ -12,6 +12,7 @@ import { useCallback, useMemo, useState } from "react";
 export type QcQueueStats = {
   pending: number;
   approved: number;
+  drafts: number;
   submittedToday: number;
 };
 
@@ -127,6 +128,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     return {
       pending: rows.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length,
       approved: rows.filter((r) => r.qcStatus === "approved").length,
+      drafts: rows.filter((r) => r.status === "draft").length,
       submittedToday: rows.filter((r) => r.status === "submitted" && (r.submittedAt ?? r._creationTime) >= todayMs)
         .length,
     };

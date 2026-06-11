@@ -44,9 +44,7 @@ async function enrichSurveyorNames(
 ): Promise<Array<Doc<"surveys"> & { surveyorName?: string }>> {
   const surveyorIds = [...new Set(rows.map((r) => r.surveyorId))];
   const surveyors = await Promise.all(surveyorIds.map((id) => ctx.db.get(id)));
-  const nameById = new Map(
-    surveyors.filter((s): s is Doc<"users"> => s != null).map((s) => [s._id, s.name] as const),
-  );
+  const nameById = new Map(surveyors.filter((s): s is Doc<"users"> => s != null).map((s) => [s._id, s.name] as const));
   return rows.map((row) => ({
     ...row,
     surveyorName: nameById.get(row.surveyorId),
@@ -199,7 +197,7 @@ export const list = query({
     if (args.surveyorId) {
       rows = rows.filter((r) => r.surveyorId === args.surveyorId);
     }
-    if (args.status && access !== "assigned") {
+    if (args.status) {
       rows = rows.filter((r) => r.status === args.status);
     }
     if (args.qcStatus) {
@@ -245,7 +243,7 @@ function applySurveyListFilters(
   if (args.districtId) filtered = filtered.filter((r) => r.districtId === args.districtId);
   if (args.municipalityId) filtered = filtered.filter((r) => r.municipalityId === args.municipalityId);
   if (args.surveyorId) filtered = filtered.filter((r) => r.surveyorId === args.surveyorId);
-  if (args.status && access !== "assigned") {
+  if (args.status) {
     filtered = filtered.filter((r) => r.status === args.status);
   }
   if (args.qcStatus) filtered = filtered.filter((r) => r.qcStatus === args.qcStatus);
