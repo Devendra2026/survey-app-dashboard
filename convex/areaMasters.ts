@@ -161,9 +161,6 @@ export function validateAreaSection(input: {
   if (floorRows.length > 0 && builtUp <= 0 && openLand <= 0) {
     details.floors = ["Each floor must have area greater than 0"];
   }
-  if (floorRows.length > 0 && builtUp <= 0 && openLand > 0) {
-    details.floors = ["Add at least one built-up floor row (ground floor, first floor, etc.)"];
-  }
   return details;
 }
 

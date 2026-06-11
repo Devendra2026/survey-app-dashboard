@@ -597,8 +597,8 @@ export const setGps = mutation({
 });
 
 /**
- * Transitions a draft to `submitted`. Requires at least one floor and
- * both required photos (front + side).
+ * Transitions a draft to `submitted`. Requires at least one floor row
+ * (built-up or open land) with area > 0, plus required photos (front + side).
  */
 export const submit = mutation({
   args: { id: v.id("surveys") },

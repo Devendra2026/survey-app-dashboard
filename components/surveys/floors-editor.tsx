@@ -202,11 +202,11 @@ export function FloorsEditor({
         <div className="space-y-3">
           {floors === undefined ? null : builtUpFloors.length === 0 ? (
             <EmptyState
-              title="Built-up floor required"
+              title={openLandFloors.length > 0 ? "No built-up floors" : "Built-up floor required"}
               description={
                 openLandFloors.length > 0
-                  ? "Open land alone is not enough for QC submit — add a ground floor or upper floor with its area."
-                  : "Add ground floor or upper floors with their areas before submitting."
+                  ? "Vacant plots can submit with open land only. Add floors here if the property has construction."
+                  : "Add at least one floor row — built-up floors or open land — with area greater than 0."
               }
             />
           ) : (
