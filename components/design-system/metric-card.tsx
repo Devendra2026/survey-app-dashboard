@@ -71,7 +71,7 @@ export function MetricCard({
     <GlassCard padding="md" hover className={cn("border-l-[3px]", styles.border, className)}>
       <div
         className={cn(
-          "pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br to-transparent opacity-60 blur-2xl",
+          "pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-linear-to-br to-transparent opacity-60 blur-2xl",
           styles.glow,
         )}
       />
