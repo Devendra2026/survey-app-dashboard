@@ -78,7 +78,11 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
   }
 
   return (
-    <RoleGate mode="page" capability="surveys.editDraft" deniedDescription="You don't have permission to edit surveys.">
+    <RoleGate
+      mode="page"
+      anyOf={["surveys.editDraft", "qc.review"]}
+      deniedDescription="You don't have permission to edit surveys."
+    >
       <PageTransition className="space-y-6 lg:space-y-8">
         <Button
           asChild

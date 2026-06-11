@@ -10,6 +10,11 @@ import { resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./
 
 export type FieldSurveyAccess = "own" | "assigned" | "admin" | "none";
 
+/** True when the user creates/edits only their own field surveys (mobile surveyor scope). */
+export async function isOwnScopeSurveyor(ctx: QueryCtx, user: Doc<"users">): Promise<boolean> {
+  return (await fieldSurveyAccess(ctx, user)) === "own";
+}
+
 export async function fieldSurveyAccess(ctx: QueryCtx, user: Doc<"users">): Promise<FieldSurveyAccess> {
   if (user.role === "admin") return "admin";
   // Assigned / QC scope is broader than own — check it first so dual-capability users

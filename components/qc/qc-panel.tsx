@@ -167,7 +167,7 @@ export function QcPanel({ survey }: { survey: Pick<SurveyListItem, "_id" | "stat
                 </Button>
               )}
               {survey.qcStatus !== "approved" && (
-                <RoleGate capability="surveys.editDraft" fallback={null}>
+                <RoleGate anyOf={["surveys.editDraft", "qc.review"]} fallback={null}>
                   <Button
                     asChild
                     variant="outline"

@@ -4,9 +4,9 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { addressTenantContext, normalizeAddressFields, validateAddressSection } from "./addressRules";
 import { presentFloorRow, validateAreaSection } from "./areaMasters";
-import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
+import { fieldSurveyAccess, isOwnScopeSurveyor, querySurveysInFieldScope } from "./fieldAccess";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS, GPS_TARGET_ACCURACY_METERS } from "./gpsAccuracy";
-import { assertCanReadWard, canReadWard, clientError, requireRole, requireUser, writeAudit } from "./helpers";
+import { assertCanReadWard, canReadWard, clientError, requireUser, writeAudit } from "./helpers";
 import { isValidIndianOwnerMobile, normalizeOwners, primaryOwnerMobile, validateOwnerSection } from "./ownerRules";
 import { comparePropertyIds, resolvePropertyId } from "./propertyId";
 import { gpsCapture, qcStatus, sanitationType, surveyOwnerEntry, surveyStatus, waterSource } from "./schema";
@@ -14,6 +14,7 @@ import { validateServicesSection } from "./serviceMasters";
 import {
   assertSurveyWritable,
   auditActionForSave,
+  requireSurveyDraftEdit,
   resolveExistingSurveyForSave,
   resolvePostSaveStatuses,
 } from "./surveyEditRules";
@@ -410,15 +411,16 @@ export const saveDraft = mutation({
   args: draftSurveyInput,
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "surveyor", "supervisor", "admin");
+    await requireSurveyDraftEdit(ctx, me);
+    const ownScope = await isOwnScopeSurveyor(ctx, me);
     const muni = await assertMunicipalityInScope(ctx, me, args.municipalityId);
     const existing = await resolveExistingSurveyForSave(ctx, me, {
       id: args.id,
       localId: args.localId,
       municipalityId: args.municipalityId,
     });
-    if (existing) assertSurveyWritable(me, existing);
-    if (!existing && me.role !== "surveyor") {
+    if (existing) await assertSurveyWritable(ctx, me, existing);
+    if (!existing && !ownScope) {
       clientError("BAD_REQUEST", "No survey found to update — open the record from QC review and try saving again");
     }
 
@@ -459,7 +461,7 @@ export const saveDraft = mutation({
       });
       await writeAudit(ctx, {
         actorId: me._id,
-        action: auditActionForSave(existing, me, false),
+        action: auditActionForSave(existing, ownScope, false),
         entity: "survey",
         entityId: existing._id,
       });
@@ -477,7 +479,7 @@ export const saveDraft = mutation({
     });
     await writeAudit(ctx, {
       actorId: me._id,
-      action: auditActionForSave(null, me, true),
+      action: auditActionForSave(null, ownScope, true),
       entity: "survey",
       entityId: newId,
       metadata: { localId: args.localId, draft: true },
@@ -497,7 +499,8 @@ export const upsert = mutation({
   args: surveyInput,
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "surveyor", "supervisor", "admin");
+    await requireSurveyDraftEdit(ctx, me);
+    const ownScope = await isOwnScopeSurveyor(ctx, me);
     const muni = await assertMunicipalityInScope(ctx, me, args.municipalityId);
     assertCanReadWard(me, args.municipalityId, args.wardNo);
 
@@ -524,8 +527,8 @@ export const upsert = mutation({
       localId: args.localId,
       municipalityId: args.municipalityId,
     });
-    if (existing) assertSurveyWritable(me, existing);
-    if (!existing && me.role !== "surveyor") {
+    if (existing) await assertSurveyWritable(ctx, me, existing);
+    if (!existing && !ownScope) {
       clientError("BAD_REQUEST", "No survey found to update — open the record from QC review and try saving again");
     }
 
@@ -543,7 +546,7 @@ export const upsert = mutation({
       });
       await writeAudit(ctx, {
         actorId: me._id,
-        action: auditActionForSave(existing, me, false),
+        action: auditActionForSave(existing, ownScope, false),
         entity: "survey",
         entityId: existing._id,
       });
@@ -580,7 +583,7 @@ export const setGps = mutation({
     }
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
-    assertSurveyWritable(me, survey);
+    await assertSurveyWritable(ctx, me, survey);
     if (args.gps.accuracyMeters > GPS_ACCEPT_MAX_ACCURACY_METERS) {
       clientError("VALIDATION", `GPS must be within ±${GPS_ACCEPT_MAX_ACCURACY_METERS} m — retake outside`, {
         gps: [`GPS must be within ±${GPS_ACCEPT_MAX_ACCURACY_METERS} m — retake in open sky`],

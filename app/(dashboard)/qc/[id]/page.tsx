@@ -87,7 +87,7 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
                 </Link>
               </Button>
               {survey.qcStatus !== "approved" && (
-                <RoleGate capability="surveys.editDraft" fallback={null}>
+                <RoleGate anyOf={["surveys.editDraft", "qc.review"]} fallback={null}>
                   <Button asChild size="sm" variant="outline" className="cursor-pointer rounded-xl">
                     <Link href={`/surveys/${id}/edit?from=qc`}>
                       <Pencil className="h-4 w-4" aria-hidden /> Edit &amp; correct

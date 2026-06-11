@@ -10,13 +10,29 @@
  * (submitted + pending), both the assigned surveyor and supervisors may save
  * corrections without pulling it out of review.
  */
+import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import { hasCapability } from "./capabilities";
+import { fieldSurveyAccess, isOwnScopeSurveyor } from "./fieldAccess";
 import { clientError } from "./helpers";
 import { assertMunicipalityInScope } from "./tenancy";
 
-export function assertSurveyWritable(me: Doc<"users">, survey: Doc<"surveys">): void {
-  if (survey.qcStatus === "approved" && me.role === "surveyor") {
+/** Gate draft saves — dynamic roles use `surveys.editDraft`; legacy supervisors may only have `qc.review`. */
+export async function requireSurveyDraftEdit(ctx: MutationCtx, user: Doc<"users">): Promise<void> {
+  const [canEditDraft, canQcReview] = await Promise.all([
+    hasCapability(ctx, user, "surveys.editDraft"),
+    hasCapability(ctx, user, "qc.review"),
+  ]);
+  if (canEditDraft || canQcReview) return;
+  throw new ConvexError({
+    code: "FORBIDDEN",
+    message: "You don't have permission for this action.",
+  });
+}
+
+export async function assertSurveyWritable(ctx: MutationCtx, me: Doc<"users">, survey: Doc<"surveys">): Promise<void> {
+  if (survey.qcStatus === "approved" && (await fieldSurveyAccess(ctx, me)) === "own") {
     clientError("LOCKED", "This survey is locked — request your supervisor to re-open it");
   }
 }
@@ -39,10 +55,10 @@ export function resolvePostSaveStatuses(existing: Doc<"surveys">): Pick<Doc<"sur
   return { status: "draft", qcStatus: existing.qcStatus };
 }
 
-export function auditActionForSave(existing: Doc<"surveys"> | null, editor: Doc<"users">, isNewDraft: boolean): string {
+export function auditActionForSave(existing: Doc<"surveys"> | null, isOwnScope: boolean, isNewDraft: boolean): string {
   if (!existing || isNewDraft) return isNewDraft ? "survey.created" : "survey.draft_saved";
   if (existing.status === "submitted" && existing.qcStatus === "pending") {
-    return editor.role === "surveyor" ? "survey.edited_in_review" : "survey.qc_corrected";
+    return isOwnScope ? "survey.edited_in_review" : "survey.qc_corrected";
   }
   if (existing.status === "draft" && existing.qcStatus === "rejected") {
     return "survey.corrected";
@@ -63,21 +79,23 @@ export async function resolveExistingSurveyForSave(
   me: Doc<"users">,
   args: { id?: Id<"surveys">; localId: string; municipalityId: Id<"municipalities"> },
 ): Promise<Doc<"surveys"> | null> {
+  const ownScope = await isOwnScopeSurveyor(ctx, me);
+
   if (args.id) {
     const survey = await ctx.db.get(args.id);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
-    if (me.role === "surveyor" && survey.surveyorId !== me._id) {
+    if (ownScope && survey.surveyorId !== me._id) {
       clientError("FORBIDDEN", "Not your survey");
     }
     // Surveyors sync by localId; supervisors resolve by server id for QC corrections.
-    if (me.role === "surveyor" && survey.localId !== args.localId) {
+    if (ownScope && survey.localId !== args.localId) {
       clientError("BAD_REQUEST", "Survey identity mismatch");
     }
     return survey;
   }
 
-  if (me.role === "surveyor") {
+  if (ownScope) {
     return await ctx.db
       .query("surveys")
       .withIndex("by_surveyor_localId", (q) => q.eq("surveyorId", me._id).eq("localId", args.localId))

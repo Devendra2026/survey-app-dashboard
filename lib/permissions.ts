@@ -53,6 +53,7 @@ const MATRIX: Record<Role, Capability[]> = {
 
   supervisor: [
     "surveys.viewAssigned",
+    "surveys.editDraft",
     "qc.review",
     "qc.decide",
     "qc.requestCorrection",

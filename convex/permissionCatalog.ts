@@ -34,6 +34,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> =
   surveyor: ["surveys.viewOwn", "surveys.editDraft", "surveys.submit", "surveys.uploadPhotos", "surveys.delete"],
   supervisor: [
     "surveys.viewAssigned",
+    "surveys.editDraft",
     "qc.review",
     "qc.decide",
     "qc.requestCorrection",
