@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
 import { useMasters } from "@/hooks/masters/useMasters";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { buildOfficeTitles, buildSurveyAddress, computeDemandNotice, formatNoticeDate } from "@/lib/qc/demand-notice";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
@@ -26,8 +27,12 @@ type DemandNoticeViewProps = {
 };
 
 export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}/report` }: DemandNoticeViewProps) {
+  const ready = useConvexAuthReady();
   const { masters } = useMasters();
-  const dynamicRates = useQuery(api.taxRates.getForMunicipality, { municipalityId: survey.municipalityId });
+  const dynamicRates = useQuery(
+    api.taxRates.getForMunicipality,
+    ready ? { municipalityId: survey.municipalityId } : "skip",
+  );
 
   const ulbCodes = buildUlbCodeMap(masters?.ulbs);
   const propertyId = resolveDisplayPropertyId(survey, ulbCodes) ?? survey.propertyId ?? survey.parcelNo;

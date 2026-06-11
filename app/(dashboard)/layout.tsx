@@ -7,7 +7,7 @@ import { SidebarProvider } from "@/components/layout/sidebar-context";
 import { Topbar } from "@/components/layout/Topbar";
 import { useCurrentUser } from "@/lib/session";
 import { useAuth } from "@clerk/nextjs";
-import { Authenticated, AuthLoading } from "convex/react";
+import { Authenticated, AuthLoading, AuthRefreshing } from "convex/react";
 import { Clock, Loader2, ShieldX } from "lucide-react";
 
 function AccountGate({ children }: { children: React.ReactNode }) {
@@ -104,6 +104,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <AuthLoading>
         <AuthSpinner />
       </AuthLoading>
+      <AuthRefreshing>
+        <AuthSpinner />
+      </AuthRefreshing>
       <Authenticated>
         <AccountGate>{children}</AccountGate>
       </Authenticated>

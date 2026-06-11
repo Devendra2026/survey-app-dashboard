@@ -1,5 +1,6 @@
 "use client";
 
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { canAnyWithCapabilities, canWithCapabilities, type Capability } from "@/lib/permissions";
 import { useCurrentUser } from "@/lib/session";
 
@@ -9,13 +10,15 @@ import { useCurrentUser } from "@/lib/session";
  * server-side FORBIDDEN errors for unauthorized roles.
  */
 export function useHasCapability(capability: Capability): boolean {
+  const ready = useConvexAuthReady();
   const { role, capabilities, isLoading } = useCurrentUser();
-  if (isLoading || !role) return false;
+  if (!ready || isLoading || !role) return false;
   return canWithCapabilities(capabilities, role, capability);
 }
 
 export function useHasAnyCapability(caps: Capability[]): boolean {
+  const ready = useConvexAuthReady();
   const { role, capabilities, isLoading } = useCurrentUser();
-  if (isLoading || !role) return false;
+  if (!ready || isLoading || !role) return false;
   return canAnyWithCapabilities(capabilities, role, caps);
 }

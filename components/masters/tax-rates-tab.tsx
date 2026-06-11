@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useTenantAdmin } from "@/hooks/tenants/useTenants";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import type { NormalizedTaxRates } from "@/lib/qc/normalize-tax-rates";
 import { computeFloorPropertyTax } from "@/lib/qc/property-tax-calc";
 import {
@@ -260,7 +261,8 @@ function UlbRateEditor({
   districtName: string;
   wards: WardInfo[];
 }) {
-  const existing = useQuery(api.taxRates.getForMunicipality, { municipalityId });
+  const ready = useConvexAuthReady();
+  const existing = useQuery(api.taxRates.getForMunicipality, ready ? { municipalityId } : "skip");
   const upsert = useMutation(api.taxRates.upsert);
   const saveWard = useMutation(api.taxRates.saveWard);
   const reset = useMutation(api.taxRates.resetToDefaults);
@@ -814,11 +816,12 @@ function UlbRateEditor({
 }
 
 export function TaxRatesTab() {
+  const ready = useConvexAuthReady();
   const tenants = useTenantAdmin();
   const [selectedDistrictId, setSelectedDistrictId] = useState("");
   const [selectedMuniId, setSelectedMuniId] = useState("");
 
-  const allRates = useQuery(api.taxRates.listAll);
+  const allRates = useQuery(api.taxRates.listAll, ready ? {} : "skip");
 
   const rateStatusByMuni = useMemo(() => {
     if (!allRates) return new Map<string, { published: boolean; wardCount: number }>();
