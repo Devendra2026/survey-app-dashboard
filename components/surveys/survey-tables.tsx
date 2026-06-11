@@ -32,6 +32,7 @@ export interface SurveyRow {
   propertyUse?: string;
   parcelNo: string;
   respondentName?: string;
+  surveyorName?: string;
   mobileNo: string;
   wardNo: string;
   city: string;

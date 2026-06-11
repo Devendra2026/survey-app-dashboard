@@ -4,14 +4,17 @@ import { ExecutiveHero, SectionHeader } from "@/components/design-system/executi
 import { GlassCard } from "@/components/design-system/glass-card";
 import { MetricCard } from "@/components/design-system/metric-card";
 import { FadeIn, StaggerGrid, StaggerItem } from "@/components/design-system/motion";
+import { QcRegistrySearch, QcRegistryTable, type QcRegistryRow } from "@/components/qc/qc-registry-table";
 import { QcWardCards } from "@/components/qc/qc-ward-cards";
 import { CardsSkeleton } from "@/components/shared/loading";
 import { SurveyFilters, type FilterState } from "@/components/surveys/survey-filters";
-import { SurveyTable, type SurveyRow } from "@/components/surveys/survey-tables";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMasters } from "@/hooks/masters/useMasters";
 import type { QcQueueStats } from "@/hooks/qc/useQcQueue";
 import type { QcWardRow } from "@/lib/qc/ward-stats";
-import { CalendarDays, CheckCircle2, Clock3, Filter, ShieldCheck, Table2 } from "lucide-react";
+import { isQcScopeComplete, type QcWorkScope } from "@/lib/qc/work-scope";
+import { CalendarDays, CheckCircle2, Clock3, Filter, MapPin, ShieldCheck, Table2 } from "lucide-react";
+import Link from "next/link";
 
 function TabPill({
   value,
@@ -43,7 +46,7 @@ export function QcCommandHero() {
       <ExecutiveHero
         eyebrow="Quality Control"
         title="QC Command Center"
-        description="Use smart filters to scope metrics and ward-wise QC cards across your assigned ULBs."
+        description="Set your district, ULB, and ward once in Smart Filters — then review surveys ward-by-ward until complete."
         icon={ShieldCheck}
         gradient="amber"
       />
@@ -57,7 +60,7 @@ export function QcRegistryHero() {
       <ExecutiveHero
         eyebrow="Quality Control"
         title="QC Review Registry"
-        description="Filter, search, and open submitted surveys for verification, correction, and approval."
+        description="Search and open submitted surveys for verification, correction, and approval within your active ward."
         icon={Table2}
         gradient="amber"
       />
@@ -127,23 +130,94 @@ export function QcWardSection({ wardStats, isLoading }: { wardStats: QcWardRow[]
   );
 }
 
+export function QcScopeBanner({ scope }: { scope: QcWorkScope }) {
+  const { masters } = useMasters();
+  const district = masters?.districts.find((d) => d._id === scope.districtId);
+  const ulb = masters?.ulbs.find((m) => m._id === scope.municipalityId);
+  const scopeLabel = [district?.name, ulb?.name, scope.wardNo ? `Ward ${scope.wardNo}` : undefined]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <FadeIn delay={0.02}>
+      <GlassCard padding="md" className="border-amber-500/20 bg-amber-50/30 dark:bg-amber-950/15">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-2">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                Active QC scope
+              </p>
+              <p className="truncate text-sm font-medium text-foreground">
+                {scopeLabel || "No ward selected — set Smart Filters on the command center"}
+              </p>
+              {!isQcScopeComplete(scope) && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Select district, ULB, and ward in Smart Filters to begin ward-wise QC.
+                </p>
+              )}
+            </div>
+          </div>
+          <Link
+            href="/qc"
+            className="shrink-0 text-xs font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-200"
+          >
+            Change ward
+          </Link>
+        </div>
+      </GlassCard>
+    </FadeIn>
+  );
+}
+
 export function QcFiltersSection({
-  filters,
-  onChange,
+  scope,
+  dateFilters,
+  onScopeChange,
+  onDateFiltersChange,
 }: {
-  filters: FilterState;
-  onChange: (next: FilterState) => void;
+  scope: QcWorkScope;
+  dateFilters: Pick<FilterState, "month" | "fromDate" | "toDate">;
+  onScopeChange: (next: QcWorkScope) => void;
+  onDateFiltersChange: (next: Pick<FilterState, "month" | "fromDate" | "toDate">) => void;
 }) {
+  const filterValue: FilterState = {
+    search: "",
+    districtId: scope.districtId,
+    municipalityId: scope.municipalityId,
+    wardNo: scope.wardNo,
+    month: dateFilters.month,
+    fromDate: dateFilters.fromDate,
+    toDate: dateFilters.toDate,
+  };
+
   return (
     <FadeIn delay={0.04}>
       <GlassCard padding="md" className="border-amber-500/15">
         <SectionHeader
           title="Smart Filters"
-          description="District, ULB, ward, date range, and property search"
+          description="Select district, ULB, and ward to focus your QC work. Change ward here when the current ward is complete."
           action={<Filter className="h-4 w-4 text-amber-700 dark:text-amber-300" aria-hidden />}
           className="mb-4"
         />
-        <SurveyFilters value={filters} onChange={onChange} showStatus={false} showQcStatus={false} />
+        <SurveyFilters
+          value={filterValue}
+          onChange={(next) => {
+            onScopeChange({
+              districtId: next.districtId,
+              municipalityId: next.municipalityId,
+              wardNo: next.wardNo,
+            });
+            onDateFiltersChange({
+              month: next.month,
+              fromDate: next.fromDate,
+              toDate: next.toDate,
+            });
+          }}
+          showSearch={false}
+          showStatus={false}
+          showQcStatus={false}
+        />
       </GlassCard>
     </FadeIn>
   );
@@ -156,6 +230,9 @@ export function QcReviewRegistry({
   filteredCount,
   isLoading,
   rows,
+  pageStart,
+  registrySearch,
+  onRegistrySearchChange,
   onTabChange,
 }: {
   stats: QcQueueStats;
@@ -163,7 +240,10 @@ export function QcReviewRegistry({
   activeTab: string;
   filteredCount: number;
   isLoading: boolean;
-  rows: SurveyRow[] | undefined;
+  rows: QcRegistryRow[] | undefined;
+  pageStart: number;
+  registrySearch: string;
+  onRegistrySearchChange: (term: string) => void;
   onTabChange: (tab: string) => void;
 }) {
   const totalDecided = stats.pending + stats.approved + rejectedCount;
@@ -176,6 +256,9 @@ export function QcReviewRegistry({
             title="QC Review Registry"
             description={`${filteredCount.toLocaleString()} records${activeTab !== "all" ? " in selected tab" : ""} · click Review to verify`}
           />
+        </div>
+        <div className="border-b border-border/60 bg-muted/15 px-4 py-3">
+          <QcRegistrySearch value={registrySearch} onChange={onRegistrySearchChange} />
         </div>
         <div className="border-b border-border/60 bg-muted/15 px-4 py-2.5">
           <Tabs value={activeTab} onValueChange={onTabChange}>
@@ -208,7 +291,7 @@ export function QcReviewRegistry({
           </Tabs>
         </div>
         <div className="overflow-x-auto p-4">
-          <SurveyTable rows={isLoading ? undefined : rows} hrefBase="/qc" variant="qc" />
+          <QcRegistryTable rows={isLoading ? undefined : rows} pageStart={pageStart} hrefBase="/qc" />
         </div>
       </GlassCard>
     </FadeIn>

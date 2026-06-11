@@ -5,13 +5,32 @@ import { CardsSkeleton } from "@/components/shared/loading";
 import { Button } from "@/components/ui/button";
 import type { QcWardRow } from "@/lib/qc/ward-stats";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Clock3, FileText, Home, Receipt, Table2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, Clock3, FileText, Home, Receipt, Table2 } from "lucide-react";
 import Link from "next/link";
 
-function wardHref(path: string, row: QcWardRow): string {
+type WardMetricTone = "pending" | "approved" | "total";
+
+const WARD_METRIC_TONES: Record<WardMetricTone, string> = {
+  pending: "text-amber-800 dark:text-amber-200",
+  approved: "text-emerald-700 dark:text-emerald-300",
+  total: "text-sky-800 dark:text-sky-200",
+};
+
+const WARD_METRIC_ICONS: Record<WardMetricTone, LucideIcon> = {
+  pending: Clock3,
+  approved: CheckCircle2,
+  total: Home,
+};
+
+function wardScopeQuery(row: QcWardRow): string {
   const params = new URLSearchParams({ wardNo: row.wardNo });
   if (row.municipalityId) params.set("municipalityId", row.municipalityId);
-  return `${path}?${params.toString()}`;
+  return params.toString();
+}
+
+function wardHref(path: string, row: QcWardRow): string {
+  return `${path}?${wardScopeQuery(row)}`;
 }
 
 function formatWardNo(wardNo: string): string {
@@ -20,23 +39,18 @@ function formatWardNo(wardNo: string): string {
   return wardNo;
 }
 
-function WardMetric({ label, value, tone }: { label: string; value: number; tone: "pending" | "approved" | "total" }) {
-  const tones = {
-    pending: "text-amber-800 dark:text-amber-200",
-    approved: "text-emerald-700 dark:text-emerald-300",
-    total: "text-sky-800 dark:text-sky-200",
-  };
-  const icons = {
-    pending: Clock3,
-    approved: CheckCircle2,
-    total: Home,
-  };
-  const Icon = icons[tone];
+function WardMetric({ label, value, tone }: { label: string; value: number; tone: WardMetricTone }) {
+  const Icon = WARD_METRIC_ICONS[tone];
 
   return (
     <div className="min-w-0 flex-1 text-center">
       <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 flex items-center justify-center gap-1 text-lg font-bold tabular-nums", tones[tone])}>
+      <p
+        className={cn(
+          "mt-1 flex items-center justify-center gap-1 text-lg font-bold tabular-nums",
+          WARD_METRIC_TONES[tone],
+        )}
+      >
         <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
         {value.toLocaleString()}
       </p>
@@ -70,6 +84,18 @@ function WardCard({ row }: { row: QcWardRow }) {
       </div>
 
       <footer className="mt-auto flex flex-wrap gap-1.5 border-t border-border/50 bg-muted/20 px-3 py-2.5">
+        {row.pending > 0 && row.firstPendingId && (
+          <Button
+            asChild
+            size="sm"
+            className="h-7 w-full cursor-pointer rounded-lg bg-amber-600 text-xs text-white hover:bg-amber-500"
+          >
+            <Link href={`/qc/${row.firstPendingId}?${wardScopeQuery(row)}`}>
+              <ClipboardCheck className="h-3 w-3" aria-hidden />
+              Start QC ({row.pending} pending)
+            </Link>
+          </Button>
+        )}
         <Button
           asChild
           size="sm"

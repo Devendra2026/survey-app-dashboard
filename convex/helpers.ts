@@ -93,9 +93,8 @@ export function requireRole(user: Doc<"users">, ...allowed: Role[]): void {
 }
 
 /**
- * Ward limits apply to surveyors only (narrow field work).
- * Supervisors/QC see every ward in their allotted ULBs — ward chips on their
- * profile must not hide the rest of the municipality (e.g. Etah 1224 surveys).
+ * Ward limits apply to surveyors and QC supervisors with explicit ward assignments.
+ * Field supervisors see every ward in their allotted ULBs.
  */
 export function canReadWard(user: Doc<"users">, municipalityId: Id<"municipalities">, wardNo: string): boolean {
   if (user.role === "admin" || user.role === "supervisor") return true;
@@ -114,13 +113,15 @@ export function assertCanReadWard(user: Doc<"users">, municipalityId: Id<"munici
   }
 }
 
-/** Filter ward rows for surveyor dropdowns; supervisors/QC get the full ULB ward list. */
+/** Filter ward rows for dropdowns; QC supervisors with ward assignments see only their wards. */
 export function filterWardsForUser<T extends { municipalityId: Id<"municipalities">; wardNo: string }>(
   user: Doc<"users">,
   wards: T[],
 ): T[] {
   if (user.role === "admin" || user.role === "supervisor") return wards;
-  // Ward chips on QC / custom roles are informational — only surveyors are ward-limited.
+  if (user.role === "qc_supervisor" && user.wardAssignments.length > 0) {
+    return wards.filter((w) => canReadWard(user, w.municipalityId, w.wardNo));
+  }
   if (user.role !== "surveyor") return wards;
   return wards.filter((w) => canReadWard(user, w.municipalityId, w.wardNo));
 }

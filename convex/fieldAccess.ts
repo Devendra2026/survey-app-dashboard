@@ -64,9 +64,10 @@ async function queryByDistrict(
     .take(take);
 }
 
-/** Ward narrowing is for surveyors; QC / supervisor roles see the full allotted ULB. */
+/** Ward narrowing is for surveyors and QC supervisors with ward assignments. */
 async function wardLimitsApply(ctx: QueryCtx, user: Doc<"users">): Promise<boolean> {
-  if (user.role === "admin" || user.role === "supervisor" || user.role === "qc_supervisor") return false;
+  if (user.role === "admin" || user.role === "supervisor") return false;
+  if (user.role === "qc_supervisor") return user.wardAssignments.length > 0;
   if (user.wardAssignments.length === 0) return false;
   const [viewAssigned, qcReview, viewOwn] = await Promise.all([
     hasCapability(ctx, user, "surveys.viewAssigned"),

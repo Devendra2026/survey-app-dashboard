@@ -1,7 +1,7 @@
 "use client";
 
 import { PageTransition } from "@/components/design-system/motion";
-import { QcFiltersSection, QcRegistryHero, QcReviewRegistry } from "@/components/qc/qc-queue-sections";
+import { QcRegistryHero, QcReviewRegistry, QcScopeBanner } from "@/components/qc/qc-queue-sections";
 import { RoleGate } from "@/components/shared/role-gate";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { useQcQueue } from "@/hooks/qc/useQcQueue";
@@ -15,18 +15,21 @@ function QcRegistryContent() {
   const districtFromUrl = searchParams.get("districtId") ?? undefined;
 
   const {
-    filters,
+    scope,
     activeTab,
     pageNumber,
     pageSize,
+    pageStart,
     isLoading,
     stats,
     rejectedCount,
     filteredByTab,
     pagedRows,
+    registrySearch,
     canGoPrev,
     canGoNext,
-    handleFiltersChange,
+    patchScope,
+    handleRegistrySearchChange,
     handleTabChange,
     handlePageSizeChange,
     setPageNumber,
@@ -34,18 +37,17 @@ function QcRegistryContent() {
 
   useEffect(() => {
     if (!wardFromUrl && !muniFromUrl && !districtFromUrl) return;
-    handleFiltersChange({
-      search: "",
-      wardNo: wardFromUrl,
-      municipalityId: muniFromUrl,
-      districtId: districtFromUrl,
+    patchScope({
+      wardNo: wardFromUrl ?? scope.wardNo,
+      municipalityId: muniFromUrl ?? scope.municipalityId,
+      districtId: districtFromUrl ?? scope.districtId,
     });
-  }, [wardFromUrl, muniFromUrl, districtFromUrl, handleFiltersChange]);
+  }, [wardFromUrl, muniFromUrl, districtFromUrl, patchScope, scope.districtId, scope.municipalityId, scope.wardNo]);
 
   return (
     <PageTransition className="space-y-6 lg:space-y-8">
       <QcRegistryHero />
-      <QcFiltersSection filters={filters} onChange={handleFiltersChange} />
+      <QcScopeBanner scope={scope} />
       <QcReviewRegistry
         stats={stats}
         rejectedCount={rejectedCount}
@@ -53,6 +55,9 @@ function QcRegistryContent() {
         filteredCount={filteredByTab.length}
         isLoading={isLoading}
         rows={pagedRows}
+        pageStart={pageStart}
+        registrySearch={registrySearch}
+        onRegistrySearchChange={handleRegistrySearchChange}
         onTabChange={handleTabChange}
       />
       <TablePagination

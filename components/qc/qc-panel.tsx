@@ -15,7 +15,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export function QcPanel({ survey }: { survey: Pick<SurveyListItem, "_id" | "status" | "qcStatus"> }) {
+export function QcPanel({
+  survey,
+  onApproved,
+}: {
+  survey: Pick<SurveyListItem, "_id" | "status" | "qcStatus">;
+  onApproved?: () => void;
+}) {
   const remarks = useQcRemarks(survey._id);
   const decide = useDecide();
   const addRemark = useAddRemark();
@@ -31,13 +37,14 @@ export function QcPanel({ survey }: { survey: Pick<SurveyListItem, "_id" | "stat
 
   const toggleTag = (t: string) => setTags((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
 
-  async function run(fn: () => Promise<unknown>, ok: string) {
+  async function run(fn: () => Promise<unknown>, ok: string, afterSuccess?: () => void) {
     setBusy(true);
     try {
       await fn();
       toast.success(ok);
       setComment("");
       setTags([]);
+      afterSuccess?.();
     } catch (e) {
       toast.error(parseConvexError(e).message);
     } finally {
@@ -119,6 +126,7 @@ export function QcPanel({ survey }: { survey: Pick<SurveyListItem, "_id" | "stat
                             taggedSections: tags,
                           }),
                         "Survey approved",
+                        onApproved,
                       )
                     }
                   >

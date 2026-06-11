@@ -125,6 +125,7 @@ export function searchSurveys<
     respondentName?: string;
     mobileNo?: string;
     parcelNo?: string;
+    wardNo?: string;
     owners?: { name?: string }[];
   },
 >(rows: T[], term: string, ulbCodes?: Map<string, string>): T[] {
@@ -133,6 +134,25 @@ export function searchSurveys<
   return rows.filter((r) => {
     const displayId = resolveDisplayPropertyId(r, ulbCodes);
     return [displayId, r.propertyId, r.respondentName, r.mobileNo, r.parcelNo, ...(r.owners?.map((o) => o.name) ?? [])]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(q));
+  });
+}
+
+/** QC registry search — owner name, parcel number, and ward number. */
+export function searchQcRegistry<
+  T extends {
+    respondentName?: string;
+    parcelNo?: string;
+    wardNo?: string;
+    owners?: { name?: string }[];
+  },
+>(rows: T[], term: string): T[] {
+  const q = term.trim().toLowerCase();
+  if (!q) return rows;
+  return rows.filter((r) => {
+    const wardVariants = [r.wardNo, r.wardNo ? `ward ${r.wardNo}` : undefined, r.wardNo ? `w${r.wardNo}` : undefined];
+    return [r.respondentName, r.parcelNo, ...wardVariants, ...(r.owners?.map((o) => o.name) ?? [])]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(q));
   });

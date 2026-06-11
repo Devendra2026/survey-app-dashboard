@@ -1,11 +1,12 @@
 "use client";
 
-import type { FilterState } from "@/components/surveys/survey-filters";
+import type { DateFilterState } from "@/components/surveys/survey-filters";
 import type { SurveyRow } from "@/components/surveys/survey-tables";
-import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters";
-import { searchSurveys, useSurveyList } from "@/hooks/surveys/useSurveys";
+import { useWardsForMunicipality } from "@/hooks/masters/useMasters";
+import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
+import { searchQcRegistry, useSurveyList } from "@/hooks/surveys/useSurveys";
 import { computeQcWardStats, type QcWardRow } from "@/lib/qc/ward-stats";
-import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
+import type { QcWorkScope } from "@/lib/qc/work-scope";
 import { useCallback, useMemo, useState } from "react";
 
 export type QcQueueStats = {
@@ -15,19 +16,18 @@ export type QcQueueStats = {
 };
 
 export type UseQcQueueOptions = {
-  initialFilters?: FilterState;
   initialTab?: string;
 };
 
 export function useQcQueue(options: UseQcQueueOptions = {}) {
-  const { masters } = useMasters();
-  const ulbCodes = useMemo(() => buildUlbCodeMap(masters?.ulbs), [masters?.ulbs]);
-  const [filters, setFilters] = useState<FilterState>(options.initialFilters ?? { search: "" });
+  const { scope, setScope, patchScope } = useQcWorkScope();
+  const [dateFilters, setDateFilters] = useState<DateFilterState>({});
+  const [registrySearch, setRegistrySearch] = useState("");
   const [pageSize, setPageSize] = useState(20);
   const [activeTab, setActiveTab] = useState(options.initialTab ?? "pending");
   const [pageNumber, setPageNumber] = useState(1);
 
-  const wardsForMuni = useWardsForMunicipality(filters.municipalityId);
+  const wardsForMuni = useWardsForMunicipality(scope.municipalityId);
   const wardLabels = useMemo(() => {
     const map = new Map<string, string>();
     for (const w of wardsForMuni ?? []) {
@@ -36,14 +36,29 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     return map;
   }, [wardsForMuni]);
 
-  const handleFiltersChange = useCallback((next: FilterState) => {
-    setFilters(next);
+  const handleScopeChange = useCallback(
+    (next: QcWorkScope) => {
+      setScope(next);
+      setPageNumber(1);
+    },
+    [setScope],
+  );
+
+  const handleDateFiltersChange = useCallback((next: DateFilterState) => {
+    setDateFilters(next);
     setPageNumber(1);
   }, []);
+
+  const handleRegistrySearchChange = useCallback((term: string) => {
+    setRegistrySearch(term);
+    setPageNumber(1);
+  }, []);
+
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
     setPageNumber(1);
   }, []);
+
   const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);
     setPageNumber(1);
@@ -51,40 +66,40 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
 
   const listFilters = useMemo(
     () => ({
-      wardNo: filters.wardNo,
-      districtId: filters.districtId,
-      municipalityId: filters.municipalityId,
+      wardNo: scope.wardNo,
+      districtId: scope.districtId,
+      municipalityId: scope.municipalityId,
       limit: 2000,
     }),
-    [filters.wardNo, filters.districtId, filters.municipalityId],
+    [scope.wardNo, scope.districtId, scope.municipalityId],
   );
 
   const surveys = useSurveyList(listFilters);
   const isLoading = surveys === undefined;
 
-  const filtered = useMemo(
-    () => (surveys ? searchSurveys(surveys, filters.search, ulbCodes) : surveys),
-    [surveys, filters.search, ulbCodes],
+  const registryFiltered = useMemo(
+    () => (surveys ? searchQcRegistry(surveys as SurveyRow[], registrySearch) : surveys),
+    [surveys, registrySearch],
   );
 
   const fromDateMs = useMemo(
-    () => (filters.fromDate ? new Date(`${filters.fromDate}T00:00:00`).getTime() : undefined),
-    [filters.fromDate],
+    () => (dateFilters.fromDate ? new Date(`${dateFilters.fromDate}T00:00:00`).getTime() : undefined),
+    [dateFilters.fromDate],
   );
   const toDateMs = useMemo(
-    () => (filters.toDate ? new Date(`${filters.toDate}T23:59:59.999`).getTime() : undefined),
-    [filters.toDate],
+    () => (dateFilters.toDate ? new Date(`${dateFilters.toDate}T23:59:59.999`).getTime() : undefined),
+    [dateFilters.toDate],
   );
 
   const filteredByDate = useMemo(
     () =>
-      (filtered ?? []).filter((r) => {
+      (registryFiltered ?? []).filter((r) => {
         const ts = r.submittedAt ?? r._creationTime;
         if (fromDateMs !== undefined && ts < fromDateMs) return false;
         if (toDateMs !== undefined && ts > toDateMs) return false;
         return true;
       }),
-    [filtered, fromDateMs, toDateMs],
+    [registryFiltered, fromDateMs, toDateMs],
   );
 
   const filteredByTab = useMemo(() => {
@@ -124,20 +139,32 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
 
   const rejectedCount = useMemo(() => filteredByDate.filter((r) => r.qcStatus === "rejected").length, [filteredByDate]);
 
+  const pendingQueue = useMemo(
+    () => (filteredByDate as SurveyRow[]).filter((r) => r.qcStatus === "pending" && r.status === "submitted"),
+    [filteredByDate],
+  );
+
   return {
-    filters,
+    scope,
+    dateFilters,
+    registrySearch,
     activeTab,
     pageNumber,
     pageSize,
+    pageStart,
     isLoading,
     stats,
     wardStats,
     rejectedCount,
     filteredByTab,
     pagedRows,
+    pendingQueue,
     canGoPrev,
     canGoNext,
-    handleFiltersChange,
+    handleScopeChange,
+    handleDateFiltersChange,
+    handleRegistrySearchChange,
+    patchScope,
     handleTabChange,
     handlePageSizeChange,
     setPageNumber,

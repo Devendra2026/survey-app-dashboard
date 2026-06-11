@@ -8,6 +8,7 @@ export type QcWardRow = {
   pending: number;
   approved: number;
   total: number;
+  firstPendingId?: string;
 };
 
 export function wardGroupKey(row: Pick<SurveyRow, "municipalityId" | "wardNo">): string {
@@ -34,7 +35,10 @@ export function computeQcWardStats(rows: SurveyRow[], wardLabels?: Map<string, s
       byKey.set(key, entry);
     }
     entry.total += 1;
-    if (row.qcStatus === "pending" && row.status === "submitted") entry.pending += 1;
+    if (row.qcStatus === "pending" && row.status === "submitted") {
+      entry.pending += 1;
+      if (!entry.firstPendingId) entry.firstPendingId = row._id;
+    }
     if (row.qcStatus === "approved") entry.approved += 1;
   }
 

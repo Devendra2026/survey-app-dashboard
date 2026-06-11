@@ -10,15 +10,43 @@ import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-bad
 import { SurveyDetailView } from "@/components/surveys/survey-detail-view";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQcQueue } from "@/hooks/qc/useQcQueue";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { isSurveyAwaitingQc, wasEditedAfterSubmit } from "@/lib/domain";
+import { findNextPendingSurvey } from "@/lib/qc/queue-nav";
 import { ArrowLeft, Building2, ClipboardCheck, FileText, MapPin, Pencil } from "lucide-react";
 import Link from "next/link";
-import { use } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, use, useCallback, useEffect } from "react";
+import { toast } from "sonner";
 
-export default function QcReviewPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+function QcReviewContent({ id }: { id: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const survey = useSurvey(id);
+  const { pendingQueue, scope, patchScope } = useQcQueue();
+
+  const wardFromUrl = searchParams.get("wardNo") ?? undefined;
+  const muniFromUrl = searchParams.get("municipalityId") ?? undefined;
+
+  useEffect(() => {
+    if (!wardFromUrl && !muniFromUrl) return;
+    patchScope({
+      wardNo: wardFromUrl ?? scope.wardNo,
+      municipalityId: muniFromUrl ?? scope.municipalityId,
+    });
+  }, [wardFromUrl, muniFromUrl, patchScope, scope.municipalityId, scope.wardNo]);
+
+  const handleApproved = useCallback(() => {
+    const next = findNextPendingSurvey(pendingQueue, id);
+    if (next) {
+      router.push(`/qc/${next._id}`);
+      return;
+    }
+    const wardLabel = scope.wardNo ? `Ward ${scope.wardNo}` : "this ward";
+    toast.info(`QC complete for ${wardLabel}. Select another ward in Smart Filters to continue.`);
+    router.push("/qc");
+  }, [pendingQueue, id, router, scope.wardNo]);
 
   if (survey === undefined) {
     return (
@@ -122,10 +150,20 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
           </div>
           <div className="space-y-4">
             <QcReviewTimeline events={timeline} />
-            <QcPanel survey={survey} />
+            <QcPanel survey={survey} onApproved={handleApproved} />
           </div>
         </div>
       </PageTransition>
     </RoleGate>
+  );
+}
+
+export default function QcReviewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+
+  return (
+    <Suspense>
+      <QcReviewContent id={id} />
+    </Suspense>
   );
 }

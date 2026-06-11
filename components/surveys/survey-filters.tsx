@@ -21,6 +21,10 @@ export interface FilterState {
   toDate?: string;
 }
 
+export type DateFilterState = Pick<FilterState, "month" | "fromDate" | "toDate">;
+
+export type ScopeFilterState = Pick<FilterState, "districtId" | "municipalityId" | "wardNo">;
+
 const ALL = "__all__";
 
 function pickFilterValue(v: string) {
@@ -32,11 +36,13 @@ export function SurveyFilters({
   onChange,
   showStatus = true,
   showQcStatus = true,
+  showSearch = true,
 }: {
   value: FilterState;
   onChange: (next: FilterState) => void;
   showStatus?: boolean;
   showQcStatus?: boolean;
+  showSearch?: boolean;
 }) {
   const { masters } = useMasters();
   const wardsForMuni = useWardsForMunicipality(value.municipalityId);
@@ -63,7 +69,7 @@ export function SurveyFilters({
   const wardsInScope = value.municipalityId ? (wardsForMuni ?? []) : [];
   const ulbsInScope = (masters?.ulbs ?? []).filter((m: any) => !value.districtId || m.districtId === value.districtId);
   const hasActiveFilters = Boolean(
-    value.search ||
+    (showSearch && value.search) ||
     value.districtId ||
     value.municipalityId ||
     value.wardNo ||
@@ -74,7 +80,7 @@ export function SurveyFilters({
     value.toDate,
   );
   const activeFilterCount = [
-    value.search,
+    showSearch ? value.search : undefined,
     value.districtId,
     value.municipalityId,
     value.wardNo,
@@ -119,18 +125,20 @@ export function SurveyFilters({
       </div>
 
       <div className="grid gap-3 rounded-xl border border-border/70 bg-background/40 p-3 md:grid-cols-2 xl:grid-cols-4 dark:bg-background/20">
-        <div className="space-y-1.5 md:col-span-2 xl:col-span-4">
-          <Label className="text-xs text-muted-foreground">Search</Label>
-          <div className="relative min-w-56 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search Property ID, owner, mobile, parcel…"
-              className="h-10 rounded-lg border-primary/20 bg-background pl-9"
-              value={value.search}
-              onChange={(e) => set({ search: e.target.value })}
-            />
+        {showSearch && (
+          <div className="space-y-1.5 md:col-span-2 xl:col-span-4">
+            <Label className="text-xs text-muted-foreground">Search</Label>
+            <div className="relative min-w-56 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search Property ID, owner, mobile, parcel…"
+                className="h-10 rounded-lg border-primary/20 bg-background pl-9"
+                value={value.search}
+                onChange={(e) => set({ search: e.target.value })}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">District</Label>

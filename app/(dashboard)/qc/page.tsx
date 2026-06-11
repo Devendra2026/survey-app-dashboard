@@ -6,7 +6,7 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { useQcQueue } from "@/hooks/qc/useQcQueue";
 
 export default function QcCommandCenterPage() {
-  const { isLoading, stats, wardStats, filters, handleFiltersChange } = useQcQueue();
+  const { isLoading, stats, wardStats, scope, dateFilters, handleScopeChange, handleDateFiltersChange } = useQcQueue();
 
   return (
     <RoleGate
@@ -16,7 +16,12 @@ export default function QcCommandCenterPage() {
     >
       <PageTransition className="space-y-6 lg:space-y-8">
         <QcCommandHero />
-        <QcFiltersSection filters={filters} onChange={handleFiltersChange} />
+        <QcFiltersSection
+          scope={scope}
+          dateFilters={dateFilters}
+          onScopeChange={handleScopeChange}
+          onDateFiltersChange={handleDateFiltersChange}
+        />
         <QcMetricsSection stats={stats} isLoading={isLoading} />
         <QcWardSection wardStats={wardStats} isLoading={isLoading} />
       </PageTransition>

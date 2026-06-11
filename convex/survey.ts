@@ -38,6 +38,21 @@ function enrichSurveyPropertyIds(rows: Doc<"surveys">[], codes: Map<Id<"municipa
   }));
 }
 
+async function enrichSurveyorNames(
+  ctx: QueryCtx,
+  rows: Doc<"surveys">[],
+): Promise<Array<Doc<"surveys"> & { surveyorName?: string }>> {
+  const surveyorIds = [...new Set(rows.map((r) => r.surveyorId))];
+  const surveyors = await Promise.all(surveyorIds.map((id) => ctx.db.get(id)));
+  const nameById = new Map(
+    surveyors.filter((s): s is Doc<"users"> => s != null).map((s) => [s._id, s.name] as const),
+  );
+  return rows.map((row) => ({
+    ...row,
+    surveyorName: nameById.get(row.surveyorId),
+  }));
+}
+
 /* ────────────────────────── shared input validator ────────────────────────── */
 
 /** Partial payload for in-progress saves — only `localId` + `municipalityId` are required. */
@@ -198,7 +213,8 @@ export const list = query({
       ctx,
       rows.map((r) => r.municipalityId),
     );
-    return enrichSurveyPropertyIds(rows, codes);
+    const enriched = enrichSurveyPropertyIds(rows, codes);
+    return await enrichSurveyorNames(ctx, enriched);
   },
 });
 
