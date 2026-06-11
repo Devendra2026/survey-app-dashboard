@@ -11,17 +11,26 @@ import {
   Database,
   FileBarChart,
   LayoutDashboard,
+  LayoutGrid,
   ScrollText,
   Settings,
   ShieldCheck,
   ShieldEllipsis,
+  Table2,
   Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type NavItem = { key: string; href: string; label: string; icon: React.ElementType };
+type NavItem = {
+  key: string;
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  /** When true, only exact pathname match counts as active (e.g. /qc vs /qc/registry). */
+  exact?: boolean;
+};
 
 const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   {
@@ -33,8 +42,11 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     items: [{ key: "surveys", href: "/surveys", label: "Surveys", icon: ClipboardList }],
   },
   {
-    title: "Quality Control",
-    items: [{ key: "qc", href: "/qc", label: "QC Portal", icon: ShieldCheck }],
+    title: "QC Portal",
+    items: [
+      { key: "qc", href: "/qc", label: "Command Center", icon: LayoutGrid, exact: true },
+      { key: "qc_registry", href: "/qc/registry", label: "QC", icon: Table2 },
+    ],
   },
   {
     title: "Insights",
@@ -57,18 +69,26 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
 
 const labelTransition = "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]";
 
+function isNavItemActive(pathname: string, item: NavItem): boolean {
+  if (item.exact) return pathname === item.href;
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
 function NavLink({
   item,
   active,
   collapsed,
   onNavigate,
+  nested,
 }: {
   item: NavItem;
   active: boolean;
   collapsed?: boolean;
   onNavigate?: () => void;
+  nested?: boolean;
 }) {
   const Icon = item.icon;
+  const isQcChild = nested;
 
   const link = (
     <Link
@@ -77,13 +97,15 @@ function NavLink({
       aria-current={active ? "page" : undefined}
       className={cn(
         "group relative flex cursor-pointer items-center gap-3 rounded-lg py-2 text-sm font-medium transition-colors duration-200",
-        collapsed ? "justify-center px-2" : "px-3",
+        collapsed ? "justify-center px-2" : nested ? "pl-9 pr-3" : "px-3",
         active
-          ? "bg-brand-red/10 text-sidebar-foreground dark:bg-brand-red/15"
+          ? isQcChild
+            ? "bg-amber-500/15 text-amber-950 dark:bg-amber-500/20 dark:text-amber-100"
+            : "bg-brand-red/10 text-sidebar-foreground dark:bg-brand-red/15"
           : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground",
       )}
     >
-      {active && (
+      {active && !isQcChild && (
         <span
           className={cn(
             "absolute left-0 top-1/2 h-5 w-0.75 -translate-y-1/2 rounded-r-full bg-brand-red",
@@ -93,10 +115,24 @@ function NavLink({
           aria-hidden
         />
       )}
+      {active && isQcChild && (
+        <span
+          className={cn(
+            "absolute left-4 top-1/2 h-4 w-0.75 -translate-y-1/2 rounded-r-full bg-amber-500",
+            labelTransition,
+            collapsed && "opacity-0",
+          )}
+          aria-hidden
+        />
+      )}
       <Icon
         className={cn(
           "h-4.5 w-4.5 shrink-0 transition-colors duration-200",
-          active ? "text-brand-red" : "text-sidebar-foreground/55 group-hover:text-sidebar-foreground",
+          active
+            ? isQcChild
+              ? "text-amber-600 dark:text-amber-400"
+              : "text-brand-red"
+            : "text-sidebar-foreground/55 group-hover:text-sidebar-foreground",
         )}
         aria-hidden
       />
@@ -104,7 +140,7 @@ function NavLink({
         className={cn(
           "truncate whitespace-nowrap",
           labelTransition,
-          collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
+          collapsed ? "max-w-0 opacity-0" : "max-w-32 opacity-100",
         )}
       >
         {item.label}
@@ -145,29 +181,46 @@ function NavItems({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?:
       className="flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-2 py-3 premium-scrollbar"
       aria-label="Main navigation"
     >
-      {sections.map((section) => (
-        <div key={section.title}>
-          <p
-            className={cn(
-              "mb-1.5 overflow-hidden px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/40",
-              labelTransition,
-              collapsed ? "max-h-0 opacity-0" : "max-h-6 opacity-100",
-            )}
-          >
-            {section.title}
-          </p>
-          <ul className="space-y-0.5">
-            {section.items.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return (
-                <li key={item.key}>
-                  <NavLink item={item} active={active} collapsed={collapsed} onNavigate={onNavigate} />
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+      {sections.map((section) => {
+        const isQcPortal = section.title === "QC Portal";
+        return (
+          <div key={section.title}>
+            <p
+              className={cn(
+                "mb-1.5 overflow-hidden px-3 text-[10px] font-bold uppercase tracking-[0.14em]",
+                isQcPortal ? "text-amber-700/70 dark:text-amber-400/70" : "text-sidebar-foreground/40",
+                labelTransition,
+                collapsed ? "max-h-0 opacity-0" : "max-h-6 opacity-100",
+              )}
+            >
+              {isQcPortal && !collapsed ? (
+                <span className="inline-flex items-center gap-1">
+                  <ShieldCheck className="h-3 w-3" aria-hidden />
+                  {section.title}
+                </span>
+              ) : (
+                section.title
+              )}
+            </p>
+            <ul className="space-y-0.5">
+              {section.items.map((item) => {
+                const active = isNavItemActive(pathname, item);
+                return (
+                  <li key={item.key}>
+                    <NavLink
+                      item={item}
+                      active={active}
+                      collapsed={collapsed}
+                      onNavigate={onNavigate}
+                      nested={isQcPortal}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </nav>
   );
 }

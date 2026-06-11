@@ -2,40 +2,52 @@
 
 import type { FilterState } from "@/components/surveys/survey-filters";
 import type { SurveyRow } from "@/components/surveys/survey-tables";
-import { useMasters } from "@/hooks/masters/useMasters";
+import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters";
 import { searchSurveys, useSurveyList } from "@/hooks/surveys/useSurveys";
+import { computeQcWardStats, type QcWardRow } from "@/lib/qc/ward-stats";
 import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 export type QcQueueStats = {
   pending: number;
   approved: number;
-  rejected: number;
-  totalInQueue: number;
   submittedToday: number;
-  approvalRate: string;
 };
 
-export function useQcQueue() {
+export type UseQcQueueOptions = {
+  initialFilters?: FilterState;
+  initialTab?: string;
+};
+
+export function useQcQueue(options: UseQcQueueOptions = {}) {
   const { masters } = useMasters();
   const ulbCodes = useMemo(() => buildUlbCodeMap(masters?.ulbs), [masters?.ulbs]);
-  const [filters, setFilters] = useState<FilterState>({ search: "" });
+  const [filters, setFilters] = useState<FilterState>(options.initialFilters ?? { search: "" });
   const [pageSize, setPageSize] = useState(20);
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState(options.initialTab ?? "pending");
   const [pageNumber, setPageNumber] = useState(1);
 
-  const handleFiltersChange = (next: FilterState) => {
+  const wardsForMuni = useWardsForMunicipality(filters.municipalityId);
+  const wardLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const w of wardsForMuni ?? []) {
+      if (w.wardNo && w.name) map.set(w.wardNo, w.name);
+    }
+    return map;
+  }, [wardsForMuni]);
+
+  const handleFiltersChange = useCallback((next: FilterState) => {
     setFilters(next);
     setPageNumber(1);
-  };
-  const handleTabChange = (tab: string) => {
+  }, []);
+  const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
     setPageNumber(1);
-  };
-  const handlePageSizeChange = (size: number) => {
+  }, []);
+  const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);
     setPageNumber(1);
-  };
+  }, []);
 
   const listFilters = useMemo(
     () => ({
@@ -97,30 +109,20 @@ export function useQcQueue() {
     todayStart.setHours(0, 0, 0, 0);
     const todayMs = todayStart.getTime();
 
-    const pending = rows.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length;
-    const approved = rows.filter((r) => r.qcStatus === "approved").length;
-    const rejected = rows.filter((r) => r.qcStatus === "rejected").length;
-    const totalInQueue = pending + approved + rejected;
-    const submittedToday = rows.filter(
-      (r) => r.status === "submitted" && (r.submittedAt ?? r._creationTime) >= todayMs,
-    ).length;
-    const approvalRate = approved + rejected > 0 ? ((approved / (approved + rejected)) * 100).toFixed(1) : "0.0";
-    return { pending, approved, rejected, totalInQueue, submittedToday, approvalRate };
+    return {
+      pending: rows.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length,
+      approved: rows.filter((r) => r.qcStatus === "approved").length,
+      submittedToday: rows.filter((r) => r.status === "submitted" && (r.submittedAt ?? r._creationTime) >= todayMs)
+        .length,
+    };
   }, [filteredByDate]);
 
-  const nextPending = useMemo(
-    () => filteredByDate.find((r) => r.qcStatus === "pending" && r.status === "submitted"),
-    [filteredByDate],
+  const wardStats = useMemo(
+    (): QcWardRow[] => computeQcWardStats(filteredByDate as SurveyRow[], wardLabels),
+    [filteredByDate, wardLabels],
   );
 
-  const pipelineStage =
-    activeTab === "pending"
-      ? "pending"
-      : activeTab === "approved"
-        ? "approved"
-        : activeTab === "rejected"
-          ? "rejected"
-          : undefined;
+  const rejectedCount = useMemo(() => filteredByDate.filter((r) => r.qcStatus === "rejected").length, [filteredByDate]);
 
   return {
     filters,
@@ -129,8 +131,8 @@ export function useQcQueue() {
     pageSize,
     isLoading,
     stats,
-    nextPending,
-    pipelineStage,
+    wardStats,
+    rejectedCount,
     filteredByTab,
     pagedRows,
     canGoPrev,

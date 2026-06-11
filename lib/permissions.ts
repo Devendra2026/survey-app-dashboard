@@ -143,7 +143,10 @@ export function navKeysForUser(serverCapabilities: string[] | undefined, role: R
       keys.add("dashboard");
     }
     if (hasSurveysNav) keys.add("surveys");
-    if (hasQc) keys.add("qc");
+    if (hasQc) {
+      keys.add("qc");
+      keys.add("qc_registry");
+    }
     if (serverCapabilities.some((c) => c.startsWith("users."))) keys.add("users");
     if (serverCapabilities.includes("roles.manage")) keys.add("roles");
     if (serverCapabilities.some((c) => c.startsWith("masters."))) keys.add("masters");
@@ -160,6 +163,6 @@ export const NAV_VISIBILITY: Record<Role, string[]> = {
   pending: [],
   surveyor: ["dashboard", "surveys", "settings"],
   supervisor: ["dashboard", "surveys", "users", "reports", "settings"],
-  qc_supervisor: ["dashboard", "qc", "reports", "settings"],
-  admin: ["dashboard", "surveys", "qc", "users", "roles", "masters", "reports", "audit", "settings"],
+  qc_supervisor: ["dashboard", "qc", "qc_registry", "reports", "settings"],
+  admin: ["dashboard", "surveys", "qc", "qc_registry", "users", "roles", "masters", "reports", "audit", "settings"],
 };
