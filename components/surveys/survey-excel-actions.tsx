@@ -38,20 +38,33 @@ export function SurveyExcelActions({
   async function onExport() {
     setExporting(true);
     try {
-      const bundles = await convex.query(api.surveyExport.listForExport, {
+      const queryArgs = {
         status: filters.status,
         qcStatus: filters.qcStatus,
         wardNo: filters.wardNo,
         districtId: filters.districtId as Id<"districts"> | undefined,
         municipalityId: filters.municipalityId as Id<"municipalities"> | undefined,
         surveyorId: filters.surveyorId as Id<"users"> | undefined,
-      });
-      if (!bundles.length) {
+      };
+
+      const allBundles = [];
+      let offset = 0;
+      let total: number | undefined;
+
+      while (true) {
+        const page = await convex.query(api.surveyExport.listForExport, { ...queryArgs, offset });
+        total = page.total;
+        allBundles.push(...page.bundles);
+        if (page.nextOffset === null) break;
+        offset = page.nextOffset;
+      }
+
+      if (!allBundles.length) {
         toast.message("No surveys to export for the current filters.");
         return;
       }
-      exportSurveysFullExcel(bundles as any);
-      toast.success(`Exported ${bundles.length} survey(s) to Excel`);
+      exportSurveysFullExcel(allBundles as any);
+      toast.success(`Exported ${total ?? allBundles.length} survey(s) to Excel`);
     } catch (e) {
       toast.error(parseConvexError(e).message);
     } finally {
@@ -97,6 +110,8 @@ export function SurveyExcelActions({
       {canImport && (
         <>
           <input
+            id="import-excel-file"
+            aria-label="Import Excel file"
             ref={fileRef}
             type="file"
             accept=".xlsx,.xls"
@@ -106,7 +121,12 @@ export function SurveyExcelActions({
               if (f) void onImportFile(f);
             }}
           />
-          <Button variant="outline" disabled={disabled || importing} onClick={() => fileRef.current?.click()}>
+          <Button
+            id="import-excel-button"
+            variant="outline"
+            disabled={disabled || importing}
+            onClick={() => fileRef.current?.click()}
+          >
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
             {importing ? "Importing…" : "Import Excel"}
           </Button>

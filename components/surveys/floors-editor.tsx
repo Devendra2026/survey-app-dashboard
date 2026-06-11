@@ -46,7 +46,9 @@ export function FloorsEditor({
   const { masters } = useMasters({ includeTenantCatalog: false });
   const [draft, setDraft] = useState<FloorDraft | null>(null);
   const [savingPlot, setSavingPlot] = useState(false);
-  const plotSqft = initialPlot ?? 0;
+  /** Local edits only — server value comes from `initialPlot` (parent remounts via `key={surveyId}`). */
+  const [plotOverride, setPlotOverride] = useState<number | null>(null);
+  const plotDraft = plotOverride ?? initialPlot ?? 0;
 
   const builtUpFloors = useMemo(() => (floors ?? []).filter((f) => !isOpenLandFloor(f.floorName)), [floors]);
   const openLandFloors = useMemo(() => (floors ?? []).filter((f) => isOpenLandFloor(f.floorName)), [floors]);
@@ -58,8 +60,8 @@ export function FloorsEditor({
   saveDraftRef.current = saveDraft;
   const surveyRef = useRef(survey);
   surveyRef.current = survey;
-  const plotSqftRef = useRef(plotSqft);
-  plotSqftRef.current = plotSqft;
+  const plotSqftRef = useRef(plotDraft);
+  plotSqftRef.current = plotDraft;
   const plinthRef = useRef(plinthFromFloors);
   plinthRef.current = plinthFromFloors;
   const floorsRef = useRef(floors);
@@ -120,8 +122,11 @@ export function FloorsEditor({
     if (!survey) return;
     setSavingPlot(true);
     try {
-      const ok = await persistPlotArea(plotSqft);
-      if (ok) toast.success("Plot area saved");
+      const ok = await persistPlotArea(plotDraft);
+      if (ok) {
+        setPlotOverride(null);
+        toast.success("Plot area saved");
+      }
     } finally {
       setSavingPlot(false);
     }
@@ -174,7 +179,15 @@ export function FloorsEditor({
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-40 space-y-1.5">
             <Label>Plot (sqft)</Label>
-            <Input type="number" value={plotSqft || ""} onChange={(e) => onPlotSqftChange?.(Number(e.target.value))} />
+            <Input
+              type="number"
+              value={plotDraft || ""}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setPlotOverride(value);
+                onPlotSqftChange?.(value);
+              }}
+            />
           </div>
           <Button size="sm" disabled={savingPlot} onClick={savePlot} className="cursor-pointer rounded-xl">
             {savingPlot ? "Saving…" : "Save plot area"}

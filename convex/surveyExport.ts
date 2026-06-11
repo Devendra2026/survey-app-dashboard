@@ -9,7 +9,7 @@ import { normalizeFloorFields, presentFloorRow, usageTypeToOccupied, validateFlo
 import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
 import { assertCanReadWard, clientError, requireRole, requireUser, writeAudit } from "./helpers";
 import { comparePropertyIds, resolvePropertyId } from "./propertyId";
-import { qcStatus, surveyStatus } from "./schema";
+import { gpsCapture, photoSlot, qcStatus, sanitationType, surveyOwnerEntry, surveyStatus, waterSource } from "./schema";
 import {
   mergeDraftArgs,
   normalizeOwnerFields,
@@ -44,16 +44,174 @@ function enrichSurveyPropertyIds(rows: Doc<"surveys">[], codes: Map<Id<"municipa
   }));
 }
 
-/** Same filters as survey.list but up to 5k rows with floors, photos, and labels. */
+const exportPhotoValidator = v.object({
+  slot: photoSlot,
+  sizeKb: v.number(),
+  width: v.optional(v.number()),
+  height: v.optional(v.number()),
+  capturedAt: v.number(),
+  url: v.union(v.string(), v.null()),
+});
+
+const exportFloorValidator = v.object({
+  _id: v.id("floors"),
+  _creationTime: v.number(),
+  surveyId: v.id("surveys"),
+  clientFloorId: v.string(),
+  position: v.number(),
+  floorName: v.string(),
+  usageFactor: v.optional(v.string()),
+  usageType: v.string(),
+  constructionType: v.string(),
+  isOccupied: v.boolean(),
+  areaSqft: v.number(),
+});
+
+/** Full survey row + labels + child rows returned to the Excel exporter. */
+const exportBundleValidator = v.object({
+  _id: v.id("surveys"),
+  _creationTime: v.number(),
+  localId: v.string(),
+  surveyorId: v.id("users"),
+  districtId: v.id("districts"),
+  municipalityId: v.id("municipalities"),
+  wardNo: v.string(),
+  status: surveyStatus,
+  qcStatus,
+  serverVersion: v.number(),
+  clientUpdatedAt: v.number(),
+  submittedAt: v.optional(v.number()),
+  sectorNo: v.optional(v.string()),
+  oldPropertyNo: v.optional(v.string()),
+  propertyId: v.optional(v.string()),
+  parcelNo: v.string(),
+  unitNo: v.string(),
+  constructedYear: v.optional(v.number()),
+  isSlum: v.boolean(),
+  respondentName: v.optional(v.string()),
+  relationship: v.optional(v.string()),
+  owners: v.optional(v.array(surveyOwnerEntry)),
+  familySize: v.optional(v.number()),
+  mobileNo: v.string(),
+  altMobileNo: v.optional(v.string()),
+  houseNo: v.optional(v.string()),
+  locality: v.string(),
+  colonyName: v.string(),
+  city: v.string(),
+  pinCode: v.string(),
+  assessmentYear: v.string(),
+  ownershipType: v.string(),
+  propertyType: v.string(),
+  propertyUse: v.string(),
+  situation: v.string(),
+  roadType: v.string(),
+  taxRateZone: v.string(),
+  plotSqft: v.number(),
+  plinthSqft: v.number(),
+  municipalWaterConnection: v.boolean(),
+  waterSource,
+  sanitationType,
+  municipalWasteCollection: v.boolean(),
+  electricityNo: v.optional(v.string()),
+  gps: v.optional(gpsCapture),
+  districtName: v.string(),
+  municipalityName: v.string(),
+  municipalityCode: v.string(),
+  surveyorName: v.string(),
+  surveyorEmail: v.string(),
+  floors: v.array(exportFloorValidator),
+  photos: v.array(exportPhotoValidator),
+});
+
+const EXPORT_SCOPE_LIMIT = 5000;
+const DEFAULT_EXPORT_PAGE_SIZE = 30;
+const MAX_EXPORT_PAGE_SIZE = 50;
+
+async function enrichSurveysForExport(
+  ctx: QueryCtx,
+  surveys: Doc<"surveys">[],
+  codes: Map<Id<"municipalities">, string>,
+) {
+  if (surveys.length === 0) {
+    return [];
+  }
+
+  const enriched = enrichSurveyPropertyIds(surveys, codes);
+
+  const muniIdSet = [...new Set(enriched.map((r) => r.municipalityId))];
+  const districtIdSet = [...new Set(enriched.map((r) => r.districtId))];
+  const surveyorIdSet = [...new Set(enriched.map((r) => r.surveyorId))];
+
+  const [munis, districts, surveyors] = await Promise.all([
+    Promise.all(muniIdSet.map((id) => ctx.db.get(id))),
+    Promise.all(districtIdSet.map((id) => ctx.db.get(id))),
+    Promise.all(surveyorIdSet.map((id) => ctx.db.get(id))),
+  ]);
+
+  const muniMap = new Map(munis.filter(Boolean).map((m) => [m!._id, m!]));
+  const districtMap = new Map(districts.filter(Boolean).map((d) => [d!._id, d!]));
+  const surveyorMap = new Map(surveyors.filter(Boolean).map((u) => [u!._id, u!]));
+
+  const bundles = [];
+  for (const survey of enriched) {
+    const [floorRows, photoRows] = await Promise.all([
+      ctx.db
+        .query("floors")
+        .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
+        .collect(),
+      ctx.db
+        .query("photos")
+        .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
+        .collect(),
+    ]);
+
+    const photos = await Promise.all(
+      photoRows.map(async (p) => ({
+        slot: p.slot,
+        sizeKb: p.sizeKb,
+        width: p.width,
+        height: p.height,
+        capturedAt: p.capturedAt,
+        url: await ctx.storage.getUrl(p.storageId),
+      })),
+    );
+
+    const muni = muniMap.get(survey.municipalityId);
+    const district = districtMap.get(survey.districtId);
+    const surveyor = surveyorMap.get(survey.surveyorId);
+
+    bundles.push({
+      ...survey,
+      districtName: district?.name ?? "",
+      municipalityName: muni?.name ?? survey.city,
+      municipalityCode: muni?.code ?? "",
+      surveyorName: surveyor?.name ?? "",
+      surveyorEmail: surveyor?.email ?? "",
+      floors: floorRows.sort((a, b) => a.position - b.position).map(presentFloorRow),
+      photos,
+    });
+  }
+
+  return bundles;
+}
+
+/** Same filters as survey.list; paginate with offset/pageSize to stay under read limits. */
 export const listForExport = query({
   args: {
     ...listFilterArgs,
-    limit: v.optional(v.number()),
+    offset: v.optional(v.number()),
+    pageSize: v.optional(v.number()),
   },
+  returns: v.object({
+    bundles: v.array(exportBundleValidator),
+    total: v.number(),
+    nextOffset: v.union(v.number(), v.null()),
+  }),
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
     requireRole(me, "supervisor", "admin", "surveyor");
-    const limit = Math.min(args.limit ?? 5000, 5000);
+    const offset = Math.max(args.offset ?? 0, 0);
+    const pageSize = Math.min(Math.max(args.pageSize ?? DEFAULT_EXPORT_PAGE_SIZE, 1), MAX_EXPORT_PAGE_SIZE);
 
     const scope = await resolveTenantScope(ctx, me);
     const districtIds = tenantDistrictIds(scope);
@@ -71,7 +229,7 @@ export const listForExport = query({
       districtId: args.districtId,
       status: args.status,
       surveyorId: args.surveyorId,
-      limit,
+      limit: EXPORT_SCOPE_LIMIT,
     });
 
     if (args.districtId) rows = rows.filter((r) => r.districtId === args.districtId);
@@ -84,66 +242,16 @@ export const listForExport = query({
     if (args.wardNo) rows = rows.filter((r) => r.wardNo === args.wardNo);
     rows.sort((a, b) => comparePropertyIds(a.propertyId, b.propertyId));
 
+    const total = rows.length;
+    const page = rows.slice(offset, offset + pageSize);
     const codes = await loadMunicipalityCodes(
       ctx,
-      rows.map((r) => r.municipalityId),
+      page.map((r) => r.municipalityId),
     );
-    const enriched = enrichSurveyPropertyIds(rows, codes);
+    const bundles = await enrichSurveysForExport(ctx, page, codes);
+    const nextOffset = offset + pageSize < total ? offset + pageSize : null;
 
-    const muniIdSet = [...new Set(enriched.map((r) => r.municipalityId))];
-    const districtIdSet = [...new Set(enriched.map((r) => r.districtId))];
-    const surveyorIdSet = [...new Set(enriched.map((r) => r.surveyorId))];
-
-    const [munis, districts, surveyors] = await Promise.all([
-      Promise.all(muniIdSet.map((id) => ctx.db.get(id))),
-      Promise.all(districtIdSet.map((id) => ctx.db.get(id))),
-      Promise.all(surveyorIdSet.map((id) => ctx.db.get(id))),
-    ]);
-
-    const muniMap = new Map(munis.filter(Boolean).map((m) => [m!._id, m!]));
-    const districtMap = new Map(districts.filter(Boolean).map((d) => [d!._id, d!]));
-    const surveyorMap = new Map(surveyors.filter(Boolean).map((u) => [u!._id, u!]));
-
-    return Promise.all(
-      enriched.map(async (survey) => {
-        const [floorRows, photoRows] = await Promise.all([
-          ctx.db
-            .query("floors")
-            .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
-            .collect(),
-          ctx.db
-            .query("photos")
-            .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
-            .collect(),
-        ]);
-
-        const photos = await Promise.all(
-          photoRows.map(async (p) => ({
-            slot: p.slot,
-            sizeKb: p.sizeKb,
-            width: p.width,
-            height: p.height,
-            capturedAt: p.capturedAt,
-            url: await ctx.storage.getUrl(p.storageId),
-          })),
-        );
-
-        const muni = muniMap.get(survey.municipalityId);
-        const district = districtMap.get(survey.districtId);
-        const surveyor = surveyorMap.get(survey.surveyorId);
-
-        return {
-          ...survey,
-          districtName: district?.name ?? "",
-          municipalityName: muni?.name ?? survey.city,
-          municipalityCode: muni?.code ?? "",
-          surveyorName: surveyor?.name ?? "",
-          surveyorEmail: surveyor?.email ?? "",
-          floors: floorRows.sort((a, b) => a.position - b.position).map(presentFloorRow),
-          photos,
-        };
-      }),
-    );
+    return { bundles, total, nextOffset };
   },
 });
 

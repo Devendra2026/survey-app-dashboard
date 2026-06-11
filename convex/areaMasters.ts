@@ -164,6 +164,19 @@ export function validateAreaSection(input: {
   return details;
 }
 
+/** When plot was not saved on the survey row, infer it from floor rows (open land / mobile sync). */
+export function derivePlotSqftForSubmit(
+  plotSqft: number | undefined,
+  floors: { floorName: string; areaSqft: number }[],
+): number {
+  if (typeof plotSqft === "number" && plotSqft > 0) return plotSqft;
+  const openLand = openLandSqftFromFloors(floors);
+  const builtUp = builtUpSqftFromFloors(floors);
+  if (openLand > 0 && builtUp <= 0) return openLand;
+  if (builtUp > 0) return Math.max(builtUp, openLand);
+  return 0;
+}
+
 type SeedRow = MasterOption & { position: number };
 
 async function upsertMasterCategory(ctx: MutationCtx, category: string, rows: SeedRow[]) {

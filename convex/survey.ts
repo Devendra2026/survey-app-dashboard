@@ -1,9 +1,17 @@
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
-import { mutation, query, type QueryCtx } from "./_generated/server";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { addressTenantContext, normalizeAddressFields, validateAddressSection } from "./addressRules";
-import { presentFloorRow, validateAreaSection } from "./areaMasters";
+import {
+  derivePlotSqftForSubmit,
+  normalizeFloorFields,
+  plinthSqftFromFloors,
+  presentFloorRow,
+  usageTypeToOccupied,
+  validateAreaSection,
+  validateFloorRow,
+} from "./areaMasters";
 import { requireCapability } from "./capabilities";
 import { fieldSurveyAccess, isOwnScopeSurveyor, querySurveysInFieldScope } from "./fieldAccess";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS, GPS_TARGET_ACCURACY_METERS } from "./gpsAccuracy";
@@ -611,14 +619,164 @@ export const setGps = mutation({
   },
 });
 
+const submitFloorRow = v.object({
+  clientFloorId: v.string(),
+  position: v.number(),
+  floorName: v.string(),
+  usageFactor: v.optional(v.string()),
+  usageType: v.string(),
+  constructionType: v.string(),
+  isOccupied: v.boolean(),
+  areaSqft: v.number(),
+});
+
+type SubmitFloorRow = {
+  clientFloorId: string;
+  position: number;
+  floorName: string;
+  usageFactor?: string;
+  usageType: string;
+  constructionType: string;
+  isOccupied: boolean;
+  areaSqft: number;
+};
+
+async function syncSubmitArea(
+  ctx: MutationCtx,
+  survey: Doc<"surveys">,
+  input: {
+    plotSqft?: number;
+    plinthSqft?: number;
+    floors?: SubmitFloorRow[];
+    keepClientFloorIds?: string[];
+  },
+): Promise<Doc<"surveys">> {
+  let serverVersion = survey.serverVersion;
+
+  if (input.floors) {
+    for (const fl of input.floors) {
+      const normalized = normalizeFloorFields({
+        usageFactor: fl.usageFactor,
+        usageType: fl.usageType,
+      });
+      const floorErrors = validateFloorRow({
+        floorName: fl.floorName,
+        usageFactor: normalized.usageFactor || undefined,
+        usageType: normalized.usageType,
+        constructionType: fl.constructionType,
+        areaSqft: fl.areaSqft,
+      });
+      if (Object.keys(floorErrors).length > 0) {
+        clientError("VALIDATION", "Invalid floor row", floorErrors);
+      }
+
+      const row = {
+        position: fl.position,
+        floorName: fl.floorName,
+        usageFactor: normalized.usageFactor || undefined,
+        usageType: normalized.usageType,
+        constructionType: fl.constructionType,
+        isOccupied: usageTypeToOccupied(normalized.usageType),
+        areaSqft: fl.areaSqft,
+      };
+
+      const existing = await ctx.db
+        .query("floors")
+        .withIndex("by_survey_clientFloorId", (q) => q.eq("surveyId", survey._id).eq("clientFloorId", fl.clientFloorId))
+        .unique();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, row);
+      } else {
+        await ctx.db.insert("floors", {
+          surveyId: survey._id,
+          clientFloorId: fl.clientFloorId,
+          ...row,
+        });
+      }
+    }
+
+    if (input.keepClientFloorIds) {
+      const keep = new Set(input.keepClientFloorIds);
+      const rows = await ctx.db
+        .query("floors")
+        .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
+        .collect();
+      for (const row of rows) {
+        if (!keep.has(row.clientFloorId)) {
+          await ctx.db.delete(row._id);
+        }
+      }
+    }
+
+    serverVersion += 1;
+  }
+
+  const floorRows = await ctx.db
+    .query("floors")
+    .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
+    .collect();
+
+  const resolvedPlot =
+    input.plotSqft !== undefined && input.plotSqft > 0
+      ? input.plotSqft
+      : derivePlotSqftForSubmit(survey.plotSqft, floorRows);
+  const resolvedPlinth = input.plinthSqft ?? plinthSqftFromFloors(floorRows);
+
+  const areaPatch: Partial<Pick<Doc<"surveys">, "plotSqft" | "plinthSqft">> = {};
+  if (resolvedPlot > 0 && resolvedPlot !== survey.plotSqft) areaPatch.plotSqft = resolvedPlot;
+  if (resolvedPlinth !== survey.plinthSqft) areaPatch.plinthSqft = resolvedPlinth;
+
+  if (Object.keys(areaPatch).length > 0 || input.floors) {
+    await ctx.db.patch(survey._id, {
+      ...areaPatch,
+      serverVersion: serverVersion + 1,
+    });
+    const updated = await ctx.db.get(survey._id);
+    if (!updated) clientError("NOT_FOUND", "Survey not found");
+    return updated;
+  }
+
+  return survey;
+}
+
+async function ensureSurveyAreaReady(ctx: MutationCtx, survey: Doc<"surveys">): Promise<Doc<"surveys">> {
+  const floors = await ctx.db
+    .query("floors")
+    .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
+    .collect();
+  const derivedPlot = derivePlotSqftForSubmit(survey.plotSqft, floors);
+  if (!(derivedPlot > 0) || derivedPlot === survey.plotSqft) {
+    return survey;
+  }
+  const plinthSqft = plinthSqftFromFloors(floors);
+  await ctx.db.patch(survey._id, {
+    plotSqft: derivedPlot,
+    plinthSqft,
+    serverVersion: survey.serverVersion + 1,
+  });
+  const updated = await ctx.db.get(survey._id);
+  if (!updated) clientError("NOT_FOUND", "Survey not found");
+  return updated;
+}
+
 /**
  * Transitions a draft to `submitted`. Requires at least one floor row
  * (built-up or open land) with area > 0, plus required photos (front + side).
+ * Optional `floors` / `plotSqft` sync area rows before validation (mobile submit).
  */
 export const submit = mutation({
-  args: { id: v.id("surveys") },
+  args: {
+    id: v.id("surveys"),
+    plotSqft: v.optional(v.number()),
+    plinthSqft: v.optional(v.number()),
+    floors: v.optional(v.array(submitFloorRow)),
+    keepClientFloorIds: v.optional(v.array(v.string())),
+  },
+  returns: v.null(),
   handler: async (ctx, args) => {
-    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
+    const me = await requireUser(ctx);
+    let survey = await ctx.db.get(args.id);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
     await requireCapability(ctx, me, "surveys.submit");
     if (survey.surveyorId !== me._id && (await isOwnScopeSurveyor(ctx, me))) {
@@ -635,6 +793,18 @@ export const submit = mutation({
     }
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+
+    const hasAreaSync = args.plotSqft !== undefined || args.plinthSqft !== undefined || args.floors !== undefined;
+    if (hasAreaSync) {
+      survey = await syncSubmitArea(ctx, survey, {
+        plotSqft: args.plotSqft,
+        plinthSqft: args.plinthSqft,
+        floors: args.floors,
+        keepClientFloorIds: args.keepClientFloorIds,
+      });
+    } else {
+      survey = await ensureSurveyAreaReady(ctx, survey);
+    }
 
     const floors = await ctx.db
       .query("floors")
@@ -685,6 +855,8 @@ export const submit = mutation({
       entity: "survey",
       entityId: args.id,
     });
+
+    return null;
   },
 });
 

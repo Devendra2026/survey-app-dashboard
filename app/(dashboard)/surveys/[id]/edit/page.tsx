@@ -6,7 +6,7 @@ import { QcCorrectionBanner } from "@/components/qc/qc-correction-banner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
-import { SurveyEditor } from "@/components/surveys/survey-editor";
+import { SurveyEditor, type SurveySubmitArea } from "@/components/surveys/survey-editor";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
@@ -55,10 +55,10 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
   const propertyLabel = survey.propertyId || `Parcel ${survey.parcelNo}`;
   const backHref = `/surveys/${id}`;
 
-  async function onSubmit() {
+  async function onSubmit(area?: SurveySubmitArea) {
     setSubmitting(true);
     try {
-      await submitSurvey({ id: id as any });
+      await submitSurvey({ id: id as any, ...area });
       toast.success("Survey submitted for QC");
       router.push(`/surveys/${id}`);
     } catch (e) {

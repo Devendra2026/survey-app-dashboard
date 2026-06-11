@@ -20,6 +20,22 @@ import { toast } from "sonner";
 const tabTriggerClass =
   "cursor-pointer gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-all duration-200 data-[state=active]:bg-brand-navy data-[state=active]:text-white data-[state=active]:shadow-premium-sm dark:data-[state=active]:bg-primary disabled:opacity-40";
 
+export type SurveySubmitArea = {
+  plotSqft?: number;
+  plinthSqft?: number;
+  floors?: Array<{
+    clientFloorId: string;
+    position: number;
+    floorName: string;
+    usageFactor?: string;
+    usageType: string;
+    constructionType: string;
+    isOccupied: boolean;
+    areaSqft: number;
+  }>;
+  keepClientFloorIds?: string[];
+};
+
 function LockedTab({ title, description }: { title: string; description: string }) {
   return (
     <GlassCard padding="md">
@@ -54,7 +70,7 @@ export function SurveyEditor({
   showSubmitBar?: boolean;
   /** Save without submitting — used for QC corrections while survey stays in review. */
   showSaveBar?: boolean;
-  onSubmit?: () => void;
+  onSubmit?: (area?: SurveySubmitArea) => void | Promise<void>;
   submitting?: boolean;
   submitLabel?: string;
   saveBarLabel?: string;
@@ -123,7 +139,22 @@ export function SurveyEditor({
     try {
       const ok = await persistDetailsAndArea({ validateForSubmit: true });
       if (!ok) return;
-      onSubmit();
+      const plotSqft = Math.max(plotSqftDraftRef.current, survey?.plotSqft ?? 0);
+      const floorRows = floors ?? [];
+      await onSubmit({
+        plotSqft: plotSqft > 0 ? plotSqft : undefined,
+        floors: floorRows.map((f) => ({
+          clientFloorId: f.clientFloorId,
+          position: f.position,
+          floorName: f.floorName,
+          usageFactor: f.usageFactor,
+          usageType: f.usageType,
+          constructionType: f.constructionType,
+          isOccupied: f.isOccupied,
+          areaSqft: f.areaSqft,
+        })),
+        keepClientFloorIds: floorRows.map((f) => f.clientFloorId),
+      });
     } finally {
       setSaving(false);
     }
@@ -240,6 +271,7 @@ export function SurveyEditor({
         <TabsContent value="area" forceMount className={cn("mt-0", activeTab !== "area" && "hidden")}>
           {canEditSections && surveyId ? (
             <FloorsEditor
+              key={surveyId}
               surveyId={surveyId}
               plotSqft={survey?.plotSqft}
               plinthSqft={survey?.plinthSqft}
