@@ -36,7 +36,11 @@ async function loadMunicipalityCodes(
 ): Promise<Map<Id<"municipalities">, string>> {
   const unique = [...new Set(municipalityIds)];
   const munis = await Promise.all(unique.map((id) => ctx.db.get(id)));
-  return new Map(munis.filter((m): m is Doc<"municipalities"> => m != null).map((m) => [m._id, m.code] as const));
+  const codes = new Map<Id<"municipalities">, string>();
+  for (const m of munis) {
+    if (m) codes.set(m._id, m.code);
+  }
+  return codes;
 }
 
 function enrichSurveyPropertyIds(rows: Doc<"surveys">[], codes: Map<Id<"municipalities">, string>): Doc<"surveys">[] {
@@ -52,7 +56,10 @@ async function enrichSurveyorNames(
 ): Promise<Array<Doc<"surveys"> & { surveyorName?: string }>> {
   const surveyorIds = [...new Set(rows.map((r) => r.surveyorId))];
   const surveyors = await Promise.all(surveyorIds.map((id) => ctx.db.get(id)));
-  const nameById = new Map(surveyors.filter((s): s is Doc<"users"> => s != null).map((s) => [s._id, s.name] as const));
+  const nameById = new Map<Id<"users">, string>();
+  for (const s of surveyors) {
+    if (s) nameById.set(s._id, s.name);
+  }
   return rows.map((row) => ({
     ...row,
     surveyorName: nameById.get(row.surveyorId),

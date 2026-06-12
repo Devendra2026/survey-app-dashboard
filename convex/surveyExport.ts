@@ -7,7 +7,7 @@ import { mutation, query, type QueryCtx } from "./_generated/server";
 import { normalizeAddressFields } from "./addressRules";
 import { normalizeFloorFields, presentFloorRow, usageTypeToOccupied, validateFloorRow } from "./areaMasters";
 import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
-import { assertCanReadWard, clientError, requireRole, requireUser, writeAudit } from "./helpers";
+import { assertCanReadWard, clientError, mapTruthyById, requireRole, requireUser, writeAudit } from "./helpers";
 import { comparePropertyIds, resolvePropertyId } from "./propertyId";
 import { gpsCapture, photoSlot, qcStatus, sanitationType, surveyOwnerEntry, surveyStatus, waterSource } from "./schema";
 import {
@@ -148,9 +148,9 @@ async function enrichSurveysForExport(
     Promise.all(surveyorIdSet.map((id) => ctx.db.get(id))),
   ]);
 
-  const muniMap = new Map(munis.filter(Boolean).map((m) => [m!._id, m!]));
-  const districtMap = new Map(districts.filter(Boolean).map((d) => [d!._id, d!]));
-  const surveyorMap = new Map(surveyors.filter(Boolean).map((u) => [u!._id, u!]));
+  const muniMap = mapTruthyById(munis);
+  const districtMap = mapTruthyById(districts);
+  const surveyorMap = mapTruthyById(surveyors);
 
   const bundles = [];
   for (const survey of enriched) {

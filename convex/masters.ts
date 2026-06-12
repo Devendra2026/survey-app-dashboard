@@ -245,6 +245,15 @@ export const myTenantScope = query({
       .withIndex("by_user", (q) => q.eq("userId", me._id))
       .collect();
 
+    const activeAllotments: { districtId: Id<"districts"> | null; municipalityId: Id<"municipalities"> | null }[] = [];
+    for (const a of allotments) {
+      if (!a.isActive) continue;
+      activeAllotments.push({
+        districtId: a.districtId ?? null,
+        municipalityId: a.municipalityId ?? null,
+      });
+    }
+
     return {
       role: me.role,
       primaryMunicipalityId: me.municipalityId ?? null,
@@ -252,12 +261,7 @@ export const myTenantScope = query({
       wardAssignments: me.wardAssignments,
       districts: scope.districts.map((d) => ({ _id: d._id, code: d.code, name: d.name })),
       municipalities: scope.municipalities.map((m) => ({ _id: m._id, code: m.code, name: m.name })),
-      activeAllotments: allotments
-        .filter((a) => a.isActive)
-        .map((a) => ({
-          districtId: a.districtId ?? null,
-          municipalityId: a.municipalityId ?? null,
-        })),
+      activeAllotments,
     };
   },
 });

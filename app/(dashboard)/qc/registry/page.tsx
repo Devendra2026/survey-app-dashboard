@@ -2,6 +2,7 @@
 
 import { PageTransition } from "@/components/design-system/motion";
 import { QcRegistryHero, QcReviewRegistry, QcScopeBanner } from "@/components/qc/qc-queue-sections";
+import { QcPageSkeleton } from "@/components/shared/qc-route-skeleton";
 import { RoleGate } from "@/components/shared/role-gate";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { useQcQueue } from "@/hooks/qc/useQcQueue";
@@ -32,8 +33,9 @@ function QcRegistryContent() {
     handleRegistrySearchChange,
     handleTabChange,
     handlePageSizeChange,
-    setPageNumber,
-  } = useQcQueue();
+    goNext,
+    goPrev,
+  } = useQcQueue({ mode: "registry" });
 
   useEffect(() => {
     if (!wardFromUrl && !muniFromUrl && !districtFromUrl) return;
@@ -63,11 +65,11 @@ function QcRegistryContent() {
       <TablePagination
         pageNumber={pageNumber}
         pageSize={pageSize}
-        itemCount={filteredByTab.length}
+        itemCount={pagedRows.length}
         canGoPrev={canGoPrev}
         canGoNext={canGoNext}
-        onPrev={() => setPageNumber((p) => Math.max(1, p - 1))}
-        onNext={() => setPageNumber((p) => (canGoNext ? p + 1 : p))}
+        onPrev={goPrev}
+        onNext={goNext}
         pageSizeOptions={[10, 20, 50, 100]}
         onPageSizeChange={handlePageSizeChange}
       />
@@ -82,7 +84,7 @@ export default function QcRegistryPage() {
       capability="qc.review"
       deniedDescription="Quality Control is available to QC supervisors and administrators."
     >
-      <Suspense>
+      <Suspense fallback={<QcPageSkeleton variant="registry" />}>
         <QcRegistryContent />
       </Suspense>
     </RoleGate>

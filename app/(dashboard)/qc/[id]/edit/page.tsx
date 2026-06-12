@@ -11,7 +11,8 @@ import { SurveyEditor } from "@/components/surveys/survey-editor";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
-import { useQcQueue } from "@/hooks/qc/useQcQueue";
+import { useQcPendingQueue } from "@/hooks/qc/useQcPendingQueue";
+import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
 import { useSyncQcScopeFromSurvey } from "@/hooks/qc/useSyncQcScopeFromSurvey";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { canUserEditSurvey, isSurveyAwaitingQc, isSurveyResubmit, wasEditedAfterSubmit } from "@/lib/domain";
@@ -36,15 +37,15 @@ function QcEditBody({ id }: { id: string }) {
   const survey = useSurvey(id);
   const remarks = useQcRemarks(id);
   const { role, capabilities } = useCurrentUser();
-  const { pendingQueue, patchScope } = useQcQueue();
+  const { patchScope } = useQcWorkScope();
+  const workScope = useMemo(() => (survey ? scopeFromSurveyRow(survey) : {}), [survey]);
+  const pendingQueue = useQcPendingQueue(workScope, !!survey);
   const [correctionsSaved, setCorrectionsSaved] = useState(false);
   const saveCorrectionsRef = useRef<(() => Promise<boolean>) | null>(null);
 
   useSyncQcScopeFromSurvey(survey, patchScope);
 
   const nextSurvey = useMemo(() => findNextPendingSurvey(pendingQueue, id), [pendingQueue, id]);
-
-  const workScope = useMemo(() => (survey ? scopeFromSurveyRow(survey) : {}), [survey]);
 
   if (survey === undefined) return <QcEditPageSkeleton />;
   if (survey === null) {
@@ -146,7 +147,7 @@ export default function QcEditPage({ params }: { params: Promise<{ id: string }>
   const { id } = use(params);
 
   return (
-    <Suspense>
+    <Suspense fallback={<QcEditPageSkeleton />}>
       <QcEditBody key={id} id={id} />
     </Suspense>
   );

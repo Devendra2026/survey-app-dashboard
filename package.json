@@ -15,7 +15,8 @@
     "convex:export:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/export-prod.ps1",
     "convex:import:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/import-dev.ps1",
     "convex:import:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/import-prod.ps1",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "npx react-doctor@latest",
+    "analyze": "cross-env ANALYZE=true next build"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -55,7 +56,9 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "16.2.9",
     "@tailwindcss/postcss": "^4",
+    "cross-env": "^7.0.3",
     "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19",

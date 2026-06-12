@@ -4,12 +4,14 @@ import { ExecutiveHero } from "@/components/design-system/executive-hero";
 import { PageTransition } from "@/components/design-system/motion";
 import { QcActionBar } from "@/components/qc/qc-action-bar";
 import { EmptyState } from "@/components/shared/empty-state";
+import { QcPageSkeleton } from "@/components/shared/qc-route-skeleton";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
 import { SurveyDetailView } from "@/components/surveys/survey-detail-view";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQcQueue } from "@/hooks/qc/useQcQueue";
+import { useQcPendingQueue } from "@/hooks/qc/useQcPendingQueue";
+import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
 import { useSyncQcScopeFromSurvey } from "@/hooks/qc/useSyncQcScopeFromSurvey";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { isSurveyAwaitingQc, wasEditedAfterSubmit } from "@/lib/domain";
@@ -21,13 +23,13 @@ import { Suspense, use, useMemo } from "react";
 
 function QcReviewBody({ id }: { id: string }) {
   const survey = useSurvey(id);
-  const { pendingQueue, patchScope } = useQcQueue();
+  const { patchScope } = useQcWorkScope();
+  const workScope = useMemo(() => (survey ? scopeFromSurveyRow(survey) : {}), [survey]);
+  const pendingQueue = useQcPendingQueue(workScope, !!survey);
 
   useSyncQcScopeFromSurvey(survey, patchScope);
 
   const nextSurvey = useMemo(() => findNextPendingSurvey(pendingQueue, id), [pendingQueue, id]);
-
-  const workScope = useMemo(() => (survey ? scopeFromSurveyRow(survey) : {}), [survey]);
 
   if (survey === undefined) {
     return (
@@ -105,7 +107,7 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
 
   return (
-    <Suspense>
+    <Suspense fallback={<QcPageSkeleton variant="review" />}>
       <QcReviewBody key={id} id={id} />
     </Suspense>
   );

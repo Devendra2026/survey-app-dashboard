@@ -13,12 +13,14 @@ import { SurveyTable } from "@/components/surveys/survey-tables";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/convex/_generated/api";
+import { useDashboardCounts, useStatsBreakdown } from "@/hooks/analytics/useAnalytics";
 import { useMasters } from "@/hooks/masters/useMasters";
-import { searchSurveys, useSurveyList } from "@/hooks/surveys/useSurveys";
+import { searchSurveys, useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
 import { useHasCapability } from "@/hooks/use-capability";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
+import { estimateQcPendingCount, surveyTabToListFilters } from "@/lib/surveys/survey-list-filters";
 import { useQuery } from "convex/react";
 import {
   ArrowRightLeft,
@@ -39,25 +41,21 @@ type SurveysListUiState = {
   filters: FilterState;
   pageSize: number;
   activeTab: string;
-  pageNumber: number;
 };
 
 type SurveysListUiAction =
   | { type: "setFilters"; value: FilterState }
   | { type: "setPageSize"; value: number }
-  | { type: "setActiveTab"; value: string }
-  | { type: "setPageNumber"; value: number };
+  | { type: "setActiveTab"; value: string };
 
 function surveysListUiReducer(state: SurveysListUiState, action: SurveysListUiAction): SurveysListUiState {
   switch (action.type) {
     case "setFilters":
-      return { ...state, filters: action.value, pageNumber: 1 };
+      return { ...state, filters: action.value };
     case "setPageSize":
-      return { ...state, pageSize: action.value, pageNumber: 1 };
+      return { ...state, pageSize: action.value };
     case "setActiveTab":
-      return { ...state, activeTab: action.value, pageNumber: 1 };
-    case "setPageNumber":
-      return { ...state, pageNumber: action.value };
+      return { ...state, activeTab: action.value };
     default:
       return state;
   }
@@ -110,9 +108,8 @@ export default function SurveysPage() {
     filters: { search: "" },
     pageSize: 20,
     activeTab: "all",
-    pageNumber: 1,
   });
-  const { filters, pageSize, activeTab, pageNumber } = listUi;
+  const { filters, pageSize, activeTab } = listUi;
 
   const listFilters = useMemo(
     () => ({
@@ -122,16 +119,24 @@ export default function SurveysPage() {
       districtId: filters.districtId,
       municipalityId: filters.municipalityId,
       surveyorId: canViewAll ? filters.surveyorId : undefined,
+      ...surveyTabToListFilters(activeTab),
     }),
-    [filters, canViewAll],
+    [filters, canViewAll, activeTab],
   );
-  const surveys = useSurveyList({ ...listFilters, limit: 2000 });
-  const isLoading = surveys === undefined;
 
-  const filtered = useMemo(
-    () => (surveys ? searchSurveys(surveys as any, filters.search, ulbCodes) : surveys),
-    [surveys, filters.search, ulbCodes],
+  const { surveys, isLoading, pageNumber, canGoPrev, canGoNext, goNext, goPrev } = useSurveyListPaginated(
+    listFilters,
+    pageSize,
   );
+
+  const showAnalytics = useHasCapability("analytics.view");
+  const breakdown = useStatsBreakdown({
+    districtId: filters.districtId,
+    municipalityId: filters.municipalityId,
+    surveyorId: canViewAll ? filters.surveyorId : undefined,
+  });
+  const dashCounts = useDashboardCounts();
+
   const fromDateMs = useMemo(
     () => (filters.fromDate ? new Date(`${filters.fromDate}T00:00:00`).getTime() : undefined),
     [filters.fromDate],
@@ -140,49 +145,37 @@ export default function SurveysPage() {
     () => (filters.toDate ? new Date(`${filters.toDate}T23:59:59.999`).getTime() : undefined),
     [filters.toDate],
   );
-  const filteredByDate = useMemo(
-    () =>
-      (filtered ?? []).filter((r: any) => {
-        const createdAt = r._creationTime;
+
+  const pagedRows = useMemo(() => {
+    if (!surveys) return surveys;
+    let rows = searchSurveys(surveys as Parameters<typeof searchSurveys>[0], filters.search, ulbCodes);
+    if (fromDateMs !== undefined || toDateMs !== undefined) {
+      rows = rows.filter((r) => {
+        const createdAt = (r as { _creationTime: number })._creationTime;
         if (fromDateMs !== undefined && createdAt < fromDateMs) return false;
         if (toDateMs !== undefined && createdAt > toDateMs) return false;
         return true;
-      }),
-    [filtered, fromDateMs, toDateMs],
-  );
-  const filteredByTab = useMemo(() => {
-    const rows = (filteredByDate ?? []) as any[];
-    if (activeTab === "qcPending") return rows.filter((r) => r.qcStatus === "pending");
-    if (activeTab === "qcApproved") return rows.filter((r) => r.qcStatus === "approved");
-    if (activeTab === "qcRejected") return rows.filter((r) => r.qcStatus === "rejected");
-    if (activeTab === "draft") return rows.filter((r) => r.status === "draft");
-    if (activeTab === "submitted") return rows.filter((r) => r.status === "submitted");
+      });
+    }
     return rows;
-  }, [filteredByDate, activeTab]);
+  }, [surveys, filters.search, ulbCodes, fromDateMs, toDateMs]);
 
-  const pageStart = (pageNumber - 1) * pageSize;
-  const pagedRows = useMemo(
-    () => filteredByTab.slice(pageStart, pageStart + pageSize),
-    [filteredByTab, pageStart, pageSize],
+  const summary = showAnalytics ? breakdown?.summary : dashCounts;
+  const stats = useMemo(
+    () => ({
+      total: summary?.total ?? 0,
+      today: summary?.today ?? 0,
+      qcPending: summary ? estimateQcPendingCount(summary) : 0,
+      approved: summary?.approved ?? 0,
+      rejected: summary?.rejected ?? 0,
+      rejectionRate: summary && summary.total > 0 ? ((summary.rejected / summary.total) * 100).toFixed(1) : "0.0",
+    }),
+    [summary],
   );
-  const canGoPrev = pageNumber > 1;
-  const canGoNext = pageStart + pageSize < filteredByTab.length;
 
-  const stats = useMemo(() => {
-    const rows = filteredByDate as any[];
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const total = rows.length;
-    const today = rows.filter((r) => r._creationTime >= todayStart.getTime()).length;
-    const qcPending = rows.filter((r) => r.qcStatus === "pending").length;
-    const approved = rows.filter((r) => r.qcStatus === "approved").length;
-    const rejected = rows.filter((r) => r.qcStatus === "rejected").length;
-    const rejectionRate = total > 0 ? ((rejected / total) * 100).toFixed(1) : "0.0";
-    return { total, today, qcPending, approved, rejected, rejectionRate };
-  }, [filteredByDate]);
-
-  const draftCount = (filteredByDate as any[]).filter((r) => r.status === "draft").length;
-  const submittedCount = (filteredByDate as any[]).filter((r) => r.status === "submitted").length;
+  const draftCount = summary?.drafts ?? 0;
+  const submittedCount = summary?.submitted ?? 0;
+  const metricsReady = showAnalytics ? breakdown !== undefined : dashCounts !== undefined;
 
   return (
     <RoleGate
@@ -238,7 +231,7 @@ export default function SurveysPage() {
           <MetricCard
             label="Total Surveys"
             value={stats.total.toLocaleString()}
-            hint="in active filters"
+            hint={metricsReady ? (showAnalytics ? "in filter scope" : "in your scope") : "loading…"}
             icon={BarChart3}
             tone="default"
           />
@@ -282,8 +275,7 @@ export default function SurveysPage() {
           <SurveyFilters
             value={filters}
             onChange={(next) => dispatchListUi({ type: "setFilters", value: next })}
-            showSurveyorFilter={canViewAll}
-            surveyorOptions={surveyorOptions}
+            surveyorOptions={canViewAll ? surveyorOptions : undefined}
           />
         </GlassCard>
 
@@ -291,7 +283,7 @@ export default function SurveysPage() {
           <div className="border-b border-border/60 px-5 py-4">
             <SectionHeader
               title="Survey Registry"
-              description={`${filteredByTab.length.toLocaleString()} surveys${activeTab !== "all" ? " in selected tab" : ""}`}
+              description={`Page ${pageNumber}${canGoNext ? "+" : ""} · server-paginated list`}
             />
           </div>
           <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5">
@@ -300,7 +292,7 @@ export default function SurveysPage() {
                 <TabPill
                   value="all"
                   label="All"
-                  count={filteredByDate.length}
+                  count={stats.total}
                   activeColor="data-[state=active]:bg-brand-navy data-[state=active]:text-white dark:data-[state=active]:bg-primary"
                 />
                 <TabPill
@@ -347,11 +339,11 @@ export default function SurveysPage() {
         <TablePagination
           pageNumber={pageNumber}
           pageSize={pageSize}
-          itemCount={pagedRows.length}
+          itemCount={pagedRows?.length ?? 0}
           canGoPrev={canGoPrev}
           canGoNext={canGoNext}
-          onPrev={() => dispatchListUi({ type: "setPageNumber", value: Math.max(1, pageNumber - 1) })}
-          onNext={() => dispatchListUi({ type: "setPageNumber", value: canGoNext ? pageNumber + 1 : pageNumber })}
+          onPrev={goPrev}
+          onNext={goNext}
           pageSizeOptions={[10, 20, 50, 100]}
           onPageSizeChange={(size) => dispatchListUi({ type: "setPageSize", value: size })}
         />

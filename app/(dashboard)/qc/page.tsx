@@ -6,7 +6,9 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { useQcQueue } from "@/hooks/qc/useQcQueue";
 
 export default function QcCommandCenterPage() {
-  const { isLoading, stats, wardStats, scope, dateFilters, handleScopeChange, handleDateFiltersChange } = useQcQueue();
+  const { isLoading, stats, wardStats, scope, dateFilters, handleScopeChange, handleDateFiltersChange } = useQcQueue({
+    mode: "command",
+  });
 
   return (
     <RoleGate

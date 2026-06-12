@@ -162,3 +162,12 @@ export interface ConvexErrPayload {
 export function clientError(code: string, message: string, details?: Record<string, string[]>): never {
   throw new ConvexError(details ? { code, message, details } : { code, message });
 }
+
+/** Map nullable DB rows by `_id` in a single pass (avoids `.filter().map()` chains). */
+export function mapTruthyById<T extends { _id: string }>(rows: (T | null | undefined)[]): Map<T["_id"], T> {
+  const map = new Map<T["_id"], T>();
+  for (const row of rows) {
+    if (row) map.set(row._id, row);
+  }
+  return map;
+}

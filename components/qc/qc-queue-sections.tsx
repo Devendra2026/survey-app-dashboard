@@ -210,6 +210,7 @@ export function QcFiltersSection({
           className="mb-4"
         />
         <SurveyFilters
+          variant="scope-and-dates"
           value={filterValue}
           onChange={(next) => {
             onScopeChange({
@@ -223,9 +224,6 @@ export function QcFiltersSection({
               toDate: next.toDate,
             });
           }}
-          showSearch={false}
-          showStatus={false}
-          showQcStatus={false}
         />
       </GlassCard>
     </FadeIn>

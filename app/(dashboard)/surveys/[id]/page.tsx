@@ -2,7 +2,6 @@
 
 import { ExecutiveHero } from "@/components/design-system/executive-hero";
 import { PageTransition } from "@/components/design-system/motion";
-import { generateSurveyReportPdf } from "@/components/reports/queries/pdf";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
@@ -14,10 +13,10 @@ import { useRemoveSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
 import { canUserEditSurvey } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
 import { useCurrentUser } from "@/lib/session";
-import { ArrowLeft, Download, FileSearch, MapPin, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, FileSearch, Loader2, MapPin, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use } from "react";
+import { use, useState } from "react";
 import { toast } from "sonner";
 
 export default function SurveyDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,6 +27,18 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
   const removeSurvey = useRemoveSurvey();
   const { role, capabilities } = useCurrentUser();
   const canEdit = survey ? canUserEditSurvey(survey, { role, capabilities }) : false;
+  const [pdfExporting, setPdfExporting] = useState(false);
+
+  async function onExportPdf() {
+    if (!survey) return;
+    setPdfExporting(true);
+    try {
+      const { generateSurveyReportPdf } = await import("@/components/reports/queries/pdf");
+      generateSurveyReportPdf(survey);
+    } finally {
+      setPdfExporting(false);
+    }
+  }
 
   if (survey === undefined) {
     return (
@@ -98,10 +109,16 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
             <Button
               variant="outline"
               size="sm"
-              onClick={() => generateSurveyReportPdf(survey)}
+              disabled={pdfExporting}
+              onClick={() => void onExportPdf()}
               className="cursor-pointer rounded-xl border-brand-navy/25 bg-card/80 shadow-premium-sm hover:bg-brand-navy/5 dark:border-primary/30"
             >
-              <Download className="h-4 w-4" aria-hidden /> PDF
+              {pdfExporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Download className="h-4 w-4" aria-hidden />
+              )}
+              PDF
             </Button>
             <RoleGate capability="surveys.editDraft" fallback={null}>
               {canEdit && (

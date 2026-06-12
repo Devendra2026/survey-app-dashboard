@@ -5,7 +5,6 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
-import { exportSurveysFullExcel, parseSurveyExcelFile } from "@/lib/survey/survey-excel";
 import { useConvex, useMutation } from "convex/react";
 import { FileSpreadsheet, Loader2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
@@ -63,7 +62,8 @@ export function SurveyExcelActions({
         toast.message("No surveys to export for the current filters.");
         return;
       }
-      exportSurveysFullExcel(allBundles as any);
+      const { exportSurveysFullExcel } = await import("@/lib/survey/survey-excel");
+      exportSurveysFullExcel(allBundles as Parameters<typeof exportSurveysFullExcel>[0]);
       toast.success(`Exported ${total ?? allBundles.length} survey(s) to Excel`);
     } catch (e) {
       toast.error(parseConvexError(e).message);
@@ -76,6 +76,7 @@ export function SurveyExcelActions({
     setImporting(true);
     try {
       const buffer = await file.arrayBuffer();
+      const { parseSurveyExcelFile } = await import("@/lib/survey/survey-excel");
       const payload = parseSurveyExcelFile(buffer);
       if (payload.surveys.length === 0) {
         toast.error("No valid survey rows found. Check the Surveys sheet and required columns.");

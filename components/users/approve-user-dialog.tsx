@@ -16,7 +16,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useRoles } from "@/hooks/rbac/useRbac";
 import { useApproveUser, useTenantCatalog } from "@/hooks/users/useUsers";
 import { parseConvexError } from "@/lib/errors";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export function ApproveUserDialog({
@@ -38,6 +38,13 @@ export function ApproveUserDialog({
 
   const munis = catalog?.flatMap((d) => d.ulbs) ?? [];
   const wardsForMuni = munis.find((m) => m._id === municipalityId)?.wards ?? [];
+  const assignableRoles = useMemo(() => {
+    const roles: NonNullable<typeof roleCatalog> = [];
+    for (const r of roleCatalog ?? []) {
+      if (r.isActive && r.key !== "pending") roles.push(r);
+    }
+    return roles;
+  }, [roleCatalog]);
 
   if (!user) return null;
 
@@ -88,13 +95,11 @@ export function ApproveUserDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(roleCatalog ?? [])
-                  .filter((r) => r.isActive && r.key !== "pending")
-                  .map((r) => (
-                    <SelectItem key={r.key} value={r.key}>
-                      {r.name}
-                    </SelectItem>
-                  ))}
+                {assignableRoles.map((r) => (
+                  <SelectItem key={r.key} value={r.key}>
+                    {r.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

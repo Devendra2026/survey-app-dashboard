@@ -25,12 +25,15 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { query } from "./_generated/server";
-import { requireRole, requireUser } from "./helpers";
+import { mapTruthyById, requireRole, requireUser } from "./helpers";
 
 async function hydrateAuditRows(ctx: QueryCtx, rows: Doc<"auditLogs">[]) {
-  const actorIds = Array.from(new Set(rows.map((r) => r.actorId).filter(Boolean))) as Id<"users">[];
-  const actors = await Promise.all(actorIds.map((id) => ctx.db.get(id)));
-  const byId = new Map(actors.filter(Boolean).map((u) => [u!._id, u!]));
+  const actorIdSet = new Set<Id<"users">>();
+  for (const row of rows) {
+    if (row.actorId) actorIdSet.add(row.actorId);
+  }
+  const actors = await Promise.all([...actorIdSet].map((id) => ctx.db.get(id)));
+  const byId = mapTruthyById(actors);
 
   return rows.map((r) => ({
     _id: r._id,

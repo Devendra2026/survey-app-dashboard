@@ -26,32 +26,55 @@ export type DateFilterState = Pick<FilterState, "month" | "fromDate" | "toDate">
 
 export type ScopeFilterState = Pick<FilterState, "districtId" | "municipalityId" | "wardNo">;
 
+export type SurveyorOption = { _id: string; name: string; role: string };
+
+/** Named layouts replace stacked show/hide booleans — each variant is one explicit shape. */
+export type SurveyFiltersVariant = "survey-registry" | "scope-and-dates";
+
+type SurveyFiltersBaseProps = {
+  value: FilterState;
+  onChange: (next: FilterState) => void;
+};
+
+type SurveyRegistryFiltersProps = SurveyFiltersBaseProps & {
+  variant?: "survey-registry";
+  /** When provided, renders the surveyor dropdown (admin scope). */
+  surveyorOptions?: SurveyorOption[];
+};
+
+type ScopeAndDatesFiltersProps = SurveyFiltersBaseProps & {
+  variant: "scope-and-dates";
+};
+
+export type SurveyFiltersProps = SurveyRegistryFiltersProps | ScopeAndDatesFiltersProps;
+
 const ALL = "__all__";
 
 function pickFilterValue(v: string) {
   return v === ALL ? undefined : v;
 }
 
-export type SurveyorOption = { _id: string; name: string; role: string };
+function resolveFieldVisibility(variant: SurveyFiltersVariant, hasSurveyorOptions: boolean) {
+  if (variant === "scope-and-dates") {
+    return { showSearch: false, showStatus: false, showQcStatus: false, showSurveyorFilter: false };
+  }
+  return {
+    showSearch: true,
+    showStatus: true,
+    showQcStatus: true,
+    showSurveyorFilter: hasSurveyorOptions,
+  };
+}
 
-export function SurveyFilters({
-  value,
-  onChange,
-  showStatus = true,
-  showQcStatus = true,
-  showSearch = true,
-  showSurveyorFilter = false,
-  surveyorOptions = [],
-}: {
-  value: FilterState;
-  onChange: (next: FilterState) => void;
-  showStatus?: boolean;
-  showQcStatus?: boolean;
-  showSearch?: boolean;
-  /** Admin: filter drafts/surveys by assigned field collector. */
-  showSurveyorFilter?: boolean;
-  surveyorOptions?: SurveyorOption[];
-}) {
+export function SurveyFilters(props: SurveyFiltersProps) {
+  const { value, onChange } = props;
+  const variant = props.variant ?? "survey-registry";
+  const surveyorOptions = props.variant === "scope-and-dates" ? undefined : props.surveyorOptions;
+  const { showSearch, showStatus, showQcStatus, showSurveyorFilter } = resolveFieldVisibility(
+    variant,
+    surveyorOptions !== undefined,
+  );
+
   const { masters } = useMasters();
   const wardsForMuni = useWardsForMunicipality(value.municipalityId);
   const set = (patch: Partial<FilterState>) => onChange({ ...value, ...patch });
@@ -211,7 +234,7 @@ export function SurveyFilters({
           </Select>
         </div>
 
-        {showSurveyorFilter && (
+        {showSurveyorFilter && surveyorOptions && (
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Surveyor</Label>
             <Select value={value.surveyorId ?? ALL} onValueChange={(v) => set({ surveyorId: pickFilterValue(v) })}>

@@ -10,7 +10,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireCapability } from "./capabilities";
-import { assertCanReadWard, clientError, requireUser, writeAudit } from "./helpers";
+import { assertCanReadWard, clientError, mapTruthyById, requireUser, writeAudit } from "./helpers";
 import { assertMunicipalityInScope } from "./tenancy";
 
 export const listRemarks = query({
@@ -29,7 +29,7 @@ export const listRemarks = query({
     // Hydrate author display
     const authorIds = Array.from(new Set(rows.map((r) => r.authorId)));
     const authors = await Promise.all(authorIds.map((id) => ctx.db.get(id)));
-    const byId = new Map(authors.filter(Boolean).map((u) => [u!._id, u!]));
+    const byId = mapTruthyById(authors);
 
     return rows.map((r) => ({
       ...r,

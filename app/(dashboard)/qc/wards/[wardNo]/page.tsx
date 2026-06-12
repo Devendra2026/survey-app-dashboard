@@ -7,14 +7,15 @@ import { PageTransition } from "@/components/design-system/motion";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge } from "@/components/shared/status-badge";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useWardsForMunicipality } from "@/hooks/masters/useMasters";
-import { useSurveyList } from "@/hooks/surveys/useSurveys";
+import { useSurveyList, useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
 import { computeQcWardStats } from "@/lib/qc/ward-stats";
 import { ArrowLeft, CheckCircle2, Clock3, FileText, MapPin, Receipt, Table2 } from "lucide-react";
 import Link from "next/link";
-import { use, useMemo } from "react";
+import { use, useMemo, useState } from "react";
 
 export default function QcWardReportPage({
   params,
@@ -26,22 +27,42 @@ export default function QcWardReportPage({
   const { wardNo } = use(params);
   const { municipalityId, tab } = use(searchParams);
   const decodedWard = decodeURIComponent(wardNo);
+  const showDemand = tab === "demand";
+  const [pageSize, setPageSize] = useState(20);
 
-  const surveys = useSurveyList({
+  const listFilters = useMemo(
+    () => ({
+      wardNo: decodedWard,
+      municipalityId,
+      ...(showDemand ? { qcStatus: "approved" as const } : {}),
+    }),
+    [decodedWard, municipalityId, showDemand],
+  );
+
+  const { surveys, isLoading, pageNumber, canGoPrev, canGoNext, goNext, goPrev } = useSurveyListPaginated(
+    listFilters,
+    pageSize,
+  );
+
+  const aggregateSurveys = useSurveyList({
     wardNo: decodedWard,
-    municipalityId: municipalityId as any,
-    limit: 2000,
+    municipalityId: municipalityId as string | undefined,
+    limit: 300,
   });
+
   const wards = useWardsForMunicipality(municipalityId);
   const wardLabel = wards?.find((w) => w.wardNo === decodedWard)?.name;
 
-  const rows = useMemo(() => surveys ?? [], [surveys]);
-  const wardRow = useMemo(() => computeQcWardStats(rows as any)[0], [rows]);
-  const approved = useMemo(() => rows.filter((r) => r.qcStatus === "approved"), [rows]);
-  const pending = useMemo(() => rows.filter((r) => r.qcStatus === "pending" && r.status === "submitted"), [rows]);
+  const wardRow = useMemo(
+    () => computeQcWardStats((aggregateSurveys ?? []) as Parameters<typeof computeQcWardStats>[0])[0],
+    [aggregateSurveys],
+  );
 
-  const showDemand = tab === "demand";
-  const listRows = showDemand ? approved : rows.filter((r) => r.status !== "draft");
+  const listRows = useMemo(() => {
+    const rows = surveys ?? [];
+    if (showDemand) return rows;
+    return rows.filter((r) => r.status !== "draft");
+  }, [surveys, showDemand]);
 
   const title = wardLabel ? `Ward ${decodedWard} — ${wardLabel}` : `Ward ${decodedWard}`;
 
@@ -104,19 +125,19 @@ export default function QcWardReportPage({
         <div className="grid gap-3 sm:grid-cols-3">
           <MetricCard
             label="QC Pending"
-            value={(wardRow?.pending ?? pending.length).toLocaleString()}
+            value={(wardRow?.pending ?? 0).toLocaleString()}
             icon={Clock3}
             tone="warning"
           />
           <MetricCard
             label="QC Approved"
-            value={(wardRow?.approved ?? approved.length).toLocaleString()}
+            value={(wardRow?.approved ?? 0).toLocaleString()}
             icon={CheckCircle2}
             tone="success"
           />
           <MetricCard
             label="Total Properties"
-            value={(wardRow?.total ?? rows.length).toLocaleString()}
+            value={(wardRow?.total ?? 0).toLocaleString()}
             icon={MapPin}
             tone="default"
           />
@@ -128,13 +149,13 @@ export default function QcWardReportPage({
               title={showDemand ? "Demand Notice Register" : "Property QC Register"}
               description={
                 showDemand
-                  ? `${approved.length} approved properties eligible for demand notice`
-                  : `${listRows.length} properties in this ward`
+                  ? `${wardRow?.approved ?? 0} approved properties eligible for demand notice`
+                  : `Page ${pageNumber} · ward properties`
               }
             />
           </div>
           <div className="overflow-x-auto">
-            {surveys === undefined ? (
+            {isLoading ? (
               <p className="p-6 text-sm text-muted-foreground">Loading ward data…</p>
             ) : listRows.length === 0 ? (
               <EmptyState title="No records" description="No properties match this ward view." />
@@ -184,6 +205,18 @@ export default function QcWardReportPage({
             )}
           </div>
         </GlassCard>
+
+        <TablePagination
+          pageNumber={pageNumber}
+          pageSize={pageSize}
+          itemCount={listRows.length}
+          canGoPrev={canGoPrev}
+          canGoNext={canGoNext}
+          onPrev={goPrev}
+          onNext={goNext}
+          pageSizeOptions={[10, 20, 50]}
+          onPageSizeChange={setPageSize}
+        />
       </PageTransition>
     </RoleGate>
   );

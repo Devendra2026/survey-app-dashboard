@@ -43,7 +43,7 @@ export function useSurveyList(filters: SurveyListFilters = {}) {
 }
 
 /** Cursor-paginated survey list sorted by Property ID ascending. */
-export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize = 20) {
+export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize = 20, enabled = true) {
   const resetKey = `${filters.status ?? ""}|${filters.qcStatus ?? ""}|${filters.wardNo ?? ""}|${filters.districtId ?? ""}|${filters.municipalityId ?? ""}|${filters.surveyorId ?? ""}`;
   const {
     cursor,
@@ -58,7 +58,7 @@ export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize
   const ready = useConvexAuthReady();
   const result = useConvexQuery(
     api.survey.listPaginated,
-    ready
+    ready && enabled
       ? {
           paginationOpts: { numItems: size, cursor },
           status: filters.status,

@@ -1,6 +1,7 @@
 "use client";
 
 import { CoverageChart, MunicipalityPerformanceCard } from "@/components/analytics/charts";
+import { SurveyorProductivityChart, TrendChart } from "@/components/analytics/recharts-charts";
 import { ActivityFeed } from "@/components/design-system/activity-feed";
 import { ExecutiveHero, SectionHeader } from "@/components/design-system/executive-hero";
 import { MetricCard } from "@/components/design-system/metric-card";
@@ -23,19 +24,8 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo } from "react";
-
-const TrendChart = dynamic(() => import("@/components/analytics/recharts-charts").then((mod) => mod.TrendChart), {
-  ssr: false,
-  loading: () => <div className="h-72 animate-pulse rounded-xl bg-muted/50" aria-hidden />,
-});
-
-const SurveyorProductivityChart = dynamic(
-  () => import("@/components/analytics/recharts-charts").then((mod) => mod.SurveyorProductivityChart),
-  { ssr: false, loading: () => <div className="h-72 animate-pulse rounded-xl bg-muted/50" aria-hidden /> },
-);
 
 export default function DashboardPage() {
   const { user, role } = useCurrentUser();

@@ -4,8 +4,6 @@ import { ExecutiveHero, SectionHeader } from "@/components/design-system/executi
 import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
 import { MetricCard } from "@/components/design-system/metric-card";
 import { PageTransition } from "@/components/design-system/motion";
-import { exportBreakdownExcel } from "@/components/reports/queries/exporters";
-import { generateMunicipalitySummaryPdf, generateSurveyorPerformancePdf } from "@/components/reports/queries/pdf";
 import { CardsSkeleton } from "@/components/shared/loading";
 import { RoleGate } from "@/components/shared/role-gate";
 import { SurveyExcelActions } from "@/components/surveys/survey-excel-actions";
@@ -19,6 +17,7 @@ import {
   FileSpreadsheet,
   FileText,
   LayoutTemplate,
+  Loader2,
   Save,
   Users as UsersIcon,
 } from "lucide-react";
@@ -34,6 +33,8 @@ export default function ReportsPage() {
   const [filters, setFilters] = useState<FilterState>({ search: "" });
   const breakdown = useStatsBreakdown({ districtId: filters.districtId, municipalityId: filters.municipalityId });
   const ready = !!breakdown;
+  const [pdfExporting, setPdfExporting] = useState<"municipality" | "surveyor" | null>(null);
+  const [excelExporting, setExcelExporting] = useState(false);
 
   const exportFilters = useMemo(
     () => ({
@@ -43,6 +44,39 @@ export default function ReportsPage() {
     }),
     [filters],
   );
+
+  async function onMunicipalityPdf() {
+    if (!breakdown) return;
+    setPdfExporting("municipality");
+    try {
+      const { generateMunicipalitySummaryPdf } = await import("@/components/reports/queries/pdf");
+      generateMunicipalitySummaryPdf(breakdown);
+    } finally {
+      setPdfExporting(null);
+    }
+  }
+
+  async function onSurveyorPdf() {
+    if (!breakdown) return;
+    setPdfExporting("surveyor");
+    try {
+      const { generateSurveyorPerformancePdf } = await import("@/components/reports/queries/pdf");
+      generateSurveyorPerformancePdf(breakdown);
+    } finally {
+      setPdfExporting(null);
+    }
+  }
+
+  async function onBreakdownExcel() {
+    if (!breakdown) return;
+    setExcelExporting(true);
+    try {
+      const { exportBreakdownExcel } = await import("@/components/reports/queries/exporters");
+      exportBreakdownExcel(breakdown);
+    } finally {
+      setExcelExporting(false);
+    }
+  }
 
   return (
     <RoleGate
@@ -61,7 +95,7 @@ export default function ReportsPage() {
 
         <GlassCard padding="md">
           <SectionHeader title="Report Scope" description="Filter data before export" className="mb-4" />
-          <SurveyFilters value={filters} onChange={setFilters} showStatus={false} showQcStatus={false} />
+          <SurveyFilters variant="scope-and-dates" value={filters} onChange={setFilters} />
         </GlassCard>
 
         {breakdown === undefined ? (
@@ -98,20 +132,30 @@ export default function ReportsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={!ready}
+                    disabled={!ready || pdfExporting !== null}
                     className="cursor-pointer gap-1.5"
-                    onClick={() => breakdown && generateMunicipalitySummaryPdf(breakdown)}
+                    onClick={() => void onMunicipalityPdf()}
                   >
-                    <FileBarChart className="h-4 w-4" aria-hidden /> PDF Export
+                    {pdfExporting === "municipality" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <FileBarChart className="h-4 w-4" aria-hidden />
+                    )}
+                    PDF Export
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={!ready}
+                    disabled={!ready || excelExporting}
                     className="cursor-pointer gap-1.5"
-                    onClick={() => breakdown && exportBreakdownExcel(breakdown)}
+                    onClick={() => void onBreakdownExcel()}
                   >
-                    <FileSpreadsheet className="h-4 w-4" aria-hidden /> Excel Export
+                    {excelExporting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <FileSpreadsheet className="h-4 w-4" aria-hidden />
+                    )}
+                    Excel Export
                   </Button>
                 </div>
               </GlassCard>
@@ -125,11 +169,16 @@ export default function ReportsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={!ready}
+                  disabled={!ready || pdfExporting !== null}
                   className="cursor-pointer gap-1.5"
-                  onClick={() => breakdown && generateSurveyorPerformancePdf(breakdown)}
+                  onClick={() => void onSurveyorPdf()}
                 >
-                  <FileBarChart className="h-4 w-4" aria-hidden /> PDF Export
+                  {pdfExporting === "surveyor" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <FileBarChart className="h-4 w-4" aria-hidden />
+                  )}
+                  PDF Export
                 </Button>
               </GlassCard>
 

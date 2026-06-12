@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const NAV_COMMANDS = [
   { key: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -52,6 +52,14 @@ export function CommandPalette() {
   const { role, capabilities } = useCurrentUser();
   const { setTheme } = useTheme();
   const visible = navKeysForUser(capabilities, (role ?? "pending") as Role);
+  const navCommands = useMemo(() => {
+    const visibleSet = new Set(visible);
+    const items: (typeof NAV_COMMANDS)[number][] = [];
+    for (const item of NAV_COMMANDS) {
+      if (visibleSet.has(item.key)) items.push(item);
+    }
+    return items;
+  }, [visible]);
 
   const run = useCallback(
     (href: string) => {
@@ -78,7 +86,7 @@ export function CommandPalette() {
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Navigation">
-          {NAV_COMMANDS.filter((n) => visible.includes(n.key)).map((item) => {
+          {navCommands.map((item) => {
             const Icon = item.icon;
             return (
               <CommandItem key={item.key} value={item.label} onSelect={() => run(item.href)} className="cursor-pointer">
