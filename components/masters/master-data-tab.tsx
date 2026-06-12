@@ -30,7 +30,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type MasterRow = {
@@ -138,9 +138,10 @@ export function MasterDataTab() {
   const meta = CATEGORY_META[category];
   const CategoryIcon = meta.icon;
 
-  useEffect(() => {
+  const handleCategoryChange = useCallback((next: MasterCategory) => {
+    setCategory(next);
     setSearch("");
-  }, [category]);
+  }, []);
 
   const filteredRows = useMemo(() => {
     if (!rows) return undefined;
@@ -189,7 +190,7 @@ export function MasterDataTab() {
 
   return (
     <div className="space-y-5">
-      <CategoryPicker category={category} onChange={setCategory} />
+      <CategoryPicker category={category} onChange={handleCategoryChange} />
 
       <Card className="overflow-hidden border-border/60 shadow-sm">
         <div className="flex flex-col gap-4 border-b border-border/60 bg-linear-to-r from-violet-50/80 to-card px-5 py-4 dark:from-violet-950/30 dark:to-card sm:flex-row sm:items-center sm:justify-between">

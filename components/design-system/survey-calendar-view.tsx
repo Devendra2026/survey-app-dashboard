@@ -10,13 +10,14 @@ import {
   format,
   isSameDay,
   isSameMonth,
+  startOfDay,
   startOfMonth,
   startOfWeek,
   subMonths,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 type CalendarSurvey = {
   _id: string;
@@ -35,10 +36,21 @@ const statusColors: Record<string, string> = {
   rejected: "bg-rose-500",
 };
 
+const subscribeNoop = () => () => {};
+
 export function SurveyCalendarView({ surveys, className }: { surveys: CalendarSurvey[]; className?: string }) {
-  const [month, setMonth] = useState(() => startOfMonth(new Date()));
+  const mounted = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
+  const [viewMonth, setViewMonth] = useState<Date | null>(null);
+
+  const today = mounted ? startOfDay(new Date()) : null;
+  const month = today ? (viewMonth ?? startOfMonth(today)) : null;
 
   const days = useMemo(() => {
+    if (!month) return [];
     const start = startOfWeek(startOfMonth(month));
     const end = addDays(startOfWeek(endOfMonth(month)), 6);
     return eachDayOfInterval({ start, end });
@@ -63,6 +75,14 @@ export function SurveyCalendarView({ surveys, className }: { surveys: CalendarSu
     return rows;
   }, [days]);
 
+  if (!today || !month) {
+    return (
+      <GlassCard padding="md" className={className}>
+        <div className="h-64 animate-pulse rounded-xl bg-muted/40" aria-hidden />
+      </GlassCard>
+    );
+  }
+
   return (
     <GlassCard padding="md" className={className}>
       <div className="mb-4 flex items-center justify-between">
@@ -70,7 +90,7 @@ export function SurveyCalendarView({ surveys, className }: { surveys: CalendarSu
         <div className="flex gap-1">
           <button
             type="button"
-            onClick={() => setMonth((m) => subMonths(m, 1))}
+            onClick={() => setViewMonth((m) => subMonths(m ?? month, 1))}
             className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-border/60 transition-colors hover:bg-muted/50"
             aria-label="Previous month"
           >
@@ -78,14 +98,14 @@ export function SurveyCalendarView({ surveys, className }: { surveys: CalendarSu
           </button>
           <button
             type="button"
-            onClick={() => setMonth(startOfMonth(new Date()))}
+            onClick={() => setViewMonth(startOfMonth(today))}
             className="cursor-pointer rounded-lg border border-border/60 px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted/50"
           >
             Today
           </button>
           <button
             type="button"
-            onClick={() => setMonth((m) => addMonths(m, 1))}
+            onClick={() => setViewMonth((m) => addMonths(m ?? month, 1))}
             className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-border/60 transition-colors hover:bg-muted/50"
             aria-label="Next month"
           >
@@ -113,7 +133,7 @@ export function SurveyCalendarView({ surveys, className }: { surveys: CalendarSu
                 const key = format(day, "yyyy-MM-dd");
                 const items = byDay.get(key) ?? [];
                 const inMonth = isSameMonth(day, month);
-                const today = isSameDay(day, new Date());
+                const isToday = isSameDay(day, today);
 
                 return (
                   <td
@@ -121,10 +141,10 @@ export function SurveyCalendarView({ surveys, className }: { surveys: CalendarSu
                     className={cn(
                       "min-h-18 bg-card/80 p-1.5 align-top sm:min-h-22",
                       !inMonth && "opacity-40",
-                      today && "ring-1 ring-inset ring-primary/40",
+                      isToday && "ring-1 ring-inset ring-primary/40",
                     )}
                   >
-                    <span className={cn("text-xs font-medium", today && "text-primary")}>{format(day, "d")}</span>
+                    <span className={cn("text-xs font-medium", isToday && "text-primary")}>{format(day, "d")}</span>
                     <div className="mt-1 space-y-0.5">
                       {items.slice(0, 3).map((s) => {
                         const dot = statusColors[s.qcStatus] ?? statusColors[s.status] ?? "bg-primary";

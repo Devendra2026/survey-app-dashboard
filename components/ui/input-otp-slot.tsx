@@ -1,7 +1,7 @@
 "use client";
 
 import { OTPInputContext } from "input-otp";
-import * as React from "react";
+import { use, type ComponentProps } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -9,10 +9,10 @@ function InputOTPSlot({
   index,
   className,
   ...props
-}: React.ComponentProps<"div"> & {
+}: ComponentProps<"div"> & {
   index: number;
 }) {
-  const inputOTPContext = React.useContext(OTPInputContext);
+  const inputOTPContext = use(OTPInputContext);
   const { char, hasFakeCaret, isActive } = inputOTPContext?.slots[index] ?? {};
 
   return (

@@ -6,7 +6,7 @@ import {
   setSidebarCollapsed,
   subscribeSidebarCollapsed,
 } from "@/lib/sidebar-storage";
-import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, use, useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
 type SidebarContextValue = {
   collapsed: boolean;
@@ -49,7 +49,7 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
 }
 
 export function useSidebar() {
-  const ctx = useContext(SidebarContext);
+  const ctx = use(SidebarContext);
   if (!ctx) throw new Error("useSidebar must be used within SidebarProvider");
   return ctx;
 }

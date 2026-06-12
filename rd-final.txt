@@ -1,0 +1,709 @@
+﻿React Doctor v0.5.1
+
+  
+
+  ΓÜá Bugs: Sequential independent awaits ├ù8
+    This await doesn't use the previous result, so your users
+    wait twice as long for nothing.
+    ΓåÆ These two awaits don't depend on each other. Wrap them in
+    `Promise.all([...])` so they run at the same time.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/server-sequential-independent-await
+
+    convex/tenancy.ts:183
+
+    convex/masters.ts:219
+
+    convex/masters.ts:243
+
+    convex/survey.ts:439
+
+    convex/survey.ts:527
+
+    convex/survey.ts:779
+
+    convex/fieldAccess.ts:107
+
+    convex/fieldAccess.ts:192
+
+  ΓÜá Performance: Independent awaits run sequentially ├ù11
+    These 3 sequential await statements run one after another
+    even though they look independent, so the page waits longer
+    than it needs to. Run them together with Promise.all()
+    instead
+    ΓåÆ Use `const [a, b] = await Promise.all([fetchA(),
+    fetchB()])` so independent calls run at the same time
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/async-parallel
+
+    convex/areaMasters.ts:204
+
+    convex/photos.ts:184
+
+    convex/surveyReassignment.ts:236
+
+    convex/surveyReassignment.ts:300
+
+    convex/taxationMasters.ts:271
+
+    convex/tenants.ts:596
+
+    convex/qc.ts:129
+
+    convex/qc.ts:198
+
+    convex/admin.ts:200
+
+    convex/admin.ts:394
+
+    convex/admin.ts:426
+
+  ΓÜá Performance: await inside a loop ├ù35
+    This makes the forΓÇªof loop slow because each await runs one
+    after another, so collect the independent calls & run them
+    together with `await Promise.all(items.map(...))`
+    ΓåÆ Collect the items, then use `await
+    Promise.all(items.map(...))` so independent work runs at
+    the same time
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/async-await-in-loop
+
+    convex/tenancy.ts:50
+
+    convex/masters.ts:312
+
+    convex/survey.ts:683
+
+    convex/survey.ts:707
+
+    convex/allotments.ts:58
+
+    convex/allotments.ts:67
+
+    convex/allotments.ts:176
+
+    convex/analytics.ts:223
+
+    convex/areaMasters.ts:184
+
+    convex/areaMasters.ts:221
+
+    convex/areaMasters.ts:246
+
+    convex/rbac.ts:13
+
+    convex/rbac.ts:56
+
+    convex/rbac.ts:63
+
+    convex/rbac.ts:99
+
+    convex/rbac.ts:175
+
+    convex/rbac.ts:218-221
+
+    convex/photos.ts:116
+
+    convex/photos.ts:138
+
+    convex/photos.ts:207
+
+    convex/taxRates.ts:232
+
+    convex/surveyExport.ts:157
+
+    convex/taxationMasters.ts:238
+
+    convex/taxationMasters.ts:269
+
+    convex/taxationMasters.ts:288
+
+    convex/taxationMasters.ts:296
+
+    convex/tenants.ts:340
+
+    convex/tenants.ts:578
+
+    convex/admin.ts:244
+
+    convex/admin.ts:282
+
+    convex/floors.ts:138
+
+    convex/floors.ts:181
+
+    convex/serviceMasters.ts:143
+
+    convex/serviceMasters.ts:176
+
+  ΓÜá Performance: Heavy library loaded eagerly
+    "recharts" ships extra code to your users up front & slows
+    page load. Load it on demand with React.lazy() or
+    next/dynamic.
+    ΓåÆ Load it only when needed: `const Component = dynamic(()
+    => import('library'), { ssr: false })` from next/dynamic,
+    or React.lazy().
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/prefer-dynamic-import
+
+    components/analytics/recharts-charts.tsx:5
+
+  ΓÜá Accessibility: Role used instead of HTML tag
+    Screen reader users get more reliable semantics from
+    `<section>` than `role="region"`, so use `<section>`
+    instead.
+    ΓåÆ Use the matching HTML element when one exists so browsers
+    and assistive tech get native semantics.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/prefer-tag-over-role
+
+    components/qc/qc-action-bar.tsx:188
+
+  ΓÜá Accessibility: Interaction on static element
+    Screen reader users can't tell this click handler is
+    interactive because it has no `role`, so add a `role` or
+    use a button or link.
+    ΓåÆ Give clickable static elements a `role`, or use a button
+    or link.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/no-static-element-interactions
+
+    components/ui/input-group-addon.tsx:15
+
+  ΓÜá Maintainability: deslop/unused-file ├ù78
+    Unused file is not reachable from any entry point, so it
+    adds maintenance surface without shipping any code.
+    ΓåÆ Delete the file if it is truly unreachable, or import it
+    from an entry point.
+
+    components/design-system/ai-insights-panel.tsx
+
+    components/design-system/coverage-heatmap.tsx
+
+    components/design-system/gis-survey-map.tsx
+
+    components/design-system/qc-pipeline.tsx
+
+    components/design-system/survey-calendar-view.tsx
+
+    components/design-system/view-mode-toggle.tsx
+
+    components/qc/qc-review-action-bar.tsx
+
+    components/rbac/roles-list.tsx
+
+    components/reports/report-card.tsx
+
+    components/shared/kpi-card.tsx
+
+    components/surveys/photo-gallery.tsx
+
+    components/ui/accordion.tsx
+
+    components/ui/alert.tsx
+
+    components/ui/aspect-ratio.tsx
+
+    components/ui/breadcrumb.tsx
+
+    components/ui/button-group-variants.ts
+
+    components/ui/button-group.tsx
+
+    components/ui/calendar.tsx
+
+    components/ui/carousel.tsx
+
+    components/ui/chart.tsx
+
+    components/ui/combobox.tsx
+
+    components/ui/context-menu.tsx
+
+    components/ui/direction.tsx
+
+    components/ui/drawer.tsx
+
+    components/ui/empty.tsx
+
+    components/ui/field.tsx
+
+    components/ui/hover-card-content.tsx
+
+    components/ui/hover-card-trigger.tsx
+
+    components/ui/hover-card.tsx
+
+    components/ui/input-otp-group.tsx
+
+    components/ui/input-otp-separator.tsx
+
+    components/ui/input-otp-slot.tsx
+
+    components/ui/input-otp.tsx
+
+    components/ui/item.tsx
+
+    components/ui/kbd.tsx
+
+    components/ui/menubar.tsx
+
+    components/ui/native-select-optgroup.tsx
+
+    components/ui/native-select-option.tsx
+
+    components/ui/native-select.tsx
+
+    components/ui/navigation-menu-variants.ts
+
+    components/ui/navigation-menu.tsx
+
+    components/ui/popover.tsx
+
+    components/ui/progress.tsx
+
+    components/ui/radio-group.tsx
+
+    components/ui/resizable-handle.tsx
+
+    components/ui/resizable-panel.tsx
+
+    components/ui/resizable.tsx
+
+    components/ui/sidebar.tsx
+
+    components/ui/slider.tsx
+
+    components/ui/sonner.tsx
+
+    components/ui/spinner.tsx
+
+    components/ui/toggle-group.tsx
+
+    components/ui/toggle-variants.ts
+
+    components/ui/toggle.tsx
+
+    components/users/approve-user-dialog.tsx
+
+    convex/admin.ts
+
+    convex/allotments.ts
+
+    convex/analytics.ts
+
+    convex/analyticsTrends.ts
+
+    convex/audit.ts
+
+    convex/floors.ts
+
+    convex/http.ts
+
+    convex/masterCatalog.ts
+
+    convex/masters.ts
+
+    convex/photos.ts
+
+    convex/qc.ts
+
+    convex/rbac.ts
+
+    convex/surveyExport.ts
+
+    convex/surveyReassignment.ts
+
+    convex/surveys.ts
+
+    convex/taxRates.ts
+
+    convex/tenants.ts
+
+    convex/users.ts
+
+    hooks/use-mobile.ts
+
+    lib/ai-insights.ts
+
+    schema/analytics/index.ts
+
+    schema/masters/index.ts
+
+    schema/reports/index.ts
+
+  ΓÜá Performance: Empty default prop breaks memo ├ù2
+    This keeps redrawing children that compare props because
+    default prop value {} makes a brand new object every
+    render, so move it to a constant at the top of the file
+    ΓåÆ Move it to the top of the file: `const EMPTY_ITEMS:
+    Item[] = []`, then use that as the default value
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/rerender-memo-with-default-value
+
+    components/qc/qc-action-bar.tsx:51
+
+    components/surveys/survey-filters.tsx:44
+
+  ΓÜá Accessibility: Anchor has no content
+    Blind users can't follow this link because screen readers
+    announce nothing, so add visible text, `aria-label`, or
+    `aria-labelledby`.
+    ΓåÆ Put readable text inside every `<a>`.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/anchor-has-content
+
+    components/ui/pagination.tsx:34
+
+  ΓÜá Accessibility: Click handler missing keyboard handler
+    Keyboard users can't trigger this click handler because
+    there's no keyboard one, so add `onKeyUp`, `onKeyDown`, or
+    `onKeyPress`.
+    ΓåÆ Pair `onClick` with a key handler so keyboard users can
+    trigger it.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/click-events-have-key-events
+
+    components/ui/input-group-addon.tsx:15
+
+  ΓÜá Maintainability: Static value rebuilt every render
+    `options` inside `ScopeTypePicker` uses no local state but
+    is rebuilt every render, so it looks new each time & breaks
+    memoized children. Move it to the top of the file, outside
+    the component.
+    ΓåÆ Move the value above the component, at the top of the
+    file. It doesn't use local state, so rebuilding it each
+    update is wasted and makes it look new every time.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/prefer-module-scope-static-value
+
+    components/users/tenant-scope-fields.tsx:21
+
+  ΓÜá Maintainability: deslop/unused-export ├ù77
+    Unused export: `AVATAR_PALETTE` is exported but no module
+    imports it, so it expands the public surface and can
+    mislead callers about supported API.
+    ΓåÆ Drop the `export` keyword (or remove the declaration) if
+    no other module uses this symbol.
+
+    components/audit/audit-helpers.ts:4
+
+    components/audit/audit-helpers.ts:15
+
+    components/audit/audit-helpers.ts:89
+
+    components/layout/command-palette.tsx:124
+
+    components/masters/tax-rates-form-utils.ts:16
+
+    components/masters/tenant-dialogs.tsx:13
+
+    components/masters/tenant-dialogs.tsx:93
+
+    components/masters/tenant-dialogs.tsx:197
+
+    components/qc/demand-notice-sections.tsx:18
+
+    components/qc/demand-notice-sections.tsx:26
+
+    components/qc/demand-notice-sections.tsx:35
+
+    components/qc/qc-action-bar.tsx:36
+
+    components/qc/qc-action-bar.tsx:385
+
+    components/qc/qc-final-report-sections.tsx:35
+
+    components/qc/qc-final-report-sections.tsx:49
+
+    components/reports/queries/exporters.ts:11
+
+    components/reports/queries/exporters.ts:16
+
+    components/reports/queries/exporters.ts:20
+
+    components/reports/queries/pdf.ts:238
+
+    components/shared/permission-boundary.tsx:20
+
+    components/surveys/property-id-banner.tsx:3
+
+    components/surveys/survey-excel-actions.tsx:140
+
+    convex/_generated/api.js:23
+
+    convex/_generated/server.js:39
+
+    convex/_generated/server.js:72
+
+    convex/_generated/server.js:80
+
+    convex/schema.ts:9
+
+    hooks/qc/useQc.ts:20
+
+    hooks/rbac/useRbac.ts:47
+
+    hooks/surveys/useFloors.ts:18
+
+    hooks/surveys/useSurveys.ts:46
+
+    hooks/surveys/useSurveys.ts:107
+
+    hooks/use-capability.ts:19
+
+    hooks/users/useUsers.ts:72
+
+    lib/design-system.ts:2
+
+    lib/design-system.ts:14
+
+    lib/design-system.ts:30
+
+    lib/design-system.ts:39
+
+    lib/design-system.ts:70
+
+    lib/design-system.ts:84
+
+    lib/domain.ts:52-55
+
+    lib/domain.ts:115
+
+    lib/domain.ts:121
+
+    lib/domain.ts:156
+
+    lib/domain.ts:163
+
+    lib/maps/google-maps.ts:15
+
+    lib/permissions.ts:104
+
+    lib/permissions.ts:164
+
+    lib/qc/normalize-tax-rates.ts:33
+
+    lib/qc/property-tax-calc.ts:4
+
+    lib/qc/property-tax-calc.ts:12
+
+    lib/qc/property-tax-calc.ts:17
+
+    lib/qc/property-tax-calc.ts:28
+
+    lib/qc/property-tax-calc.ts:37
+
+    lib/qc/qc-report-demand.ts:15
+
+    lib/qc/queue-nav.ts:3
+
+    lib/qc/queue-nav.ts:15
+
+    lib/qc/tax-rate-defaults.ts:81
+
+    lib/qc/tax-rate-defaults.ts:109
+
+    lib/qc/tax-rate-defaults.ts:136
+
+    lib/qc/tax-rate-matrix.ts:26
+
+    lib/qc/tax-rate-matrix.ts:33
+
+    lib/qc/ward-stats.ts:15
+
+    lib/survey/area.ts:13-15
+
+    lib/survey/area.ts:20
+
+    lib/survey/survey-excel.ts:10-14
+
+    lib/tenancy-ui.ts:5
+
+    lib/users/display.ts:1
+
+    schema/qc/index.ts:17
+
+    schema/surveys/surveySchema.ts:76
+
+    schema/surveys/surveySchema.ts:93
+
+  ΓÜá Bugs: Data passed to parent via effect
+    Handing data back to a parent from a useEffect costs your
+    users an extra render.
+    ΓåÆ Fetch the data in the parent and pass it down as a prop
+    (or return it from the hook), instead of handing it back up
+    through a prop callback in a useEffect. See
+    https://react.dev/learn/you-might-not-need-an-effect#passing-data-to-the-parent
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/no-pass-data-to-parent
+
+    hooks/qc/useSyncQcScopeFromSurvey.ts:16
+
+  ΓÜá Performance: useMemo before an early return
+    This runs even when the component bails out because the
+    useMemo builds JSX before an early return, so move the JSX
+    into a child wrapped in memo to skip it on the early return
+    ΓåÆ Move the JSX into a child component wrapped in memo, so
+    the parent's early return skips it
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/rerender-memo-before-early-return
+
+    components/ui/field.tsx:168
+
+  ΓÜá Performance: Spread copy before sort() ├ù2
+    This wastes work because [...array].sort() copies the array
+    just to sort it, so use array.toSorted() to sort without
+    the extra copy (ES2023)
+    ΓåÆ Use `array.toSorted()` (ES2023) instead of
+    `[...array].sort()` so you sort without copying the array
+    first
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/js-tosorted-immutable
+
+    lib/qc/ward-stats.ts:50
+
+    convex/surveyReassignment.ts:212
+
+  ΓÜá Maintainability: Pure function rebuilt every render
+    `pct` inside `WardRatePreview` uses no local state but is
+    rebuilt on every render, so it wastes work & breaks
+    memoized children. Move it to the top of the file, outside
+    the component.
+    ΓåÆ Move the function above the component, at the top of the
+    file. It doesn't use local state, so rebuilding it each
+    update is wasted work.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/prefer-module-scope-pure-function
+
+    components/masters/ulb-rate-editor-widgets.tsx:38
+
+  ΓÜá Maintainability: Large component is hard to read and change
+    Component "QcActionBar" is 335 lines long, which is hard to
+    read & change. Split it into a few smaller components.
+    ΓåÆ Pull each section into its own component so the parent is
+    easier to read, test, and change.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/no-giant-component
+
+    components/qc/qc-action-bar.tsx:48
+
+  ΓÜá Maintainability: deslop/unused-dependency
+    Unused dependency: `react-doctor`
+    ΓåÆ An unused dependency adds install time and supply-chain
+    surface without being used; remove it from package.json if
+    it is genuinely unused.
+
+  ΓÜá Performance: .map().filter(Boolean) loops twice
+    This loops over your list twice because
+    .map().filter(Boolean) makes two passes, so use .flatMap()
+    to change & drop items in one pass
+    ΓåÆ Use `.flatMap(item => condition ? [value] : [])` to
+    change and drop items in one pass, instead of building a
+    throwaway array in between
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/js-flatmap-filter
+
+    convex/audit.ts:31
+
+  ΓÜá Performance: Chained array iterations ├ù9
+    This loops over your list twice because .filter().map()
+    makes two passes, so do it in one pass with .reduce() or a
+    for...of loop
+    ΓåÆ Combine `.map().filter()` style chains into one pass with
+    `.reduce()` or a `for...of` loop, so you only loop over the
+    list once
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/js-combine-iterations
+
+    components/layout/command-palette.tsx:81
+
+    components/users/approve-user-dialog.tsx:91
+
+    convex/masters.ts:255
+
+    convex/ownerRules.ts:54
+
+    convex/surveyExport.ts:151-153
+
+    convex/qc.ts:32
+
+    convex/audit.ts:33
+
+  ΓÜá Maintainability: Boolean prop combinations are hard to test
+    Component "SurveyFilters" takes 4 on/off props (showStatus,
+    showQcStatus, showSearchΓÇª), which is hard to combine &
+    test. Split it into smaller components or named variants.
+    ΓåÆ Split boolean-heavy APIs into smaller components or named
+    variants so combinations stay testable.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/no-many-boolean-props
+
+    components/surveys/survey-filters.tsx:37
+
+  ΓÜá Maintainability: Multiple components in one file ├ù2
+    This file declares several components, so each component is
+    harder to find, test, and change.
+    ΓåÆ Move secondary components into their own files so each
+    component stays easier to find, test, and change.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/no-multi-comp
+
+    components/surveys/survey-form-fields.tsx:25
+
+    components/surveys/survey-form-fields.tsx:29
+
+  ΓÜá Maintainability: Non-component export in component file ├ù2
+    This file exports non-components, so Fast Refresh can't
+    safely preserve component state.
+    ΓåÆ Move non-component exports out of component files so Fast
+    Refresh can preserve component state instead of
+    full-reloading.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/only-export-components
+
+    components/qc/qc-review-action-bar.tsx:1
+
+    components/qc/qc-action-bar.tsx:36
+
+  Γ£û Bugs: Whole query result subscribes to every field
+    Destructure useQuery() results instead of assigning the
+    whole query object, so TanStack Query only subscribes to
+    the fields you use.
+    ΓåÆ Destructure only the fields you need, like `const { data,
+    isLoading } = useQuery(...)`. Assigning the whole object
+    bypasses TanStack Query's tracked-property optimization and
+    subscribes to every field.
+    Curl with no cache & follow the canonical fix and false positive check recipe before fixing: https://react.doctor/docs/rules/react-doctor/query-destructure-result
+
+    components/surveys/survey-reassign-dialog.tsx:41
+    ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+    Γöé   40 |   const reassign = useReassignDrafts();               Γöé
+    Γöé > 41 |   const fieldUsers = useQuery(                        Γöé
+    Γöé      |         ^                                             Γöé
+    Γöé   42 |     api.admin.listUsers,                              Γöé
+    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+  All 240 issues
+
+  Bugs > 1 error, 9 warnings
+  Performance > 62 warnings
+  Accessibility > 4 warnings
+  Maintainability > 164 warnings
+
+Agent guidance
+  - Treat React Doctor diagnostics as starting hypotheses. Read the relevant code before confirming or suppressing each finding.
+  - For each group, decide true positive, false positive, or needs-human-review, then assign high/medium/low confidence.
+  - Do not suppress a finding without evidence from the file in question. Confidence requires code context.
+  - Understand the root cause before editing. Fix the underlying code instead of changing react-doctor config or suppressing rules unless explicitly asked.
+  - Investigate deeply where relevant: race conditions, security-sensitive flows, state propagation, multi-file refactors, and downstream dependency chains.
+  - Ignore pure style preferences, theoretical issues without real impact, missing features, and unrelated pre-existing code.
+  - Start with high-confidence fixes that preserve behavior. Leave low-confidence or product-dependent changes as notes.
+  - Run `npx react-doctor@latest --verbose --diff` before and after changes, plus relevant tests after each focused batch.
+  - When available, spawn subagents or isolated worktrees for independent rule families, then review and merge only the best safe fixes.
+  - Split unrelated, broad, or behavior-changing work into separate PRs/branches instead of one large cleanup.
+  - For confirmed issues that cannot be fixed now, create GitHub issues with the rule, file/line, confidence, impact, and proposed fix.
+  - If a fix needs an API, UX, or architecture decision, stop and ask before editing.
+
+  ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ  69 / 100 Needs work
+  Γöé ΓÇó ΓÇó Γöé  ΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæΓûæ
+  Γöé  ΓöÇ  Γöé  React Doctor (https://react.doctor)
+  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+  Full diagnostics written to C:\Users\sikar\AppData\Local\Temp\react-doctor-220e0814-830c-442a-8d72-785e240136af
+
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+  Share: https://react.doctor/share?p=sdv-front-new-app&s=69&e=1&w=239&f=133
+  Tell others how you did on socials
+
+  Docs: https://react.doctor/docs
+  Learn more about fixing issues, setting up CI/CD, and
+  configuring rules with a config file
+
+  GitHub: https://github.com/millionco/react-doctor
+  Report issues and star the repository!
+

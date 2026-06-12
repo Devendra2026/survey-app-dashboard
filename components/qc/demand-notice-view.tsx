@@ -29,10 +29,22 @@ type DemandNoticeViewProps = {
 export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}/report` }: DemandNoticeViewProps) {
   const ready = useConvexAuthReady();
   const { masters } = useMasters();
-  const dynamicRates = useQuery(
+  const {
+    rateMatrix,
+    wardRates,
+    propertyTaxPct,
+    waterTaxPct,
+    drainageTaxPct,
+    usageMultipliers,
+  } = useQuery(
     api.taxRates.getForMunicipality,
     ready ? { municipalityId: survey.municipalityId } : "skip",
-  );
+  ) ?? {};
+
+  const dynamicRates =
+    rateMatrix !== undefined
+      ? { rateMatrix, wardRates, propertyTaxPct, waterTaxPct, drainageTaxPct, usageMultipliers }
+      : undefined;
 
   const ulbCodes = buildUlbCodeMap(masters?.ulbs);
   const propertyId = resolveDisplayPropertyId(survey, ulbCodes) ?? survey.propertyId ?? survey.parcelNo;
