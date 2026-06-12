@@ -2,8 +2,7 @@
 
 import { ExecutiveHero } from "@/components/design-system/executive-hero";
 import { PageTransition } from "@/components/design-system/motion";
-import { QcReviewTimeline } from "@/components/design-system/qc-pipeline";
-import { QcPanel } from "@/components/qc/qc-panel";
+import { QcActionBar } from "@/components/qc/qc-action-bar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
@@ -11,42 +10,24 @@ import { SurveyDetailView } from "@/components/surveys/survey-detail-view";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcQueue } from "@/hooks/qc/useQcQueue";
+import { useSyncQcScopeFromSurvey } from "@/hooks/qc/useSyncQcScopeFromSurvey";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { isSurveyAwaitingQc, wasEditedAfterSubmit } from "@/lib/domain";
 import { findNextPendingSurvey } from "@/lib/qc/queue-nav";
-import { ArrowLeft, Building2, ClipboardCheck, FileText, MapPin, Pencil } from "lucide-react";
+import { scopeFromSurveyRow } from "@/lib/qc/work-scope";
+import { ArrowLeft, Building2, ClipboardCheck, FileText, MapPin } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, use, useCallback, useEffect } from "react";
-import { toast } from "sonner";
+import { Suspense, use, useMemo } from "react";
 
-function QcReviewContent({ id }: { id: string }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+function QcReviewBody({ id }: { id: string }) {
   const survey = useSurvey(id);
-  const { pendingQueue, scope, patchScope } = useQcQueue();
+  const { pendingQueue, patchScope } = useQcQueue();
 
-  const wardFromUrl = searchParams.get("wardNo") ?? undefined;
-  const muniFromUrl = searchParams.get("municipalityId") ?? undefined;
+  useSyncQcScopeFromSurvey(survey, patchScope);
 
-  useEffect(() => {
-    if (!wardFromUrl && !muniFromUrl) return;
-    patchScope({
-      wardNo: wardFromUrl ?? scope.wardNo,
-      municipalityId: muniFromUrl ?? scope.municipalityId,
-    });
-  }, [wardFromUrl, muniFromUrl, patchScope, scope.municipalityId, scope.wardNo]);
+  const nextSurvey = useMemo(() => findNextPendingSurvey(pendingQueue, id), [pendingQueue, id]);
 
-  const handleApproved = useCallback(() => {
-    const next = findNextPendingSurvey(pendingQueue, id);
-    if (next) {
-      router.push(`/qc/${next._id}`);
-      return;
-    }
-    const wardLabel = scope.wardNo ? `Ward ${scope.wardNo}` : "this ward";
-    toast.info(`QC complete for ${wardLabel}. Select another ward in Smart Filters to continue.`);
-    router.push("/qc");
-  }, [pendingQueue, id, router, scope.wardNo]);
+  const workScope = useMemo(() => (survey ? scopeFromSurveyRow(survey) : {}), [survey]);
 
   if (survey === undefined) {
     return (
@@ -60,34 +41,13 @@ function QcReviewContent({ id }: { id: string }) {
 
   if (survey === null) return <EmptyState title="Survey not found" />;
 
-  const timeline = [
-    { id: "draft", label: "Draft created", timestamp: survey._creationTime, status: "done" as const },
-    {
-      id: "submitted",
-      label: "Submitted for QC",
-      timestamp: survey.submittedAt,
-      status: survey.status === "submitted" || survey.qcStatus !== "pending" ? ("done" as const) : ("pending" as const),
-    },
-    {
-      id: "review",
-      label: "QC review in progress",
-      status: survey.qcStatus === "pending" ? ("current" as const) : ("done" as const),
-    },
-    {
-      id: "decision",
-      label:
-        survey.qcStatus === "approved" ? "Approved" : survey.qcStatus === "rejected" ? "Returned" : "Awaiting decision",
-      status: survey.qcStatus === "pending" ? ("pending" as const) : ("done" as const),
-    },
-  ];
-
   return (
     <RoleGate
       mode="page"
       capability="qc.review"
       deniedDescription="Quality Control review is available to supervisors and administrators."
     >
-      <PageTransition className="space-y-6">
+      <PageTransition className="space-y-6 pb-28">
         <Button asChild variant="outline" size="sm" className="w-fit cursor-pointer rounded-xl">
           <Link href="/qc">
             <ArrowLeft className="h-4 w-4" aria-hidden /> Back to QC queue
@@ -103,22 +63,11 @@ function QcReviewContent({ id }: { id: string }) {
           icon={ClipboardCheck}
           gradient="amber"
           actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <Button asChild size="sm" className="cursor-pointer rounded-xl">
-                <Link href={`/qc/${id}/report`}>
-                  <FileText className="h-4 w-4" aria-hidden /> QC Report
-                </Link>
-              </Button>
-              {survey.qcStatus !== "approved" && (
-                <RoleGate capability="qc.review" fallback={null}>
-                  <Button asChild size="sm" variant="outline" className="cursor-pointer rounded-xl border-amber-300/60">
-                    <Link href={`/qc/${id}/edit`}>
-                      <Pencil className="h-4 w-4" aria-hidden /> Edit &amp; correct
-                    </Link>
-                  </Button>
-                </RoleGate>
-              )}
-            </div>
+            <Button asChild size="sm" className="cursor-pointer rounded-xl">
+              <Link href={`/qc/${id}/report`}>
+                <FileText className="h-4 w-4" aria-hidden /> QC Report
+              </Link>
+            </Button>
           }
         />
 
@@ -144,15 +93,9 @@ function QcReviewContent({ id }: { id: string }) {
           )}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <SurveyDetailView survey={survey} surveyId={id} hideProgressFooter hideQcRemarks />
-          </div>
-          <div className="space-y-4">
-            <QcReviewTimeline events={timeline} />
-            <QcPanel survey={survey} onApproved={handleApproved} />
-          </div>
-        </div>
+        <SurveyDetailView survey={survey} surveyId={id} hideProgressFooter hideQcRemarks />
+
+        <QcActionBar survey={survey} nextSurvey={nextSurvey} scope={workScope} mode="review" />
       </PageTransition>
     </RoleGate>
   );
@@ -163,7 +106,7 @@ export default function QcReviewPage({ params }: { params: Promise<{ id: string 
 
   return (
     <Suspense>
-      <QcReviewContent id={id} />
+      <QcReviewBody key={id} id={id} />
     </Suspense>
   );
 }

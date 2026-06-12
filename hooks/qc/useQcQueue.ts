@@ -2,11 +2,11 @@
 
 import type { DateFilterState } from "@/components/surveys/survey-filters";
 import type { SurveyRow } from "@/components/surveys/survey-tables";
-import { useWardsForMunicipality } from "@/hooks/masters/useMasters";
+import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters";
 import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
 import { searchQcRegistry, useSurveyList } from "@/hooks/surveys/useSurveys";
 import { computeQcWardStats, type QcWardRow } from "@/lib/qc/ward-stats";
-import type { QcWorkScope } from "@/lib/qc/work-scope";
+import { sanitizeQcWorkScope, type QcWorkScope } from "@/lib/qc/work-scope";
 import { useCallback, useMemo, useState } from "react";
 
 export type QcQueueStats = {
@@ -21,14 +21,23 @@ export type UseQcQueueOptions = {
 };
 
 export function useQcQueue(options: UseQcQueueOptions = {}) {
-  const { scope, setScope, patchScope } = useQcWorkScope();
+  const { scope, setScope, patchScope, scopeReady } = useQcWorkScope();
+  const { masters } = useMasters();
+
+  const queryScope = useMemo(() => {
+    if (!masters) return {} as QcWorkScope;
+    return sanitizeQcWorkScope(scope, {
+      municipalityIds: new Set(masters.ulbs.map((u) => u._id)),
+      districtIds: new Set(masters.districts.map((d) => d._id)),
+    });
+  }, [scope, masters]);
   const [dateFilters, setDateFilters] = useState<DateFilterState>({});
   const [registrySearch, setRegistrySearch] = useState("");
   const [pageSize, setPageSize] = useState(20);
   const [activeTab, setActiveTab] = useState(options.initialTab ?? "pending");
   const [pageNumber, setPageNumber] = useState(1);
 
-  const wardsForMuni = useWardsForMunicipality(scope.municipalityId);
+  const wardsForMuni = useWardsForMunicipality(scopeReady ? queryScope.municipalityId : undefined);
   const wardLabels = useMemo(() => {
     const map = new Map<string, string>();
     for (const w of wardsForMuni ?? []) {
@@ -67,15 +76,15 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
 
   const listFilters = useMemo(
     () => ({
-      wardNo: scope.wardNo,
-      districtId: scope.districtId,
-      municipalityId: scope.municipalityId,
+      wardNo: queryScope.wardNo,
+      districtId: queryScope.districtId,
+      municipalityId: queryScope.municipalityId,
       limit: 2000,
     }),
-    [scope.wardNo, scope.districtId, scope.municipalityId],
+    [queryScope.wardNo, queryScope.districtId, queryScope.municipalityId],
   );
 
-  const surveys = useSurveyList(listFilters);
+  const surveys = useSurveyList(scopeReady ? listFilters : {});
   const isLoading = surveys === undefined;
 
   const registryFiltered = useMemo(

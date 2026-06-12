@@ -44,3 +44,36 @@ export function scopeFromUserAssignment(user: {
 export function isQcScopeComplete(scope: QcWorkScope): boolean {
   return Boolean(scope.municipalityId && scope.wardNo);
 }
+
+export type QcTenantAllowlist = {
+  municipalityIds: ReadonlySet<string>;
+  districtIds: ReadonlySet<string>;
+};
+
+/** Drop ULB/district filters that are outside the caller's tenant catalog. */
+export function sanitizeQcWorkScope(scope: QcWorkScope, allowed: QcTenantAllowlist): QcWorkScope {
+  const next: QcWorkScope = { ...scope };
+
+  if (next.municipalityId && !allowed.municipalityIds.has(next.municipalityId)) {
+    delete next.municipalityId;
+    delete next.wardNo;
+  }
+
+  if (next.districtId && !allowed.districtIds.has(next.districtId)) {
+    delete next.districtId;
+  }
+
+  return next;
+}
+
+export function scopeFromSurveyRow(survey: {
+  municipalityId?: string;
+  districtId?: string;
+  wardNo?: string;
+}): QcWorkScope {
+  return {
+    municipalityId: survey.municipalityId,
+    districtId: survey.districtId,
+    wardNo: survey.wardNo,
+  };
+}

@@ -2,6 +2,7 @@
 
 import { ExecutiveHero } from "@/components/design-system/executive-hero";
 import { PageTransition } from "@/components/design-system/motion";
+import { QcActionBar } from "@/components/qc/qc-action-bar";
 import { QcCorrectionBanner } from "@/components/qc/qc-correction-banner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -10,22 +11,20 @@ import { SurveyEditor } from "@/components/surveys/survey-editor";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
+import { useQcQueue } from "@/hooks/qc/useQcQueue";
+import { useSyncQcScopeFromSurvey } from "@/hooks/qc/useSyncQcScopeFromSurvey";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
-import {
-  canUserEditSurvey,
-  isSurveyAwaitingQc,
-  isSurveyResubmit,
-  needsQcSaveBar,
-  wasEditedAfterSubmit,
-} from "@/lib/domain";
+import { canUserEditSurvey, isSurveyAwaitingQc, isSurveyResubmit, wasEditedAfterSubmit } from "@/lib/domain";
+import { findNextPendingSurvey } from "@/lib/qc/queue-nav";
+import { scopeFromSurveyRow } from "@/lib/qc/work-scope";
 import { useCurrentUser } from "@/lib/session";
-import { ArrowLeft, ClipboardCheck, Eye } from "lucide-react";
+import { ArrowLeft, ClipboardCheck } from "lucide-react";
 import Link from "next/link";
-import { use } from "react";
+import { Suspense, use, useMemo, useRef, useState } from "react";
 
 function QcEditPageSkeleton() {
   return (
-    <PageTransition className="space-y-6">
+    <PageTransition className="space-y-6 pb-28">
       <Skeleton className="h-9 w-36 rounded-xl" />
       <Skeleton className="h-40 w-full rounded-2xl" />
       <Skeleton className="h-96 w-full rounded-2xl" />
@@ -33,11 +32,19 @@ function QcEditPageSkeleton() {
   );
 }
 
-export default function QcEditPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+function QcEditBody({ id }: { id: string }) {
   const survey = useSurvey(id);
   const remarks = useQcRemarks(id);
   const { role, capabilities } = useCurrentUser();
+  const { pendingQueue, patchScope } = useQcQueue();
+  const [correctionsSaved, setCorrectionsSaved] = useState(false);
+  const saveCorrectionsRef = useRef<(() => Promise<boolean>) | null>(null);
+
+  useSyncQcScopeFromSurvey(survey, patchScope);
+
+  const nextSurvey = useMemo(() => findNextPendingSurvey(pendingQueue, id), [pendingQueue, id]);
+
+  const workScope = useMemo(() => (survey ? scopeFromSurveyRow(survey) : {}), [survey]);
 
   if (survey === undefined) return <QcEditPageSkeleton />;
   if (survey === null) {
@@ -48,6 +55,7 @@ export default function QcEditPage({ params }: { params: Promise<{ id: string }>
   const canEdit = canUserEditSurvey(survey, { role, capabilities });
   const awaitingQc = isSurveyAwaitingQc(survey);
   const isResubmit = isSurveyResubmit(survey);
+  const readyToApprove = correctionsSaved || wasEditedAfterSubmit(survey);
 
   return (
     <RoleGate
@@ -55,7 +63,7 @@ export default function QcEditPage({ params }: { params: Promise<{ id: string }>
       capability="qc.review"
       deniedDescription="Quality Control editing is available to QC supervisors and administrators."
     >
-      <PageTransition className="space-y-6 lg:space-y-8">
+      <PageTransition className="space-y-6 pb-28 lg:space-y-8">
         <Button
           asChild
           variant="outline"
@@ -70,18 +78,13 @@ export default function QcEditPage({ params }: { params: Promise<{ id: string }>
         <ExecutiveHero
           eyebrow="QC Correction"
           title={propertyLabel}
-          description={`${survey.city} · Ward ${survey.wardNo} — verify data, save corrections, then approve from the review screen.`}
+          description={`${survey.city} · Ward ${survey.wardNo} — correct data, save, then approve to advance automatically.`}
           icon={ClipboardCheck}
           gradient="amber"
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <SurveyStatusBadge status={survey.status} />
               <QcStatusBadge status={survey.qcStatus} />
-              <Button asChild variant="outline" size="sm" className="cursor-pointer rounded-xl">
-                <Link href={`/qc/${id}`}>
-                  <Eye className="h-4 w-4" aria-hidden /> Review &amp; approve
-                </Link>
-              </Button>
             </div>
           }
         />
@@ -103,30 +106,48 @@ export default function QcEditPage({ params }: { params: Promise<{ id: string }>
         ) : (
           <>
             {isResubmit && <QcCorrectionBanner remarks={remarks} />}
-            {awaitingQc && (
+            {awaitingQc && !readyToApprove && (
               <output className="block rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
-                Save corrections here — the survey stays in the QC queue
-                {wasEditedAfterSubmit(survey) ? " (updated since last submit)" : ""}. Return to review when ready to
-                approve or return to the surveyor.
+                Make your corrections below, then click <strong>Save</strong> in the action bar to unlock{" "}
+                <strong>Approved</strong>.
+              </output>
+            )}
+            {awaitingQc && readyToApprove && (
+              <output className="block rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-950 dark:text-emerald-100">
+                Corrections are saved — click <strong>Approved</strong> to finish and move to the next survey
+                automatically.
               </output>
             )}
             <SurveyEditor
               localId={survey.localId}
               surveyId={id}
               existing={survey}
-              showSaveBar={needsQcSaveBar(survey) || survey.status === "draft"}
-              saveBarLabel="Save QC corrections"
-              saveBarDescription="Updates the survey record in place. Approve or return from the QC review screen when verification is complete."
-              saveBarSecondaryAction={
-                <Button asChild variant="outline" className="cursor-pointer rounded-xl">
-                  <Link href={`/qc/${id}`}>Return to QC review</Link>
-                </Button>
-              }
+              showSaveBar={false}
               showSubmitBar={false}
+              saveCorrectionsRef={saveCorrectionsRef}
+            />
+            <QcActionBar
+              survey={survey}
+              nextSurvey={nextSurvey}
+              scope={workScope}
+              mode="edit"
+              correctionsSaved={readyToApprove}
+              onSave={async () => saveCorrectionsRef.current?.() ?? false}
+              onCorrectionsSaved={() => setCorrectionsSaved(true)}
             />
           </>
         )}
       </PageTransition>
     </RoleGate>
+  );
+}
+
+export default function QcEditPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+
+  return (
+    <Suspense>
+      <QcEditBody key={id} id={id} />
+    </Suspense>
   );
 }

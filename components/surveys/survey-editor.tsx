@@ -1,6 +1,7 @@
 "use client";
 
 import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
+import { qcActionBtn } from "@/components/qc/qc-action-styles";
 import { RoleGate } from "@/components/shared/role-gate";
 import { FloorsEditor } from "@/components/surveys/floors-editor";
 import { GpsCapturePanel } from "@/components/surveys/gps-capture";
@@ -14,7 +15,7 @@ import { firstAreaSubmitError, surveyAreaSubmitErrors } from "@/lib/survey/progr
 import { cn } from "@/lib/utils";
 import type { SurveyListItem } from "@/schema/surveys/index";
 import { Camera, ClipboardList, Layers, MapPin, Save, Send } from "lucide-react";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { toast } from "sonner";
 
 const tabTriggerClass =
@@ -61,6 +62,7 @@ export function SurveyEditor({
   saveBarLabel,
   saveBarDescription,
   saveBarSecondaryAction,
+  saveCorrectionsRef,
 }: {
   localId: string;
   surveyId?: string;
@@ -76,6 +78,8 @@ export function SurveyEditor({
   saveBarLabel?: string;
   saveBarDescription?: string;
   saveBarSecondaryAction?: ReactNode;
+  /** QC edit: expose save handler to external sticky action bar */
+  saveCorrectionsRef?: MutableRefObject<(() => Promise<boolean>) | null>;
 }) {
   const [activeTab, setActiveTab] = useState("details");
   const [saving, setSaving] = useState(false);
@@ -117,6 +121,12 @@ export function SurveyEditor({
     }
 
     return true;
+  }
+
+  const persistRef = useRef(persistDetailsAndArea);
+  persistRef.current = persistDetailsAndArea;
+  if (saveCorrectionsRef) {
+    saveCorrectionsRef.current = () => persistRef.current();
   }
 
   async function handleSaveCorrections() {
@@ -164,14 +174,17 @@ export function SurveyEditor({
 
   const correctionsBar = showSaveBar && canEditSections && (
     <RoleGate capability="surveys.editDraft" fallback={null}>
-      <GlassCard variant="accent" padding="md" className="border-amber-500/25 dark:border-amber-400/30">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="premium-card overflow-hidden rounded-2xl border border-amber-500/25 bg-card/95 shadow-premium-lg backdrop-blur-md dark:border-amber-400/20">
+        <div className="h-1 w-full bg-muted">
+          <div className="h-full w-1/2 bg-linear-to-r from-amber-500 to-amber-400" />
+        </div>
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-900 ring-1 ring-amber-500/25 dark:text-amber-100">
               <Save className="h-4 w-4" aria-hidden />
             </div>
             <div>
-              <p className="font-heading text-sm font-semibold text-foreground">{saveBarLabel ?? "Save changes"}</p>
+              <p className="font-heading text-sm font-semibold text-foreground">{saveBarLabel ?? "Save"}</p>
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                 {saveBarDescription ??
                   "Saves details and plot area. The survey stays in its current QC status until you approve or return it."}
@@ -183,17 +196,14 @@ export function SurveyEditor({
             <Button
               disabled={isWorking}
               onClick={handleSaveCorrections}
-              className={cn(
-                "cursor-pointer rounded-xl bg-amber-600 px-6 text-white shadow-md hover:bg-amber-500 dark:bg-amber-600 dark:hover:bg-amber-500",
-                isWorking && "opacity-80",
-              )}
+              className={cn(qcActionBtn.base, qcActionBtn.save, isWorking && "opacity-80")}
             >
               <Save className="h-4 w-4" aria-hidden />
-              {isWorking && saving ? "Saving…" : (saveBarLabel ?? "Save changes")}
+              {isWorking && saving ? "Saving…" : (saveBarLabel ?? "Save")}
             </Button>
           </div>
         </div>
-      </GlassCard>
+      </div>
     </RoleGate>
   );
 
