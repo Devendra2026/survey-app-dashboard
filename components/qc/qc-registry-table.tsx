@@ -3,15 +3,28 @@
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading";
 import { QcStatusBadge } from "@/components/shared/status-badge";
+import { SurveyRegistrySearch } from "@/components/surveys/survey-registry-search";
 import type { SurveyRow } from "@/components/surveys/survey-tables";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SURVEY_ROW_TONE } from "@/lib/design-system";
+import { resolveOwnerDisplayName } from "@/lib/survey/resolve-owner-name";
 import { fmtDay } from "@/lib/utils";
-import { Eye, Search } from "lucide-react";
+import { Eye } from "lucide-react";
 import Link from "next/link";
+
+export { SurveyRegistrySearch as QcRegistrySearch };
+
+/** QC portal wrapper — amber border styling for registry search. */
+export function QcRegistrySearchBar(props: { value: string; onChange: (term: string) => void }) {
+  return (
+    <SurveyRegistrySearch
+      {...props}
+      placeholder="Search owner name, parcel no., or ward…"
+      inputClassName="h-10 rounded-lg border-amber-300/40 bg-background pl-9 dark:border-amber-700/40"
+    />
+  );
+}
 
 export type QcRegistryRow = SurveyRow & { surveyorName?: string };
 
@@ -21,23 +34,6 @@ function surveyRowTone(row: QcRegistryRow) {
   if (row.qcStatus === "pending") return SURVEY_ROW_TONE.qcPending;
   if (row.status === "submitted") return SURVEY_ROW_TONE.submitted;
   return SURVEY_ROW_TONE.draft;
-}
-
-export function QcRegistrySearch({ value, onChange }: { value: string; onChange: (term: string) => void }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">Search registry</Label>
-      <div className="relative max-w-xl">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search owner name, parcel no., or ward…"
-          className="h-10 rounded-lg border-amber-300/40 bg-background pl-9 dark:border-amber-700/40"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    </div>
-  );
 }
 
 export function QcRegistryTable({
@@ -114,7 +110,7 @@ export function QcRegistryTable({
               <TableCell className="py-2.5 font-medium">{row.surveyorName || "—"}</TableCell>
               <TableCell className="py-2.5 tabular-nums">{row.wardNo}</TableCell>
               <TableCell className="py-2.5 font-mono text-xs">{row.parcelNo}</TableCell>
-              <TableCell className="py-2.5 font-medium">{row.respondentName || "—"}</TableCell>
+              <TableCell className="py-2.5 font-medium">{resolveOwnerDisplayName(row)}</TableCell>
               <TableCell className="py-2.5 tabular-nums">{row.mobileNo}</TableCell>
               <TableCell className="py-2.5 whitespace-nowrap text-muted-foreground">
                 {fmtDay(row.submittedAt ?? row._creationTime)}

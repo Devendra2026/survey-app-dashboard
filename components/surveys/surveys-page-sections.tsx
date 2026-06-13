@@ -6,6 +6,7 @@ import { MetricCard } from "@/components/design-system/metric-card";
 import { RoleGate } from "@/components/shared/role-gate";
 import { SurveyExcelActions } from "@/components/surveys/survey-excel-actions";
 import { SurveyFilters, type FilterState } from "@/components/surveys/survey-filters";
+import { SurveyRegistrySearch } from "@/components/surveys/survey-registry-search";
 import { SurveyTable } from "@/components/surveys/survey-tables";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,7 +21,6 @@ import {
   Filter,
   LayoutList,
   Plus,
-  TrendingDown,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -63,7 +63,7 @@ export function SurveysPageHero({
     <ExecutiveHero
       eyebrow="Survey Dashboard"
       title="Survey Management"
-      description="Search, filter, and manage property surveys across your assigned scope."
+      description="Filter and manage property surveys across your assigned scope."
       icon={LayoutList}
       gradient="brand"
       actions={
@@ -104,7 +104,7 @@ export function SurveysMetricsSection({
   showAnalytics: boolean;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-6">
+    <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
       <MetricCard
         label="Field Drafts"
         value={draftCount.toLocaleString()}
@@ -144,13 +144,6 @@ export function SurveysMetricsSection({
         icon={CalendarDays}
         tone="info"
       />
-      <MetricCard
-        label="Rejection Rate"
-        value={`${stats.rejectionRate}%`}
-        hint={`${stats.rejected} rejected`}
-        icon={TrendingDown}
-        tone="destructive"
-      />
     </div>
   );
 }
@@ -184,10 +177,13 @@ export function SurveysRegistrySection({
   draftCount,
   submittedCount,
   pageNumber,
+  pageStart,
   canGoNext,
   isLoading,
   pagedRows,
   showSurveyor,
+  registrySearch,
+  onRegistrySearchChange,
 }: {
   activeTab: string;
   onActiveTabChange: (tab: string) => void;
@@ -195,10 +191,13 @@ export function SurveysRegistrySection({
   draftCount: number;
   submittedCount: number;
   pageNumber: number;
+  pageStart: number;
   canGoNext: boolean;
   isLoading: boolean;
   pagedRows: Parameters<typeof SurveyTable>[0]["rows"];
   showSurveyor: boolean;
+  registrySearch: string;
+  onRegistrySearchChange: (term: string) => void;
 }) {
   return (
     <GlassCard padding="none" className="overflow-hidden">
@@ -207,6 +206,9 @@ export function SurveysRegistrySection({
           title="Survey Registry"
           description={`Page ${pageNumber}${canGoNext ? "+" : ""} · server-paginated list`}
         />
+      </div>
+      <div className="border-b border-border/60 bg-muted/15 px-4 py-3">
+        <SurveyRegistrySearch value={registrySearch} onChange={onRegistrySearchChange} />
       </div>
       <div className="border-b border-border/60 bg-muted/20 px-4 py-2.5">
         <Tabs value={activeTab} onValueChange={onActiveTabChange}>
@@ -250,8 +252,8 @@ export function SurveysRegistrySection({
           </TabsList>
         </Tabs>
       </div>
-      <div className="p-4">
-        <SurveyTable rows={isLoading ? undefined : pagedRows} showSurveyor={showSurveyor} />
+      <div className="overflow-x-auto p-4">
+        <SurveyTable rows={isLoading ? undefined : pagedRows} showSurveyor={showSurveyor} pageStart={pageStart} />
       </div>
     </GlassCard>
   );

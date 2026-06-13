@@ -45,7 +45,6 @@ export type SurveysPageStats = {
   qcPending: number;
   approved: number;
   rejected: number;
-  rejectionRate: string;
 };
 
 export function useSurveysPage() {
@@ -65,14 +64,24 @@ export function useSurveysPage() {
     [fieldUserPage],
   );
   const [reassignOpen, setReassignOpen] = useState(false);
+  const [registrySearch, setRegistrySearch] = useState("");
   const { masters } = useMasters();
   const ulbCodes = useMemo(() => buildUlbCodeMap(masters?.ulbs), [masters?.ulbs]);
   const [listUi, dispatchListUi] = useReducer(surveysListUiReducer, {
-    filters: { search: "" },
+    filters: {},
     pageSize: 20,
     activeTab: "all",
   });
   const { filters, pageSize, activeTab } = listUi;
+
+  const fromMs = useMemo(
+    () => (filters.fromDate ? new Date(`${filters.fromDate}T00:00:00`).getTime() : undefined),
+    [filters.fromDate],
+  );
+  const toMs = useMemo(
+    () => (filters.toDate ? new Date(`${filters.toDate}T23:59:59.999`).getTime() : undefined),
+    [filters.toDate],
+  );
 
   const listFilters = useMemo(
     () => ({
@@ -82,12 +91,14 @@ export function useSurveysPage() {
       districtId: filters.districtId,
       municipalityId: filters.municipalityId,
       surveyorId: canViewAll ? filters.surveyorId : undefined,
+      fromMs,
+      toMs,
       ...surveyTabToListFilters(activeTab),
     }),
-    [filters, canViewAll, activeTab],
+    [filters, canViewAll, activeTab, fromMs, toMs],
   );
 
-  const { surveys, isLoading, pageNumber, canGoPrev, canGoNext, goNext, goPrev } = useSurveyListPaginated(
+  const { surveys, isLoading, pageNumber, pageIndex, canGoPrev, canGoNext, goNext, goPrev } = useSurveyListPaginated(
     listFilters,
     pageSize,
   );
@@ -100,28 +111,12 @@ export function useSurveysPage() {
   });
   const dashCounts = useDashboardCounts();
 
-  const fromDateMs = useMemo(
-    () => (filters.fromDate ? new Date(`${filters.fromDate}T00:00:00`).getTime() : undefined),
-    [filters.fromDate],
-  );
-  const toDateMs = useMemo(
-    () => (filters.toDate ? new Date(`${filters.toDate}T23:59:59.999`).getTime() : undefined),
-    [filters.toDate],
-  );
+  const pageStart = pageIndex * pageSize;
 
   const pagedRows = useMemo(() => {
     if (!surveys) return surveys;
-    let rows = searchSurveys(surveys as Parameters<typeof searchSurveys>[0], filters.search, ulbCodes);
-    if (fromDateMs !== undefined || toDateMs !== undefined) {
-      rows = rows.filter((r) => {
-        const createdAt = (r as { _creationTime: number })._creationTime;
-        if (fromDateMs !== undefined && createdAt < fromDateMs) return false;
-        if (toDateMs !== undefined && createdAt > toDateMs) return false;
-        return true;
-      });
-    }
-    return rows;
-  }, [surveys, filters.search, ulbCodes, fromDateMs, toDateMs]);
+    return searchSurveys(surveys as Parameters<typeof searchSurveys>[0], registrySearch, ulbCodes);
+  }, [surveys, registrySearch, ulbCodes]);
 
   const stats = useMemo((): SurveysPageStats => {
     if (showAnalytics && breakdown?.summary) {
@@ -132,7 +127,6 @@ export function useSurveysPage() {
         qcPending: estimateQcPendingCount(s),
         approved: s.approved,
         rejected: s.rejected,
-        rejectionRate: s.total > 0 ? ((s.rejected / s.total) * 100).toFixed(1) : "0.0",
       };
     }
     if (dashCounts) {
@@ -144,7 +138,6 @@ export function useSurveysPage() {
         qcPending: s.pending,
         approved: s.approved,
         rejected: s.rejected,
-        rejectionRate: s.total > 0 ? ((s.rejected / s.total) * 100).toFixed(1) : "0.0",
       };
     }
     return {
@@ -154,7 +147,6 @@ export function useSurveysPage() {
       qcPending: 0,
       approved: 0,
       rejected: 0,
-      rejectionRate: "0.0",
     };
   }, [showAnalytics, breakdown, dashCounts]);
 
@@ -171,9 +163,12 @@ export function useSurveysPage() {
     filters,
     dispatchListUi,
     surveyorOptions,
+    registrySearch,
+    setRegistrySearch,
     isLoading,
     pagedRows,
     pageNumber,
+    pageStart,
     canGoPrev,
     canGoNext,
     goNext,

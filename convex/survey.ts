@@ -13,7 +13,12 @@ import {
   validateFloorRow,
 } from "./areaMasters";
 import { requireCapability } from "./capabilities";
-import { fieldSurveyAccess, isOwnScopeSurveyor, querySurveysInFieldScope } from "./fieldAccess";
+import {
+  collectSurveysInFieldScope,
+  fieldSurveyAccess,
+  isOwnScopeSurveyor,
+  querySurveysInFieldScope,
+} from "./fieldAccess";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS, GPS_TARGET_ACCURACY_METERS } from "./gpsAccuracy";
 import { assertCanReadWard, canReadWard, clientError, requireUser, writeAudit } from "./helpers";
 import { isValidIndianOwnerMobile, normalizeOwners, primaryOwnerMobile, validateOwnerSection } from "./ownerRules";
@@ -219,7 +224,7 @@ export const list = query({
       rows = rows.filter((r) => r.qcStatus === args.qcStatus);
     }
     if (args.wardNo) {
-      rows = rows.filter((r) => r.wardNo === args.wardNo);
+      rows = rows.filter((r) => wardNumbersMatch(r.wardNo, args.wardNo!));
     }
     rows.sort((a, b) => comparePropertyIds(a.propertyId, b.propertyId));
     const codes = await loadMunicipalityCodes(
@@ -238,7 +243,29 @@ const listFilterArgs = {
   districtId: v.optional(v.id("districts")),
   municipalityId: v.optional(v.id("municipalities")),
   surveyorId: v.optional(v.id("users")),
+  fromMs: v.optional(v.number()),
+  toMs: v.optional(v.number()),
 };
+
+function wardNumbersMatch(rowWard: string, filterWard: string): boolean {
+  if (rowWard === filterWard) return true;
+  const a = Number(rowWard);
+  const b = Number(filterWard);
+  return !Number.isNaN(a) && !Number.isNaN(b) && a === b;
+}
+
+function compareWardThenParcel(a: Doc<"surveys">, b: Doc<"surveys">): number {
+  const wardA = Number(a.wardNo);
+  const wardB = Number(b.wardNo);
+  const wardDiff =
+    !Number.isNaN(wardA) && !Number.isNaN(wardB) ? wardA - wardB : String(a.wardNo).localeCompare(String(b.wardNo));
+  if (wardDiff !== 0) return wardDiff;
+
+  const parcelA = Number(a.parcelNo);
+  const parcelB = Number(b.parcelNo);
+  if (!Number.isNaN(parcelA) && !Number.isNaN(parcelB)) return parcelA - parcelB;
+  return String(a.parcelNo).localeCompare(String(b.parcelNo));
+}
 
 function applySurveyListFilters(
   rows: Doc<"surveys">[],
@@ -249,6 +276,8 @@ function applySurveyListFilters(
     districtId?: Id<"districts">;
     municipalityId?: Id<"municipalities">;
     surveyorId?: Id<"users">;
+    fromMs?: number;
+    toMs?: number;
   },
   me: Doc<"users">,
   muniIds: Set<Id<"municipalities">>,
@@ -262,11 +291,121 @@ function applySurveyListFilters(
     filtered = filtered.filter((r) => r.status === args.status);
   }
   if (args.qcStatus) filtered = filtered.filter((r) => r.qcStatus === args.qcStatus);
-  if (args.wardNo) filtered = filtered.filter((r) => r.wardNo === args.wardNo);
-  return filtered.sort((a, b) => comparePropertyIds(a.propertyId, b.propertyId));
+  if (args.wardNo) filtered = filtered.filter((r) => wardNumbersMatch(r.wardNo, args.wardNo!));
+  if (args.fromMs !== undefined) filtered = filtered.filter((r) => r._creationTime >= args.fromMs!);
+  if (args.toMs !== undefined) filtered = filtered.filter((r) => r._creationTime <= args.toMs!);
+  return filtered.sort(compareWardThenParcel);
 }
 
-/** Cursor-paginated survey list sorted by Property ID ascending. */
+/** Max rows loaded before in-memory filter + manual pagination (matches export scope). */
+const LIST_PAGINATED_SCOPE_LIMIT = 5000;
+
+function parseListOffset(cursor: string | null | undefined): number {
+  if (!cursor) return 0;
+  const n = Number(cursor);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+}
+
+async function querySurveysByMunicipality(
+  ctx: QueryCtx,
+  municipalityId: Id<"municipalities">,
+  status?: Doc<"surveys">["status"],
+): Promise<Doc<"surveys">[]> {
+  if (status) {
+    return ctx.db
+      .query("surveys")
+      .withIndex("by_municipality_status", (q) => q.eq("municipalityId", municipalityId).eq("status", status))
+      .collect();
+  }
+  return ctx.db
+    .query("surveys")
+    .withIndex("by_municipality_status", (q) => q.eq("municipalityId", municipalityId))
+    .collect();
+}
+
+async function querySurveysByDistrict(
+  ctx: QueryCtx,
+  districtId: Id<"districts">,
+  status?: Doc<"surveys">["status"],
+): Promise<Doc<"surveys">[]> {
+  if (status) {
+    return ctx.db
+      .query("surveys")
+      .withIndex("by_district_status", (q) => q.eq("districtId", districtId).eq("status", status))
+      .collect();
+  }
+  return ctx.db
+    .query("surveys")
+    .withIndex("by_district_status", (q) => q.eq("districtId", districtId))
+    .collect();
+}
+
+/** Load all rows matching list filters using indexes, then scope + filter in memory. */
+async function collectSurveysForListPaginated(
+  ctx: QueryCtx,
+  me: Doc<"users">,
+  args: {
+    status?: Doc<"surveys">["status"];
+    qcStatus?: Doc<"surveys">["qcStatus"];
+    wardNo?: string;
+    districtId?: Id<"districts">;
+    municipalityId?: Id<"municipalities">;
+    surveyorId?: Id<"users">;
+    fromMs?: number;
+    toMs?: number;
+  },
+  scope: Awaited<ReturnType<typeof resolveTenantScope>>,
+  muniIds: Set<Id<"municipalities">>,
+  access: Awaited<ReturnType<typeof fieldSurveyAccess>>,
+): Promise<Doc<"surveys">[]> {
+  let rows: Doc<"surveys">[] = [];
+
+  if (access === "own") {
+    rows = await ctx.db
+      .query("surveys")
+      .withIndex("by_surveyor", (q) => q.eq("surveyorId", me._id))
+      .order("desc")
+      .take(LIST_PAGINATED_SCOPE_LIMIT);
+  } else if (args.municipalityId) {
+    rows = await querySurveysByMunicipality(ctx, args.municipalityId, args.status);
+  } else if (args.districtId) {
+    rows = await querySurveysByDistrict(ctx, args.districtId, args.status);
+  } else if (args.surveyorId) {
+    rows = await ctx.db
+      .query("surveys")
+      .withIndex("by_surveyor", (q) => q.eq("surveyorId", args.surveyorId!))
+      .order("desc")
+      .take(LIST_PAGINATED_SCOPE_LIMIT);
+  } else if (access === "assigned") {
+    const scopedMunis = scope.municipalities.map((m) => m._id);
+    if (scopedMunis.length > 1) {
+      const batches = await Promise.all(
+        scopedMunis.map((municipalityId) => querySurveysByMunicipality(ctx, municipalityId, args.status)),
+      );
+      const seen = new Set<string>();
+      for (const batch of batches) {
+        for (const row of batch) {
+          if (seen.has(row._id)) continue;
+          seen.add(row._id);
+          rows.push(row);
+        }
+      }
+    } else if (scopedMunis.length === 1) {
+      rows = await querySurveysByMunicipality(ctx, scopedMunis[0]!, args.status);
+    } else if (scope.districts.length === 1) {
+      rows = await querySurveysByDistrict(ctx, scope.districts[0]!._id, args.status);
+    }
+  } else {
+    rows = await collectSurveysInFieldScope(ctx, me);
+    if (rows.length > LIST_PAGINATED_SCOPE_LIMIT) {
+      rows = rows.slice(0, LIST_PAGINATED_SCOPE_LIMIT);
+    }
+  }
+
+  return applySurveyListFilters(rows, args, me, muniIds, access);
+}
+
+/** Cursor-paginated survey list sorted by ward then parcel ascending. */
 export const listPaginated = query({
   args: {
     paginationOpts: paginationOptsValidator,
@@ -286,62 +425,25 @@ export const listPaginated = query({
       clientError("FORBIDDEN", "This district is outside your assigned scope");
     }
 
-    let baseQuery;
-    if (access === "own") {
-      baseQuery = ctx.db
-        .query("surveys")
-        .withIndex("by_surveyor", (q) => q.eq("surveyorId", me._id))
-        .order("desc");
-    } else if (args.municipalityId) {
-      baseQuery = ctx.db
-        .query("surveys")
-        .withIndex("by_municipality_status", (q) =>
-          args.status
-            ? q.eq("municipalityId", args.municipalityId!).eq("status", args.status)
-            : q.eq("municipalityId", args.municipalityId!),
-        )
-        .order("desc");
-    } else if (args.districtId) {
-      baseQuery = ctx.db
-        .query("surveys")
-        .withIndex("by_district_status", (q) =>
-          args.status
-            ? q.eq("districtId", args.districtId!).eq("status", args.status)
-            : q.eq("districtId", args.districtId!),
-        )
-        .order("desc");
-    } else if (args.surveyorId) {
-      baseQuery = ctx.db
-        .query("surveys")
-        .withIndex("by_surveyor", (q) => q.eq("surveyorId", args.surveyorId!))
-        .order("desc");
-    } else if (access === "assigned" && scope.municipalities.length === 1) {
-      const muniId = scope.municipalities[0]!._id;
-      baseQuery = ctx.db
-        .query("surveys")
-        .withIndex("by_municipality_status", (q) =>
-          args.status ? q.eq("municipalityId", muniId).eq("status", args.status) : q.eq("municipalityId", muniId),
-        )
-        .order("desc");
-    } else if (access === "assigned" && scope.districts.length === 1) {
-      const districtId = scope.districts[0]!._id;
-      baseQuery = ctx.db
-        .query("surveys")
-        .withIndex("by_district_status", (q) =>
-          args.status ? q.eq("districtId", districtId).eq("status", args.status) : q.eq("districtId", districtId),
-        )
-        .order("desc");
-    } else {
-      baseQuery = ctx.db.query("surveys").withIndex("by_property_id").order("asc");
-    }
+    const filtered = await collectSurveysForListPaginated(ctx, me, args, scope, muniIds, access);
 
-    const page = await baseQuery.paginate(args.paginationOpts);
-    const filtered = applySurveyListFilters(page.page, args, me, muniIds, access);
+    const offset = parseListOffset(args.paginationOpts.cursor);
+    const numItems = args.paginationOpts.numItems;
+    const pageRows = filtered.slice(offset, offset + numItems);
+    const nextOffset = offset + numItems;
+
     const codes = await loadMunicipalityCodes(
       ctx,
-      filtered.map((r) => r.municipalityId),
+      pageRows.map((r) => r.municipalityId),
     );
-    return { ...page, page: enrichSurveyPropertyIds(filtered, codes) };
+    const enriched = enrichSurveyPropertyIds(pageRows, codes);
+    const page = await enrichSurveyorNames(ctx, enriched);
+
+    return {
+      page,
+      continueCursor: nextOffset < filtered.length ? String(nextOffset) : null,
+      isDone: nextOffset >= filtered.length,
+    };
   },
 });
 

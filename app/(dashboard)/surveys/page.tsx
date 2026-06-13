@@ -23,9 +23,12 @@ export default function SurveysPage() {
     filters,
     dispatchListUi,
     surveyorOptions,
+    registrySearch,
+    setRegistrySearch,
     isLoading,
     pagedRows,
     pageNumber,
+    pageStart,
     canGoPrev,
     canGoNext,
     goNext,
@@ -74,10 +77,13 @@ export default function SurveysPage() {
           draftCount={draftCount}
           submittedCount={submittedCount}
           pageNumber={pageNumber}
+          pageStart={pageStart}
           canGoNext={canGoNext}
           isLoading={isLoading}
           pagedRows={pagedRows as Parameters<typeof SurveyTable>[0]["rows"]}
           showSurveyor={canViewAll}
+          registrySearch={registrySearch}
+          onRegistrySearchChange={setRegistrySearch}
         />
 
         <TablePagination

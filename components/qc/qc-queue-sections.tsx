@@ -4,7 +4,7 @@ import { ExecutiveHero, SectionHeader } from "@/components/design-system/executi
 import { GlassCard } from "@/components/design-system/glass-card";
 import { MetricCard } from "@/components/design-system/metric-card";
 import { FadeIn, StaggerGrid, StaggerItem } from "@/components/design-system/motion";
-import { QcRegistrySearch, QcRegistryTable, type QcRegistryRow } from "@/components/qc/qc-registry-table";
+import { QcRegistrySearchBar, QcRegistryTable, type QcRegistryRow } from "@/components/qc/qc-registry-table";
 import { QcWardCards } from "@/components/qc/qc-ward-cards";
 import { CardsSkeleton } from "@/components/shared/loading";
 import { SurveyFilters, type FilterState } from "@/components/surveys/survey-filters";
@@ -265,7 +265,7 @@ export function QcReviewRegistry({
           />
         </div>
         <div className="border-b border-border/60 bg-muted/15 px-4 py-3">
-          <QcRegistrySearch value={registrySearch} onChange={onRegistrySearchChange} />
+          <QcRegistrySearchBar value={registrySearch} onChange={onRegistrySearchChange} />
         </div>
         <div className="border-b border-border/60 bg-muted/15 px-4 py-2.5">
           <Tabs value={activeTab} onValueChange={onTabChange}>

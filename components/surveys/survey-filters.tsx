@@ -10,7 +10,7 @@ import { QC_STATUSES, QC_STATUS_LABEL, SURVEY_STATUSES, SURVEY_STATUS_LABEL } fr
 import { CalendarDays, RotateCcw, Search } from "lucide-react";
 
 export interface FilterState {
-  search: string;
+  search?: string;
   districtId?: string;
   municipalityId?: string;
   wardNo?: string;
@@ -56,13 +56,22 @@ function pickFilterValue(v: string) {
 
 function resolveFieldVisibility(variant: SurveyFiltersVariant, hasSurveyorOptions: boolean) {
   if (variant === "scope-and-dates") {
-    return { showSearch: false, showStatus: false, showQcStatus: false, showSurveyorFilter: false };
+    return {
+      showSearch: false,
+      showStatus: false,
+      showQcStatus: false,
+      showSurveyorFilter: false,
+      showMonthPicker: true,
+      showTwoMonthsBack: true,
+    };
   }
   return {
-    showSearch: true,
+    showSearch: false,
     showStatus: true,
     showQcStatus: true,
     showSurveyorFilter: hasSurveyorOptions,
+    showMonthPicker: false,
+    showTwoMonthsBack: false,
   };
 }
 
@@ -70,10 +79,8 @@ export function SurveyFilters(props: SurveyFiltersProps) {
   const { value, onChange } = props;
   const variant = props.variant ?? "survey-registry";
   const surveyorOptions = props.variant === "scope-and-dates" ? undefined : props.surveyorOptions;
-  const { showSearch, showStatus, showQcStatus, showSurveyorFilter } = resolveFieldVisibility(
-    variant,
-    surveyorOptions !== undefined,
-  );
+  const { showSearch, showStatus, showQcStatus, showSurveyorFilter, showMonthPicker, showTwoMonthsBack } =
+    resolveFieldVisibility(variant, surveyorOptions !== undefined);
 
   const { masters } = useMasters();
   const wardsForMuni = useWardsForMunicipality(value.municipalityId);
@@ -129,7 +136,7 @@ export function SurveyFilters(props: SurveyFiltersProps) {
   };
 
   const clearAll = () => {
-    onChange({ search: "" });
+    onChange(variant === "survey-registry" ? {} : { search: "" });
   };
 
   return (
@@ -147,9 +154,11 @@ export function SurveyFilters(props: SurveyFiltersProps) {
           <Button type="button" size="sm" variant="outline" onClick={() => applyMonthOffset(-1)}>
             Last month
           </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => applyMonthOffset(-2)}>
-            2 months back
-          </Button>
+          {showTwoMonthsBack && (
+            <Button type="button" size="sm" variant="outline" onClick={() => applyMonthOffset(-2)}>
+              2 months back
+            </Button>
+          )}
           <Button type="button" size="sm" variant="ghost" onClick={clearAll} disabled={!hasActiveFilters}>
             <RotateCcw className="mr-1 h-3.5 w-3.5" />
             Reset
@@ -291,16 +300,18 @@ export function SurveyFilters(props: SurveyFiltersProps) {
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Month</Label>
-          <Input
-            type="month"
-            className="h-10 w-full rounded-lg border-primary/20"
-            value={value.month ?? ""}
-            onChange={(e) => setMonth(e.target.value || undefined)}
-            title="Month range"
-          />
-        </div>
+        {showMonthPicker && (
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Month</Label>
+            <Input
+              type="month"
+              className="h-10 w-full rounded-lg border-primary/20"
+              value={value.month ?? ""}
+              onChange={(e) => setMonth(e.target.value || undefined)}
+              title="Month range"
+            />
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">From date</Label>
           <Input

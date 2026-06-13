@@ -20,6 +20,8 @@ export interface SurveyListFilters {
   districtId?: string;
   municipalityId?: string;
   surveyorId?: string;
+  fromMs?: number;
+  toMs?: number;
   limit?: number;
 }
 
@@ -42,9 +44,9 @@ export function useSurveyList(filters: SurveyListFilters = {}) {
   );
 }
 
-/** Cursor-paginated survey list sorted by Property ID ascending. */
+/** Cursor-paginated survey list sorted by ward then parcel ascending. */
 export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize = 20, enabled = true) {
-  const resetKey = `${filters.status ?? ""}|${filters.qcStatus ?? ""}|${filters.wardNo ?? ""}|${filters.districtId ?? ""}|${filters.municipalityId ?? ""}|${filters.surveyorId ?? ""}`;
+  const resetKey = `${filters.status ?? ""}|${filters.qcStatus ?? ""}|${filters.wardNo ?? ""}|${filters.districtId ?? ""}|${filters.municipalityId ?? ""}|${filters.surveyorId ?? ""}|${filters.fromMs ?? ""}|${filters.toMs ?? ""}`;
   const {
     cursor,
     pageIndex,
@@ -67,6 +69,8 @@ export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize
           districtId: filters.districtId as Id<"districts"> | undefined,
           municipalityId: filters.municipalityId as Id<"municipalities"> | undefined,
           surveyorId: filters.surveyorId as Id<"users"> | undefined,
+          fromMs: filters.fromMs,
+          toMs: filters.toMs,
         }
       : "skip",
   );
