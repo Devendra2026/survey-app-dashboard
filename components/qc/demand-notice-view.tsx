@@ -9,14 +9,12 @@ import {
 } from "@/components/qc/demand-notice-sections";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api } from "@/convex/_generated/api";
 import { useMasters } from "@/hooks/masters/useMasters";
-import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
+import { useTaxRatesForMunicipality } from "@/hooks/qc/useTaxRatesForMunicipality";
 import { buildOfficeTitles, buildSurveyAddress, computeDemandNotice, formatNoticeDate } from "@/lib/qc/demand-notice";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import type { SurveyDetail } from "@/schema/surveys/index";
-import { useQuery } from "convex/react";
 import { ArrowLeft, ChevronRight, Printer, Receipt } from "lucide-react";
 import Link from "next/link";
 
@@ -27,24 +25,8 @@ type DemandNoticeViewProps = {
 };
 
 export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}/report` }: DemandNoticeViewProps) {
-  const ready = useConvexAuthReady();
   const { masters } = useMasters();
-  const {
-    rateMatrix,
-    wardRates,
-    propertyTaxPct,
-    waterTaxPct,
-    drainageTaxPct,
-    usageMultipliers,
-  } = useQuery(
-    api.taxRates.getForMunicipality,
-    ready ? { municipalityId: survey.municipalityId } : "skip",
-  ) ?? {};
-
-  const dynamicRates =
-    rateMatrix !== undefined
-      ? { rateMatrix, wardRates, propertyTaxPct, waterTaxPct, drainageTaxPct, usageMultipliers }
-      : undefined;
+  const { rateConfig, ratesLoading, propertyTaxPct } = useTaxRatesForMunicipality(survey.municipalityId);
 
   const ulbCodes = buildUlbCodeMap(masters?.ulbs);
   const propertyId = resolveDisplayPropertyId(survey, ulbCodes) ?? survey.propertyId ?? survey.parcelNo;
@@ -56,21 +38,6 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
   const office = buildOfficeTitles(cityName, stateName);
   const taxZone = labelFromOptions(masters?.taxRateZones, survey.taxRateZone);
   const address = buildSurveyAddress(survey);
-  const rateConfig =
-    dynamicRates !== undefined && dynamicRates !== null
-      ? {
-          rateMatrix: dynamicRates.rateMatrix,
-          wardRates: dynamicRates.wardRates,
-          propertyTaxPct: dynamicRates.propertyTaxPct,
-          waterTaxPct: dynamicRates.waterTaxPct,
-          drainageTaxPct: dynamicRates.drainageTaxPct,
-          usageMultipliers: dynamicRates.usageMultipliers,
-        }
-      : dynamicRates === null
-        ? null
-        : undefined;
-
-  const ratesLoading = dynamicRates === undefined;
   const notice =
     rateConfig !== undefined
       ? computeDemandNotice(survey, survey.floors ?? [], masters ?? undefined, rateConfig)
@@ -152,7 +119,7 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
         notice={notice}
         noticeDate={noticeDate}
         assessmentYear={assessmentYear}
-        propertyTaxPct={rateConfig?.propertyTaxPct}
+        propertyTaxPct={propertyTaxPct}
       />
 
       <FadeIn delay={0.06}>
