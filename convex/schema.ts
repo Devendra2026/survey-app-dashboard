@@ -267,7 +267,10 @@ export default defineSchema({
     comment: v.optional(v.string()),
     taggedSections: v.array(v.string()),
     decidedAt: v.number(),
-  }).index("by_survey", ["surveyId"]),
+  })
+    .index("by_survey", ["surveyId"])
+    .index("by_reviewer", ["reviewerId"])
+    .index("by_reviewer_decided", ["reviewerId", "decidedAt"]),
 
   /**
    * masters — every dropdown the mobile shows. Categorised so the bundle

@@ -78,7 +78,9 @@ export function MetricCard({
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
-          <p className="mt-2 font-display text-3xl font-bold tabular-nums tracking-tight text-foreground">{value}</p>
+          <p className="mt-2 font-mono font-display text-3xl font-bold tabular-nums tracking-tight text-foreground">
+            {value}
+          </p>
           {hint && <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>}
           {trend !== undefined && (
             <div className="mt-2 flex items-center gap-1.5 text-xs">

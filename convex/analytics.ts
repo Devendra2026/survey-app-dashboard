@@ -25,6 +25,21 @@ const breakdownRow = {
   ...surveyCountsShape,
 };
 
+const qcSupervisorRow = {
+  reviewerId: v.id("users"),
+  name: v.string(),
+  email: v.string(),
+  approved: v.number(),
+  rejected: v.number(),
+  total: v.number(),
+};
+
+const userFilterOption = v.object({
+  _id: v.id("users"),
+  name: v.string(),
+  email: v.string(),
+});
+
 function startOfTodayMs(): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -92,6 +107,28 @@ function groupCounts(rows: Doc<"surveys">[], keyFn: (row: Doc<"surveys">) => str
   return groups;
 }
 
+function filterActiveUsersInScope(
+  users: Doc<"users">[],
+  muniIds: Set<Id<"municipalities">>,
+  districtIds: Set<Id<"districts">>,
+  districtFilter?: Id<"districts">,
+  muniFilter?: Id<"municipalities">,
+  muniMap?: Map<Id<"municipalities">, Doc<"municipalities">>,
+): Doc<"users">[] {
+  return users.filter((u) => {
+    if (u.municipalityId && !muniIds.has(u.municipalityId)) return false;
+    if (u.districtId && !districtIds.has(u.districtId)) return false;
+    if (muniFilter && u.municipalityId !== muniFilter) return false;
+    if (districtFilter && u.districtId !== districtFilter) {
+      if (u.municipalityId && muniMap) {
+        const m = muniMap.get(u.municipalityId);
+        if (m?.districtId !== districtFilter) return false;
+      } else return false;
+    }
+    return true;
+  });
+}
+
 /**
  * Aggregated survey KPIs with district / ULB / surveyor breakdown tables.
  * Drives admin Reports and supervisor dashboard analytics.
@@ -129,9 +166,11 @@ export const surveyStatsBreakdown = query({
         email: v.string(),
         municipalityName: v.union(v.string(), v.null()),
         districtName: v.union(v.string(), v.null()),
+        status: v.literal("active"),
         ...breakdownRow,
       }),
     ),
+    byQcSupervisor: v.array(v.object(qcSupervisorRow)),
     filterOptions: v.object({
       districts: v.array(
         v.object({
@@ -148,13 +187,8 @@ export const surveyStatsBreakdown = query({
           districtId: v.id("districts"),
         }),
       ),
-      surveyors: v.array(
-        v.object({
-          _id: v.id("users"),
-          name: v.string(),
-          email: v.string(),
-        }),
-      ),
+      surveyors: v.array(userFilterOption),
+      qcSupervisors: v.array(userFilterOption),
     }),
   }),
   handler: async (ctx, args) => {
@@ -176,7 +210,7 @@ export const surveyStatsBreakdown = query({
       rows = rows.filter((r) => r.municipalityId === args.municipalityId);
     }
     if (args.surveyorId) {
-      const surveyor = await ctx.db.get(args.surveyorId);
+      const surveyor = await ctx.db.get("users", args.surveyorId);
       if (!surveyor || surveyor.role !== "surveyor") {
         clientError("BAD_REQUEST", "Unknown surveyor");
       }
@@ -217,54 +251,69 @@ export const surveyStatsBreakdown = query({
       .sort((a, b) => a.name.localeCompare(b.name));
 
     const bySurveyorGroups = groupCounts(rows, (r) => r.surveyorId);
-    const surveyorIds = [...bySurveyorGroups.keys()] as Id<"users">[];
-    const surveyorDocs = new Map<Id<"users">, Doc<"users">>();
-    for (const id of surveyorIds) {
-      const u = await ctx.db.get(id);
-      if (u) surveyorDocs.set(id, u);
-    }
 
-    const bySurveyor = surveyorIds
-      .map((surveyorId) => {
-        const u = surveyorDocs.get(surveyorId);
-        const group = bySurveyorGroups.get(surveyorId)!;
-        const muni = u?.municipalityId ? muniMap.get(u.municipalityId) : undefined;
-        const dist = u?.districtId
-          ? districtMap.get(u.districtId)
-          : muni
-            ? districtMap.get(muni.districtId)
-            : undefined;
-        return {
-          surveyorId,
-          name: u?.name ?? "Unknown",
-          email: u?.email ?? "",
-          municipalityName: muni?.name ?? null,
-          districtName: dist?.name ?? null,
-          ...countRows(group),
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    const surveyorFilterDistrict = args.districtId;
-    const surveyorFilterMuni = args.municipalityId;
-
-    const activeSurveyors = (
+    const activeSurveyors = filterActiveUsersInScope(
       await ctx.db
         .query("users")
         .withIndex("by_role_status", (q) => q.eq("role", "surveyor").eq("status", "active"))
-        .collect()
-    ).filter((u) => {
-      if (u.municipalityId && !muniIds.has(u.municipalityId)) return false;
-      if (u.districtId && !districtIds.has(u.districtId)) return false;
-      if (surveyorFilterMuni && u.municipalityId !== surveyorFilterMuni) return false;
-      if (surveyorFilterDistrict && u.districtId !== surveyorFilterDistrict) {
-        if (u.municipalityId) {
-          const m = muniMap.get(u.municipalityId);
-          if (m?.districtId !== surveyorFilterDistrict) return false;
-        } else return false;
-      }
-      return true;
-    });
+        .collect(),
+      muniIds,
+      districtIds,
+      args.districtId,
+      args.municipalityId,
+      muniMap,
+    );
+
+    const bySurveyor = activeSurveyors
+      .map((u) => {
+        const group = bySurveyorGroups.get(u._id) ?? [];
+        const muni = u.municipalityId ? muniMap.get(u.municipalityId) : undefined;
+        const dist = u.districtId ? districtMap.get(u.districtId) : muni ? districtMap.get(muni.districtId) : undefined;
+        return {
+          surveyorId: u._id,
+          name: u.name,
+          email: u.email,
+          municipalityName: muni?.name ?? null,
+          districtName: dist?.name ?? null,
+          status: "active" as const,
+          ...countRows(group),
+        };
+      })
+      .sort((a, b) => b.approved + b.submitted - (a.approved + a.submitted));
+
+    const activeQcSupervisors = filterActiveUsersInScope(
+      await ctx.db
+        .query("users")
+        .withIndex("by_role_status", (q) => q.eq("role", "qc_supervisor").eq("status", "active"))
+        .collect(),
+      muniIds,
+      districtIds,
+      args.districtId,
+      args.municipalityId,
+      muniMap,
+    );
+
+    const scopedSurveyIds = new Set(rows.map((r) => r._id));
+    const byQcSupervisor = await Promise.all(
+      activeQcSupervisors.map(async (u) => {
+        const decisions = await ctx.db
+          .query("qcDecisions")
+          .withIndex("by_reviewer", (q) => q.eq("reviewerId", u._id))
+          .collect();
+        const scoped = decisions.filter((d) => scopedSurveyIds.has(d.surveyId));
+        const approved = scoped.filter((d) => d.decision === "approve").length;
+        const rejected = scoped.filter((d) => d.decision === "reject").length;
+        return {
+          reviewerId: u._id,
+          name: u.name,
+          email: u.email,
+          approved,
+          rejected,
+          total: scoped.length,
+        };
+      }),
+    );
+    byQcSupervisor.sort((a, b) => b.total - a.total);
 
     const filterMunicipalities = scope.municipalities.filter(
       (m) => !args.districtId || m.districtId === args.districtId,
@@ -275,6 +324,7 @@ export const surveyStatsBreakdown = query({
       byDistrict,
       byUlb,
       bySurveyor,
+      byQcSupervisor,
       filterOptions: {
         districts: scope.districts.map((d) => ({ _id: d._id, code: d.code, name: d.name })),
         municipalities: filterMunicipalities.map((m) => ({
@@ -284,6 +334,11 @@ export const surveyStatsBreakdown = query({
           districtId: m.districtId,
         })),
         surveyors: activeSurveyors.map((u) => ({
+          _id: u._id,
+          name: u.name,
+          email: u.email,
+        })),
+        qcSupervisors: activeQcSupervisors.map((u) => ({
           _id: u._id,
           name: u.name,
           email: u.email,

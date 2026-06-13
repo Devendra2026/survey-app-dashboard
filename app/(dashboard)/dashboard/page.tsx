@@ -1,29 +1,19 @@
 "use client";
 
 import { CoverageChart, MunicipalityPerformanceCard } from "@/components/analytics/charts";
-import { SurveyorProductivityChart, TrendChart } from "@/components/analytics/recharts-charts";
+import { KpiMetricsSection } from "@/components/dashboard/kpi-metrics-section";
+import { OrganizationSection } from "@/components/dashboard/organization-section";
+import { ProductivitySection } from "@/components/dashboard/productivity-section";
 import { ActivityFeed } from "@/components/design-system/activity-feed";
 import { ExecutiveHero, SectionHeader } from "@/components/design-system/executive-hero";
-import { MetricCard } from "@/components/design-system/metric-card";
-import { FadeIn, StaggerGrid, StaggerItem } from "@/components/design-system/motion";
-import { CardsSkeleton } from "@/components/shared/loading";
+import { FadeIn } from "@/components/design-system/motion";
 import { useDailyTrend, useDashboardCounts, useStatsBreakdown, useWardCoverage } from "@/hooks/analytics/useAnalytics";
 import { useSurveyList } from "@/hooks/surveys/useSurveys";
 import { useHasCapability } from "@/hooks/use-capability";
 import { buildActivityFeed } from "@/lib/activity-feed";
 import { can } from "@/lib/permissions";
 import { useCurrentUser } from "@/lib/session";
-import {
-  Activity,
-  CalendarDays,
-  CheckCircle2,
-  ClipboardList,
-  Clock3,
-  LayoutDashboard,
-  MapPin,
-  ShieldCheck,
-  XCircle,
-} from "lucide-react";
+import { ClipboardList, LayoutDashboard, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
@@ -52,8 +42,8 @@ export default function DashboardPage() {
           title={`Welcome back, ${firstName}`}
           description={
             municipality
-              ? `Survey operations overview for ${municipality}. Monitor pipeline health and QC performance.`
-              : "Survey operations overview across your assigned scope."
+              ? `Operations overview for ${municipality} — pipeline health, team capacity, and QC throughput.`
+              : "Operations overview across your assigned scope — pipeline health, team capacity, and QC throughput."
           }
           icon={LayoutDashboard}
           gradient="brand"
@@ -61,7 +51,7 @@ export default function DashboardPage() {
             <div className="flex flex-wrap gap-2">
               <Link
                 href="/surveys"
-                className="btn-brand inline-flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-md transition-all duration-200"
+                className="btn-brand inline-flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-md transition-colors duration-200"
               >
                 <ClipboardList className="h-4 w-4" aria-hidden />
                 Surveys
@@ -69,7 +59,7 @@ export default function DashboardPage() {
               {can(role, "qc.review") && (
                 <Link
                   href="/qc"
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-muted/50"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-colors duration-200 hover:bg-muted/50"
                 >
                   <ShieldCheck className="h-4 w-4" aria-hidden />
                   QC Queue
@@ -80,77 +70,12 @@ export default function DashboardPage() {
         />
       </FadeIn>
 
-      <section aria-labelledby="kpi-heading">
-        <SectionHeader title="KPI Metrics" description="Most important survey pipeline indicators" className="mb-4" />
-        {counts === undefined ? (
-          <CardsSkeleton count={6} />
-        ) : (
-          <StaggerGrid className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-            <StaggerItem>
-              <MetricCard
-                label="Pending QC"
-                value={counts.submitted}
-                icon={Clock3}
-                tone="warning"
-                hint="Awaiting review"
-              />
-            </StaggerItem>
-            <StaggerItem>
-              <MetricCard label="Approved" value={counts.approved} icon={CheckCircle2} tone="success" />
-            </StaggerItem>
-            <StaggerItem>
-              <MetricCard label="Total Surveys" value={counts.total} icon={ClipboardList} tone="default" />
-            </StaggerItem>
-            <StaggerItem>
-              <MetricCard label="Today" value={counts.today} hint="Created today" icon={CalendarDays} tone="info" />
-            </StaggerItem>
-            <StaggerItem>
-              <MetricCard label="Rejected" value={counts.rejected} icon={XCircle} tone="destructive" />
-            </StaggerItem>
-            <StaggerItem>
-              <MetricCard label="Drafts" value={counts.drafts} icon={Activity} tone="muted" />
-            </StaggerItem>
-          </StaggerGrid>
-        )}
-      </section>
+      <KpiMetricsSection counts={counts} />
 
       {showAnalytics && (
         <>
-          <section aria-labelledby="org-heading">
-            <SectionHeader title="Organization" description="Teams and geographic scope" className="mb-4" />
-            {breakdown && (
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-                <MetricCard label="Surveyors" value={breakdown.filterOptions.surveyors.length} icon={Activity} />
-                <MetricCard label="Municipalities" value={breakdown.byUlb.length} icon={MapPin} tone="info" />
-                <MetricCard label="Districts" value={breakdown.filterOptions.districts.length} icon={MapPin} />
-              </div>
-            )}
-          </section>
-
-          <section aria-labelledby="analytics-heading">
-            <SectionHeader
-              title="Productivity Analytics"
-              description="30-day trends and performance"
-              className="mb-4"
-            />
-            <div className="grid gap-4 lg:grid-cols-2">
-              <FadeIn>
-                <TrendChart data={trend ?? undefined} title="Daily Survey & Approval Trend" />
-              </FadeIn>
-              <FadeIn delay={0.05}>
-                <SurveyorProductivityChart
-                  data={breakdown?.bySurveyor.map((s) => ({
-                    name: s.name,
-                    approved: s.approved,
-                    submitted: s.submitted,
-                    drafts: s.drafts,
-                  }))}
-                  title="Surveyor Productivity"
-                />
-              </FadeIn>
-            </div>
-          </section>
-
+          <OrganizationSection breakdown={breakdown} />
+          <ProductivitySection breakdown={breakdown} trend={trend} />
           <section aria-labelledby="coverage-heading">
             <SectionHeader title="Coverage" description="Ward-level survey coverage" className="mb-4" />
             <div>

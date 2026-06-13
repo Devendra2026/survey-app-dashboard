@@ -320,16 +320,28 @@ export const markAllRead = mutation({
 
 /* ────────────────────────── dashboard ────────────────────────── */
 
+const dashboardCountsShape = {
+  total: v.number(),
+  today: v.number(),
+  drafts: v.number(),
+  pending: v.number(),
+  submittedToday: v.number(),
+  approved: v.number(),
+  submitted: v.number(),
+  rejected: v.number(),
+};
+
 /**
  * Quick KPI counts for the home screen. Scoped to whatever the caller
  * can see — surveyor sees own, supervisor sees ULB, admin sees all.
  */
 export const dashboardCounts = query({
   args: {},
+  returns: v.object(dashboardCountsShape),
   handler: async (ctx) => {
     const me = await requireUser(ctx, { allowPending: true });
     if (me.status !== "active") {
-      return { total: 0, today: 0, drafts: 0, submitted: 0, approved: 0, rejected: 0 };
+      return { total: 0, today: 0, drafts: 0, pending: 0, submittedToday: 0, approved: 0, submitted: 0, rejected: 0 };
     }
 
     const rows = await collectSurveysInFieldScope(ctx, me);
@@ -342,8 +354,14 @@ export const dashboardCounts = query({
       total: rows.length,
       today: rows.filter((r) => r._creationTime >= todayMs).length,
       drafts: rows.filter((r) => r.status === "draft").length,
-      submitted: rows.filter((r) => r.status === "submitted").length,
+      pending: rows.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length,
+      submittedToday: rows.filter(
+        (r) =>
+          r.status === "submitted" &&
+          (r.submittedAt !== undefined ? r.submittedAt >= todayMs : r._creationTime >= todayMs),
+      ).length,
       approved: rows.filter((r) => r.qcStatus === "approved").length,
+      submitted: rows.filter((r) => r.status === "submitted").length,
       rejected: rows.filter((r) => r.qcStatus === "rejected").length,
     };
   },
