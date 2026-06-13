@@ -13,7 +13,7 @@
 
 ### Layout Overrides
 
-- **Route:** `/surveys/[id]` (read-only detail with inline GPS edit when permitted)
+- **Route:** `/surveys/[id]` (read-only detail — all CRUD on `/surveys/[id]/edit`)
 - **Section order:** Hero metadata → Property Identification → Owner & Household → Address + GIS → Taxation → Floor Details → Municipal Services → Photos → QC Remarks → Audit → Progress footer
 - **Hero:** Compact record header — title bar with Edit/Delete actions, then inline fields (Property ID, ULB, Ward, Owner) with Status badges on the right. No PDF export on this page.
 
@@ -42,7 +42,7 @@
 
 - **SurveyViewHero:** Property ID via `resolveDisplayPropertyId`, Owner via `resolveOwnerDisplayName` (never respondent in header)
 - **FloorsTable columns:** S. No, Floor, Usage type, Usage factor, Construction, Area (Sqft)
-- **GpsEditPanel:** Browser capture + manual lat/long inputs when `canEdit`; read-only map preview otherwise
+- **GpsEditPanel:** Read-only map preview on view page; capture + manual lat/long on edit page only
 - Lucide icons only; `cursor-pointer` + `transition-colors duration-200` on interactive elements
 
 ---
@@ -50,8 +50,8 @@
 ## Page-Specific Components
 
 - `SurveyViewHero` — metadata hero with status badges and actions
-- `GpsEditPanel` — GPS capture, manual coordinate edit, map preview
-- `SurveyDetailView` — full survey detail sections (shared with QC review)
+- `SurveyPageDetailView` — read-only detail sections for survey view
+- `GpsEditPanel` — read-only on view; full CRUD on edit page GPS tab
 
 ---
 

@@ -348,12 +348,10 @@ type SurveyDetailViewCoreProps = {
   surveyId: string;
   remarks?: QcRemarkWithAuthor[];
   variant: SurveyDetailVariant;
-  canEdit?: boolean;
 };
 
-function SurveyDetailViewCore({ survey, surveyId, remarks, variant, canEdit = false }: SurveyDetailViewCoreProps) {
+function SurveyDetailViewCore({ survey, surveyId, remarks, variant }: SurveyDetailViewCoreProps) {
   const { showProgressFooter, showQcRemarks, showStatusInBody } = SURVEY_DETAIL_VARIANTS[variant];
-  const canEditGps = variant === "survey-view" ? canEdit : false;
   const { masters } = useMasters();
   const audit = useAuditLog({ entity: "survey", entityId: surveyId, limit: 100 });
   const ulbCodes = buildUlbCodeMap(masters?.ulbs);
@@ -462,11 +460,11 @@ function SurveyDetailViewCore({ survey, surveyId, remarks, variant, canEdit = fa
 
         <SectionCard
           title="GIS Mapping"
-          description={canEditGps ? "Capture or edit property coordinates." : "Property GPS coordinates."}
+          description="Property GPS coordinates. Edit on the survey edit page."
           icon={<MapPin className="h-4 w-4" aria-hidden />}
           className="h-full"
         >
-          <GpsEditPanel surveyId={surveyId} gps={survey.gps} canEdit={canEditGps} />
+          <GpsEditPanel surveyId={surveyId} gps={survey.gps} canEdit={false} />
         </SectionCard>
       </div>
 
@@ -589,25 +587,15 @@ export function QcReviewDetailView({ survey, surveyId }: { survey: SurveyDetail;
   return <SurveyDetailViewCore survey={survey} surveyId={surveyId} variant="qc-review" />;
 }
 
-/** Survey detail page — status in header; optional inline GPS edit when permitted. */
+/** Survey detail page — read-only; use `/surveys/[id]/edit` for CRUD. */
 export function SurveyPageDetailView({
   survey,
   surveyId,
   remarks,
-  canEdit,
 }: {
   survey: SurveyDetail;
   surveyId: string;
   remarks?: QcRemarkWithAuthor[];
-  canEdit: boolean;
 }) {
-  return (
-    <SurveyDetailViewCore
-      survey={survey}
-      surveyId={surveyId}
-      remarks={remarks}
-      variant="survey-view"
-      canEdit={canEdit}
-    />
-  );
+  return <SurveyDetailViewCore survey={survey} surveyId={surveyId} remarks={remarks} variant="survey-view" />;
 }

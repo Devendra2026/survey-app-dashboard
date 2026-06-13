@@ -70,7 +70,7 @@ export default function SurveyDetailPage({ params }: { params: Promise<{ id: str
 
       <SurveyViewHero survey={survey} surveyId={id} canEdit={canEdit} showStatus onDelete={() => void onDelete()} />
 
-      <SurveyPageDetailView survey={survey as any} surveyId={id} remarks={remarks as any} canEdit={canEdit} />
+      <SurveyPageDetailView survey={survey as any} surveyId={id} remarks={remarks as any} />
     </PageTransition>
   );
 }
