@@ -1,6 +1,5 @@
 "use client";
 
-import { PropertyIdTableCell, PropertyIdTableHead } from "@/components/surveys/property-id-table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -8,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatAreaSqft } from "@/lib/survey/area";
+import { labelFromOptions } from "@/lib/survey/detail-labels";
 import type { FloorRow } from "@/schema/surveys/index";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 export type FloorDraft = {
   clientFloorId: string;
@@ -21,14 +21,21 @@ export type FloorDraft = {
   areaSqft: number;
 };
 
+type FloorMasters = {
+  floors?: { value: string; label: string }[];
+  usageFactors?: { value: string; label: string }[];
+  usageTypes?: { value: string; label: string }[];
+  constructionTypes?: { value: string; label: string }[];
+};
+
 export function FloorTable({
   floors,
-  propertyId,
+  masters,
   onEdit,
   onRemove,
 }: {
   floors: FloorRow[];
-  propertyId?: string;
+  masters?: FloorMasters;
   onEdit: (f: FloorRow) => void;
   onRemove: (id: string) => void;
 }) {
@@ -36,35 +43,73 @@ export function FloorTable({
     return <p className="py-4 text-center text-sm text-muted-foreground">No rows yet.</p>;
   }
   return (
-    <div className="premium-card overflow-hidden rounded-xl border border-border/60 shadow-premium-sm">
+    <div className="overflow-hidden rounded-xl border border-border/60">
       <Table>
         <TableHeader>
-          <TableRow>
-            <PropertyIdTableHead />
-            <TableHead>#</TableHead>
-            <TableHead>Floor</TableHead>
-            <TableHead>Usage</TableHead>
-            <TableHead>Construction</TableHead>
-            <TableHead>Area</TableHead>
-            <TableHead></TableHead>
+          <TableRow className="border-b border-brand-navy/10 bg-linear-to-r from-brand-navy/6 via-muted/25 to-brand-navy/4 hover:from-brand-navy/6 dark:border-primary/15 dark:from-primary/12 dark:via-muted/10 dark:to-primary/6">
+            <TableHead className="w-14 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              S. No
+            </TableHead>
+            <TableHead className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Floor
+            </TableHead>
+            <TableHead className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Usage type
+            </TableHead>
+            <TableHead className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Usage factor
+            </TableHead>
+            <TableHead className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Construction
+            </TableHead>
+            <TableHead className="text-right text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Area
+            </TableHead>
+            <TableHead className="w-24 text-right text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Actions
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {floors.map((f) => (
-            <TableRow key={f._id}>
-              <PropertyIdTableCell propertyId={propertyId} />
-              <TableCell>{f.position}</TableCell>
-              <TableCell className="capitalize">{f.floorName.replace(/_/g, " ")}</TableCell>
-              <TableCell className="capitalize">{f.usageType.replace(/_/g, " ")}</TableCell>
-              <TableCell className="capitalize">{f.constructionType.replace(/_/g, " ")}</TableCell>
-              <TableCell className="tabular-nums">{formatAreaSqft(f.areaSqft)}</TableCell>
+          {floors.map((f, i) => (
+            <TableRow
+              key={f._id}
+              className={`border-b border-border/40 last:border-b-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20 dark:bg-muted/10"}`}
+            >
+              <TableCell className="font-mono text-sm tabular-nums text-muted-foreground">{i + 1}</TableCell>
+              <TableCell className="font-medium capitalize">{labelFromOptions(masters?.floors, f.floorName)}</TableCell>
+              <TableCell className="capitalize text-muted-foreground">
+                {labelFromOptions(masters?.usageTypes, f.usageType)}
+              </TableCell>
+              <TableCell className="capitalize text-muted-foreground">
+                {labelFromOptions(masters?.usageFactors, f.usageFactor)}
+              </TableCell>
+              <TableCell className="capitalize text-muted-foreground">
+                {labelFromOptions(masters?.constructionTypes, f.constructionType)}
+              </TableCell>
+              <TableCell className="text-right font-mono font-semibold tabular-nums">
+                {formatAreaSqft(f.areaSqft)}
+              </TableCell>
               <TableCell>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" className="h-7" onClick={() => onEdit(f)}>
-                    Edit
+                <div className="flex justify-end gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 cursor-pointer rounded-lg px-2 transition-colors duration-200 hover:bg-brand-navy/10 dark:hover:bg-primary/15"
+                    onClick={() => onEdit(f)}
+                    aria-label={`Edit floor ${i + 1}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden />
+                    <span className="sr-only sm:not-sr-only sm:ml-1">Edit</span>
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onRemove(f._id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 cursor-pointer rounded-lg transition-colors duration-200 hover:bg-brand-red/10"
+                    onClick={() => onRemove(f._id)}
+                    aria-label={`Delete floor ${i + 1}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-brand-red" aria-hidden />
                   </Button>
                 </div>
               </TableCell>
@@ -96,9 +141,11 @@ export function FloorDraftDialog({
 }) {
   return (
     <Dialog open={!!draft} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent className="rounded-2xl border-border/70 shadow-premium-lg sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{draft?.floorName === "open_land" ? "Open land row" : "Floor details"}</DialogTitle>
+          <DialogTitle className="font-heading text-base">
+            {draft?.floorName === "open_land" ? "Open land row" : "Floor details"}
+          </DialogTitle>
         </DialogHeader>
         {draft && (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -115,51 +162,63 @@ export function FloorDraftDialog({
                 disabled={draft.floorName === "open_land"}
               />
             </Field>
-            <Field label="Usage factor">
-              <Sel
-                value={draft.usageFactor ?? ""}
-                onChange={(v) => onChange({ ...draft, usageFactor: v })}
-                options={opts.usageFactors}
-                placeholder="Select"
-              />
-            </Field>
             <Field label="Usage type">
               <Sel
                 value={draft.usageType}
                 onChange={(v) => onChange({ ...draft, usageType: v })}
                 options={opts.usageTypes}
-                placeholder="Select"
+                placeholder="Select usage type"
               />
             </Field>
-            <Field label="Construction type">
+            <Field label="Usage factor">
+              <Sel
+                value={draft.usageFactor ?? ""}
+                onChange={(v) => onChange({ ...draft, usageFactor: v })}
+                options={opts.usageFactors}
+                placeholder="Select usage factor"
+              />
+            </Field>
+            <Field label="Construction">
               <Sel
                 value={draft.constructionType}
                 onChange={(v) => onChange({ ...draft, constructionType: v })}
                 options={opts.construction}
-                placeholder="Select"
+                placeholder="Select construction"
               />
             </Field>
             <Field label="Area (sqft)">
               <Input
                 type="number"
-                value={draft.areaSqft}
+                min={0}
+                value={draft.areaSqft || ""}
                 onChange={(e) => onChange({ ...draft, areaSqft: Number(e.target.value) })}
+                className="font-mono tabular-nums"
               />
             </Field>
             <Field label="Position">
               <Input
                 type="number"
+                min={1}
                 value={draft.position}
                 onChange={(e) => onChange({ ...draft, position: Number(e.target.value) })}
+                className="font-mono tabular-nums"
               />
             </Field>
           </div>
         )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="cursor-pointer rounded-xl transition-colors duration-200"
+          >
             Cancel
           </Button>
-          <Button onClick={onSave} disabled={!draft?.floorName || !draft?.usageType || !draft?.constructionType}>
+          <Button
+            onClick={onSave}
+            disabled={!draft?.floorName || !draft?.usageType || !draft?.constructionType || !(draft?.areaSqft > 0)}
+            className="cursor-pointer rounded-xl bg-brand-navy text-white transition-colors duration-200 hover:bg-brand-navy/90 dark:bg-primary dark:hover:bg-primary/90"
+          >
             Save floor
           </Button>
         </DialogFooter>
@@ -171,7 +230,7 @@ export function FloorDraftDialog({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
+      <Label className="text-xs font-semibold text-muted-foreground">{label}</Label>
       {children}
     </div>
   );
@@ -192,12 +251,12 @@ function Sel({
 }) {
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger>
+      <SelectTrigger className="cursor-pointer rounded-xl">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
+          <SelectItem key={o.value} value={o.value} className="cursor-pointer">
             {o.label}
           </SelectItem>
         ))}

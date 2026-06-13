@@ -1,13 +1,12 @@
 "use client";
 
-import { ExecutiveHero } from "@/components/design-system/executive-hero";
 import { PageTransition } from "@/components/design-system/motion";
 import { QcActionBar } from "@/components/qc/qc-action-bar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { QcPageSkeleton } from "@/components/shared/qc-route-skeleton";
 import { RoleGate } from "@/components/shared/role-gate";
-import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
-import { SurveyDetailView } from "@/components/surveys/survey-detail-view";
+import { QcReviewDetailView } from "@/components/surveys/survey-detail-view";
+import { SurveyViewHero } from "@/components/surveys/survey-view-hero";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcPendingQueue } from "@/hooks/qc/useQcPendingQueue";
@@ -17,7 +16,7 @@ import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { isSurveyAwaitingQc, wasEditedAfterSubmit } from "@/lib/domain";
 import { findNextPendingSurvey } from "@/lib/qc/queue-nav";
 import { scopeFromSurveyRow } from "@/lib/qc/work-scope";
-import { ArrowLeft, Building2, ClipboardCheck, FileText, MapPin } from "lucide-react";
+import { ArrowLeft, Building2, ClipboardCheck, FileText } from "lucide-react";
 import Link from "next/link";
 import { Suspense, use, useMemo } from "react";
 
@@ -56,16 +55,14 @@ function QcReviewBody({ id }: { id: string }) {
           </Link>
         </Button>
 
-        <ExecutiveHero
-          eyebrow="QC Review"
-          title={survey.propertyId || `Parcel ${survey.parcelNo}`}
-          description={[survey.city && `Ward ${survey.wardNo}, ${survey.city}`, survey.surveyor?.name]
-            .filter(Boolean)
-            .join(" · ")}
+        <SurveyViewHero
+          survey={survey}
+          surveyId={id}
+          canEdit={false}
+          title="QC Review"
           icon={ClipboardCheck}
-          gradient="amber"
-          actions={
-            <Button asChild size="sm" className="cursor-pointer rounded-xl">
+          extraActions={
+            <Button asChild size="sm" className="cursor-pointer rounded-xl transition-colors duration-200">
               <Link href={`/qc/${id}/report`}>
                 <FileText className="h-4 w-4" aria-hidden /> QC Report
               </Link>
@@ -74,28 +71,20 @@ function QcReviewBody({ id }: { id: string }) {
         />
 
         <div className="flex flex-wrap items-center gap-2">
-          <SurveyStatusBadge status={survey.status} />
-          <QcStatusBadge status={survey.qcStatus} />
           {isSurveyAwaitingQc(survey) && wasEditedAfterSubmit(survey) && (
             <span className="rounded-full border border-amber-400/50 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-950 dark:text-amber-100">
               Updated since submit
             </span>
           )}
-          {survey.city && (
-            <span className="flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2.5 py-0.5 text-xs font-medium backdrop-blur-sm">
-              <MapPin className="h-3 w-3" aria-hidden />
-              {survey.city} · Ward {survey.wardNo}
-            </span>
-          )}
           {survey.surveyor?.name && (
             <span className="flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2.5 py-0.5 text-xs font-medium backdrop-blur-sm">
               <Building2 className="h-3 w-3" aria-hidden />
-              {survey.surveyor.name}
+              Surveyor: {survey.surveyor.name}
             </span>
           )}
         </div>
 
-        <SurveyDetailView survey={survey} surveyId={id} hideProgressFooter hideQcRemarks />
+        <QcReviewDetailView survey={survey} surveyId={id} />
 
         <QcActionBar survey={survey} nextSurvey={nextSurvey} scope={workScope} mode="review" />
       </PageTransition>

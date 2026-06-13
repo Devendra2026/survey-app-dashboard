@@ -165,12 +165,21 @@ export function FloorsEditor({
   }
 
   async function handleRemoveFloor(id: string) {
+    if (!confirm("Remove this floor row?")) return;
     try {
       await remove({ id: id as any });
+      toast.success("Floor removed");
     } catch (e) {
       toast.error(parseConvexError(e).message);
     }
   }
+
+  const floorMasters = {
+    floors: masters?.floors,
+    usageFactors: masters?.usageFactors,
+    usageTypes: masters?.usageTypes,
+    constructionTypes: masters?.constructionTypes,
+  };
 
   return (
     <div className="space-y-4">
@@ -225,7 +234,7 @@ export function FloorsEditor({
           ) : (
             <FloorTable
               floors={builtUpFloors}
-              propertyId={survey?.propertyId}
+              masters={floorMasters}
               onEdit={(f) => setDraft({ ...f, usageFactor: f.usageFactor })}
               onRemove={handleRemoveFloor}
             />
@@ -261,7 +270,7 @@ export function FloorsEditor({
           ) : (
             <FloorTable
               floors={openLandFloors}
-              propertyId={survey?.propertyId}
+              masters={floorMasters}
               onEdit={(f) => setDraft({ ...f, usageFactor: f.usageFactor })}
               onRemove={handleRemoveFloor}
             />

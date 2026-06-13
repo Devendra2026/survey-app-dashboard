@@ -1,12 +1,11 @@
 "use client";
 
-import { ExecutiveHero } from "@/components/design-system/executive-hero";
 import { PageTransition } from "@/components/design-system/motion";
 import { QcCorrectionBanner } from "@/components/qc/qc-correction-banner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
-import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
 import { SurveyEditor, type SurveySubmitArea } from "@/components/surveys/survey-editor";
+import { SurveyViewHero } from "@/components/surveys/survey-view-hero";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
@@ -52,7 +51,6 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
   const canSubmit = canSubmitSurvey(survey) && canEdit;
   const isResubmit = isSurveyResubmit(survey);
   const awaitingQc = isSurveyAwaitingQc(survey);
-  const propertyLabel = survey.propertyId || `Parcel ${survey.parcelNo}`;
   const backHref = `/surveys/${id}`;
 
   async function onSubmit(area?: SurveySubmitArea) {
@@ -75,7 +73,7 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
           asChild
           variant="outline"
           size="sm"
-          className="w-fit cursor-pointer rounded-xl border-border/70 bg-card/80 px-4 shadow-premium-sm backdrop-blur-sm hover:bg-muted/40"
+          className="w-fit cursor-pointer rounded-xl border-border/70 bg-card/80 px-4 shadow-premium-sm backdrop-blur-sm transition-colors duration-200 hover:bg-muted/40"
         >
           <Link href={backHref}>
             <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -83,27 +81,23 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
           </Link>
         </Button>
 
-        <ExecutiveHero
-          eyebrow="Survey Edit"
-          title={propertyLabel}
-          description={`${survey.city} · Ward ${survey.wardNo} — complete all tabs before submitting for QC.`}
+        <SurveyViewHero
+          survey={survey}
+          surveyId={id}
+          canEdit={false}
+          title="Survey Edit"
           icon={PencilLine}
-          gradient="brand"
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <SurveyStatusBadge status={survey.status} />
-              <QcStatusBadge status={survey.qcStatus} />
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="cursor-pointer rounded-xl border-brand-navy/25 bg-card/80 shadow-premium-sm hover:bg-brand-navy/5 dark:border-primary/30"
-              >
-                <Link href={`/surveys/${id}`}>
-                  <Eye className="h-4 w-4" aria-hidden /> View detail
-                </Link>
-              </Button>
-            </div>
+          extraActions={
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="cursor-pointer rounded-lg border-brand-navy/25 bg-card/80 shadow-premium-sm transition-colors duration-200 hover:bg-brand-navy/5 dark:border-primary/30"
+            >
+              <Link href={backHref}>
+                <Eye className="h-4 w-4" aria-hidden /> View detail
+              </Link>
+            </Button>
           }
         />
 
@@ -116,8 +110,8 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
                 : "This survey has been approved and can no longer be edited. Contact an administrator to re-open it."
             }
             action={
-              <Button asChild variant="outline" className="rounded-xl">
-                <Link href={`/surveys/${id}`}>View detail</Link>
+              <Button asChild variant="outline" className="cursor-pointer rounded-xl">
+                <Link href={backHref}>View detail</Link>
               </Button>
             }
           />

@@ -3,13 +3,13 @@
 import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
 import { QcRemarksThread } from "@/components/qc/qc-remarks-thread";
 import { RoleGate } from "@/components/shared/role-gate";
+import { GpsEditPanel } from "@/components/surveys/gps-edit-panel";
 import { PropertyIdTableCell, PropertyIdTableHead } from "@/components/surveys/property-id-table";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuditLog } from "@/hooks/audit/useAudit";
 import { useMasters } from "@/hooks/masters/useMasters";
-import { GPS_ACCEPT_MAX_ACCURACY_METERS, SURVEY_STATUS_LABEL, type PhotoSlot } from "@/lib/domain";
+import { SURVEY_STATUS_LABEL, type PhotoSlot } from "@/lib/domain";
 import { formatAreaSqMeter, surveyAreaMetrics } from "@/lib/survey/area";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { surveyCompletionPercent } from "@/lib/survey/progress";
@@ -21,8 +21,6 @@ import {
   Building2,
   Camera,
   ClipboardList,
-  Crosshair,
-  ExternalLink,
   ImageOff,
   Layers,
   MapPin,
@@ -90,72 +88,6 @@ function FieldGrid({ children, cols = 3 }: { children: React.ReactNode; cols?: 2
   return <div className={`grid gap-3 ${cls}`}>{children}</div>;
 }
 
-/* ─── Occupancy badge ───────────────────────────────────────────── */
-function OccupancyBadge({ usageType }: { usageType: string }) {
-  if (usageType === "self_occupied")
-    return (
-      <Badge className="border-success/30 bg-success/12 text-emerald-800 hover:bg-success/12 dark:text-emerald-300">
-        Self Occupied
-      </Badge>
-    );
-  if (usageType === "rented")
-    return (
-      <Badge className="border-brand-navy/25 bg-brand-navy/10 text-brand-navy hover:bg-brand-navy/10 dark:bg-primary/15 dark:text-primary-foreground">
-        Rented
-      </Badge>
-    );
-  return <span className="text-sm text-muted-foreground">—</span>;
-}
-
-/* ─── GPS panel ─────────────────────────────────────────────────── */
-function GisPanel({ gps }: { gps: NonNullable<SurveyDetail["gps"]> }) {
-  const lat = gps.latitude;
-  const lng = gps.longitude;
-  const accuracyOk = gps.accuracyMeters <= GPS_ACCEPT_MAX_ACCURACY_METERS;
-
-  return (
-    <div className="premium-card flex h-full flex-col overflow-hidden rounded-xl border border-border/60 shadow-premium-sm">
-      <a
-        href={`https://www.google.com/maps?q=${lat},${lng}`}
-        target="_blank"
-        rel="noreferrer"
-        className="relative flex aspect-video w-full flex-col items-center justify-center gap-2 bg-muted/50 transition-colors hover:bg-muted"
-      >
-        <MapPin className="h-10 w-10 text-primary/70" />
-        <span className="text-sm font-semibold text-primary">Open location in Google Maps</span>
-        <span className="font-mono text-xs text-muted-foreground">
-          {lat.toFixed(6)}, {lng.toFixed(6)}
-        </span>
-        <div className="absolute left-3 top-3">
-          <Badge variant={accuracyOk ? "default" : "destructive"} className="font-mono text-[10px] uppercase shadow-sm">
-            ±{gps.accuracyMeters.toFixed(1)} m
-          </Badge>
-        </div>
-      </a>
-      <div className="grid grid-cols-3 divide-x divide-border/50 border-t border-border/50 bg-card">
-        <div className="px-3 py-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Latitude</p>
-          <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">{lat.toFixed(6)}</p>
-        </div>
-        <div className="px-3 py-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Longitude</p>
-          <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">{lng.toFixed(6)}</p>
-        </div>
-        <div className="flex items-center px-3 py-2.5">
-          <a
-            href={`https://www.google.com/maps?q=${lat},${lng}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-          >
-            <ExternalLink className="h-3 w-3" /> Maps
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Area summary grid ─────────────────────────────────────────── */
 function AreaMetricCard({
   label,
@@ -201,7 +133,7 @@ function AreaSummaryGrid({ survey }: { survey: SurveyDetail }) {
 }
 
 /* ─── Floors table ──────────────────────────────────────────────── */
-function FloorsTable({ floors, propertyId, masters }: { floors: FloorRow[]; propertyId?: string; masters: any }) {
+function FloorsTable({ floors, masters }: { floors: FloorRow[]; masters: any }) {
   const areas = surveyAreaMetrics({ plotSqft: 0, plinthSqft: 0, floors });
   return (
     <div className="space-y-3">
@@ -209,21 +141,23 @@ function FloorsTable({ floors, propertyId, masters }: { floors: FloorRow[]; prop
         <Table>
           <TableHeader>
             <TableRow className="border-b border-brand-navy/10 bg-linear-to-r from-brand-navy/6 via-muted/25 to-brand-navy/4 hover:from-brand-navy/6 dark:border-primary/15 dark:from-primary/12 dark:via-muted/10 dark:to-primary/6">
-              <PropertyIdTableHead />
+              <TableHead className="w-14 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                S. No
+              </TableHead>
               <TableHead className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 Floor
               </TableHead>
               <TableHead className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                Usage
+                Usage type
+              </TableHead>
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Usage factor
               </TableHead>
               <TableHead className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 Construction
               </TableHead>
               <TableHead className="text-right text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                Area (Sqft)
-              </TableHead>
-              <TableHead className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                Occupancy
+                Area
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -233,22 +167,21 @@ function FloorsTable({ floors, propertyId, masters }: { floors: FloorRow[]; prop
                 key={f._id}
                 className={`border-b border-border/40 last:border-b-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20 dark:bg-muted/10"}`}
               >
-                <PropertyIdTableCell propertyId={propertyId} />
+                <TableCell className="font-mono text-sm tabular-nums text-muted-foreground">{i + 1}</TableCell>
                 <TableCell className="font-medium capitalize">
                   {labelFromOptions(masters?.floors, f.floorName)}
                 </TableCell>
                 <TableCell className="capitalize text-muted-foreground">
-                  {labelFromOptions(masters?.usageTypes, f.usageType) ||
-                    labelFromOptions(masters?.usageFactors, f.usageFactor)}
+                  {labelFromOptions(masters?.usageTypes, f.usageType) || "—"}
+                </TableCell>
+                <TableCell className="capitalize text-muted-foreground">
+                  {labelFromOptions(masters?.usageFactors, f.usageFactor) || "—"}
                 </TableCell>
                 <TableCell className="capitalize text-muted-foreground">
                   {labelFromOptions(masters?.constructionTypes, f.constructionType)}
                 </TableCell>
                 <TableCell className="text-right font-mono font-semibold tabular-nums">
-                  {f.areaSqft.toLocaleString("en-IN")}
-                </TableCell>
-                <TableCell>
-                  <OccupancyBadge usageType={f.usageType} />
+                  {f.areaSqft.toLocaleString("en-IN")} Sqft
                 </TableCell>
               </TableRow>
             ))}
@@ -394,20 +327,33 @@ function DetailPhotoSlots({ photos, uploaderName }: { photos: SurveyDetail["phot
   );
 }
 
-/* ─── Main component ────────────────────────────────────────────── */
-export function SurveyDetailView({
-  survey,
-  surveyId,
-  remarks,
-  hideProgressFooter = false,
-  hideQcRemarks = false,
-}: {
+/* ─── Variant config ────────────────────────────────────────────── */
+const SURVEY_DETAIL_VARIANTS = {
+  "survey-view": {
+    showProgressFooter: true,
+    showQcRemarks: true,
+    showStatusInBody: false,
+  },
+  "qc-review": {
+    showProgressFooter: false,
+    showQcRemarks: false,
+    showStatusInBody: true,
+  },
+} as const;
+
+type SurveyDetailVariant = keyof typeof SURVEY_DETAIL_VARIANTS;
+
+type SurveyDetailViewCoreProps = {
   survey: SurveyDetail;
   surveyId: string;
   remarks?: QcRemarkWithAuthor[];
-  hideProgressFooter?: boolean;
-  hideQcRemarks?: boolean;
-}) {
+  variant: SurveyDetailVariant;
+  canEdit?: boolean;
+};
+
+function SurveyDetailViewCore({ survey, surveyId, remarks, variant, canEdit = false }: SurveyDetailViewCoreProps) {
+  const { showProgressFooter, showQcRemarks, showStatusInBody } = SURVEY_DETAIL_VARIANTS[variant];
+  const canEditGps = variant === "survey-view" ? canEdit : false;
   const { masters } = useMasters();
   const audit = useAuditLog({ entity: "survey", entityId: surveyId, limit: 100 });
   const ulbCodes = buildUlbCodeMap(masters?.ulbs);
@@ -437,7 +383,7 @@ export function SurveyDetailView({
           <DetailField label="Property ID (Old)" value={survey.oldPropertyNo} />
           <DetailField label="Constructed Year" value={survey.constructedYear} />
           <DetailField label="District" value={district?.name} />
-          <DetailField label="Survey Status" value={SURVEY_STATUS_LABEL[survey.status]} />
+          {showStatusInBody && <DetailField label="Survey Status" value={SURVEY_STATUS_LABEL[survey.status]} />}
           <DetailField label="Surveyor" value={survey.surveyor?.name} />
           <DetailField label="Slum Area" value={survey.isSlum ? "Yes — notified slum" : "No"} />
         </FieldGrid>
@@ -514,15 +460,13 @@ export function SurveyDetailView({
           </FieldGrid>
         </SectionCard>
 
-        <SectionCard title="GIS Mapping" icon={<MapPin className="h-4 w-4" aria-hidden />} className="h-full">
-          {survey.gps ? (
-            <GisPanel gps={survey.gps} />
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/50 py-14 text-muted-foreground">
-              <Crosshair className="h-8 w-8 opacity-30" />
-              <p className="text-sm font-medium opacity-60">No GPS captured</p>
-            </div>
-          )}
+        <SectionCard
+          title="GIS Mapping"
+          description={canEditGps ? "Capture or edit property coordinates." : "Property GPS coordinates."}
+          icon={<MapPin className="h-4 w-4" aria-hidden />}
+          className="h-full"
+        >
+          <GpsEditPanel surveyId={surveyId} gps={survey.gps} canEdit={canEditGps} />
         </SectionCard>
       </div>
 
@@ -548,7 +492,7 @@ export function SurveyDetailView({
         <div className="space-y-4">
           <AreaSummaryGrid survey={survey} />
           {survey.floors?.length ? (
-            <FloorsTable floors={survey.floors} propertyId={propertyId} masters={masters} />
+            <FloorsTable floors={survey.floors} masters={masters} />
           ) : (
             <p className="rounded-lg border border-dashed border-border/50 px-4 py-6 text-center text-sm text-muted-foreground">
               No floor records
@@ -581,7 +525,7 @@ export function SurveyDetailView({
       </SectionCard>
 
       {/* ── QC Remarks ─────────────────────────────────────────── */}
-      {!hideQcRemarks && (remarks === undefined || remarks.length > 0) && (
+      {showQcRemarks && (remarks === undefined || remarks.length > 0) && (
         <SectionCard
           title="QC Remarks & Corrections"
           description="Feedback from supervisors during quality control review."
@@ -607,7 +551,7 @@ export function SurveyDetailView({
       </SectionCard>
 
       {/* ── Sticky progress footer ────────────────────────────── */}
-      {!hideProgressFooter && (
+      {showProgressFooter && (
         <div className="premium-card sticky bottom-0 z-10 overflow-hidden rounded-2xl border border-brand-navy/15 bg-card/95 shadow-premium-lg backdrop-blur-md dark:border-primary/20">
           <div className="h-1 w-full bg-muted">
             <div
@@ -637,5 +581,33 @@ export function SurveyDetailView({
         </div>
       )}
     </div>
+  );
+}
+
+/** Read-only survey detail for QC review — no progress footer or QC remarks thread. */
+export function QcReviewDetailView({ survey, surveyId }: { survey: SurveyDetail; surveyId: string }) {
+  return <SurveyDetailViewCore survey={survey} surveyId={surveyId} variant="qc-review" />;
+}
+
+/** Survey detail page — status in header; optional inline GPS edit when permitted. */
+export function SurveyPageDetailView({
+  survey,
+  surveyId,
+  remarks,
+  canEdit,
+}: {
+  survey: SurveyDetail;
+  surveyId: string;
+  remarks?: QcRemarkWithAuthor[];
+  canEdit: boolean;
+}) {
+  return (
+    <SurveyDetailViewCore
+      survey={survey}
+      surveyId={surveyId}
+      remarks={remarks}
+      variant="survey-view"
+      canEdit={canEdit}
+    />
   );
 }
