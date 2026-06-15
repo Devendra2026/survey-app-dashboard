@@ -96,7 +96,7 @@ export function QcParcelSiblingsPanel({
       )}
 
       <div className="overflow-x-auto">
-        <Table className="min-w-[800px]">
+        <Table className="min-w-200">
           <TableHeader>
             <TableRow className={QC_TABLE.headerRow}>
               <TableHead className={QC_TABLE.headerCell}>Property ID</TableHead>
