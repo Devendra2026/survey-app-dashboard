@@ -8,11 +8,14 @@
  *  - `resolveRemark` — flips a single remark to "resolved" once addressed
  */
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireCapability } from "./capabilities";
 import { fieldSurveyAccess } from "./fieldAccess";
 import { assertCanReadWard, clientError, mapTruthyById, requireUser, writeAudit } from "./helpers";
 import { computeQcWardAggregates } from "./lib/qcWardStats";
+import { normalizeParcelKey } from "./propertyId";
+import { qcStatus, surveyStatus } from "./schema";
 import { collectSurveysForListPaginated } from "./survey";
 import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
 
@@ -113,6 +116,85 @@ export const commandCenterStats = query({
       qcCompletionPct,
       wardStats,
     };
+  },
+});
+
+function wardNumbersMatch(rowWard: string, filterWard: string): boolean {
+  if (rowWard === filterWard) return true;
+  const a = Number(rowWard);
+  const b = Number(filterWard);
+  return !Number.isNaN(a) && !Number.isNaN(b) && a === b;
+}
+
+const parcelSiblingEntry = v.object({
+  _id: v.id("surveys"),
+  propertyId: v.optional(v.string()),
+  propertyUse: v.string(),
+  unitNo: v.string(),
+  wardNo: v.string(),
+  parcelNo: v.string(),
+  respondentName: v.optional(v.string()),
+  qcStatus,
+  status: surveyStatus,
+  surveyorName: v.optional(v.string()),
+});
+
+/** Other surveys on the same ward + parcel as the given record (QC review context). */
+export const listParcelSiblings = query({
+  args: { surveyId: v.id("surveys") },
+  returns: v.array(parcelSiblingEntry),
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    await requireCapability(ctx, me, "qc.review");
+
+    const survey = await ctx.db.get(args.surveyId);
+    if (!survey) return [];
+
+    await assertMunicipalityInScope(ctx, me, survey.municipalityId);
+    assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+
+    const parcelKey = normalizeParcelKey(survey.parcelNo);
+    const wardVariants = new Set([survey.wardNo.trim()]);
+    const wardNum = Number(survey.wardNo);
+    if (!Number.isNaN(wardNum)) {
+      wardVariants.add(String(wardNum));
+      wardVariants.add(String(wardNum).padStart(2, "0"));
+    }
+
+    const wardRows: Doc<"surveys">[] = [];
+    for (const ward of wardVariants) {
+      const batch = await ctx.db
+        .query("surveys")
+        .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", survey.municipalityId).eq("wardNo", ward))
+        .collect();
+      for (const row of batch) {
+        if (!wardRows.some((existing) => existing._id === row._id)) wardRows.push(row);
+      }
+    }
+
+    const siblings = wardRows.filter(
+      (row) =>
+        row._id !== args.surveyId &&
+        wardNumbersMatch(row.wardNo, survey.wardNo) &&
+        normalizeParcelKey(row.parcelNo) === parcelKey,
+    );
+
+    const surveyorIds = Array.from(new Set(siblings.map((s) => s.surveyorId)));
+    const surveyors = await Promise.all(surveyorIds.map((id) => ctx.db.get(id)));
+    const surveyorById = mapTruthyById(surveyors);
+
+    return siblings.map((row) => ({
+      _id: row._id,
+      propertyId: row.propertyId,
+      propertyUse: row.propertyUse,
+      unitNo: row.unitNo,
+      wardNo: row.wardNo,
+      parcelNo: row.parcelNo,
+      respondentName: row.respondentName,
+      qcStatus: row.qcStatus,
+      status: row.status,
+      surveyorName: surveyorById.get(row.surveyorId)?.name,
+    }));
   },
 });
 

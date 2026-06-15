@@ -101,6 +101,36 @@ export const QC_MODULE = {
   } as const,
 } as const;
 
+/** QC registry / ward data tables — typography + surface tokens. */
+export const QC_TABLE = {
+  wrapper:
+    "premium-card overflow-hidden rounded-xl border border-amber-500/20 bg-card/90 shadow-premium-sm backdrop-blur-sm",
+  scroll: "overflow-x-auto",
+  table: "min-w-[1100px] w-full",
+  headerRow:
+    "border-b border-amber-500/20 bg-linear-to-r from-brand-navy/8 via-amber-500/10 to-transparent hover:from-brand-navy/8 dark:from-brand-navy/20 dark:via-amber-500/12",
+  headerCell:
+    "h-10 bg-inherit font-display text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-navy/70 dark:text-amber-100/80",
+  bodyRow:
+    "h-12 cursor-pointer border-b border-border/40 text-sm transition-colors duration-200 last:border-b-0 even:bg-muted/15 hover:bg-muted/25",
+  monoCell: "font-mono text-xs font-medium tabular-nums text-foreground",
+  bodyCell: "py-2.5",
+  sectionLabel: "text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70",
+} as const;
+
+/** Parcel duplicate indicators — shared parcel vs different-owner conflict. */
+export const QC_DUPLICATE_BADGE = {
+  duplicate:
+    "border-brand-red/50 bg-brand-red/10 text-brand-red ring-1 ring-brand-red/25 dark:border-brand-red/40 dark:bg-brand-red/15 dark:text-brand-red-foreground",
+  shared:
+    "border-amber-500/40 bg-amber-500/10 text-amber-950 dark:border-amber-500/35 dark:bg-amber-500/12 dark:text-amber-200",
+  conflictPanel: "border-amber-500/30 bg-amber-500/8 dark:border-amber-500/25 dark:bg-amber-950/20",
+  conflictAlert:
+    "rounded-lg border border-amber-500/35 bg-amber-500/12 px-3 py-2 text-xs font-medium text-amber-950 dark:text-amber-100",
+  rejectButton: "text-brand-red hover:bg-brand-red/10 dark:text-brand-red-foreground",
+  currentRowHighlight: "bg-amber-500/12 ring-1 ring-inset ring-amber-500/25",
+} as const;
+
 export const NAV_ITEMS = [
   { key: "dashboard", href: "/dashboard", label: "Dashboard", shortLabel: "Home" },
   { key: "surveys", href: "/surveys", label: "Surveys", shortLabel: "Surveys" },

@@ -9,6 +9,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
+import { formatRegistryParcelNo, formatRegistryWardNo } from "@/lib/survey/format-registry-parcel";
 import { resolveDisplayPropertyId, type PropertyIdSource } from "@/lib/survey/resolve-display-property-id";
 import { useQuery as useConvexQuery, useMutation } from "convex/react";
 import { useMemo } from "react";
@@ -140,7 +141,16 @@ export function searchSurveys<
   if (!q) return rows;
   return rows.filter((r) => {
     const displayId = resolveDisplayPropertyId(r, ulbCodes);
-    return [displayId, r.propertyId, r.respondentName, r.mobileNo, r.parcelNo, ...(r.owners?.map((o) => o.name) ?? [])]
+    return [
+      displayId,
+      r.propertyId,
+      r.respondentName,
+      r.mobileNo,
+      r.parcelNo,
+      formatRegistryParcelNo(r.parcelNo),
+      formatRegistryWardNo(r.wardNo),
+      ...(r.owners?.map((o) => o.name) ?? []),
+    ]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(q));
   });
@@ -159,12 +169,18 @@ export function searchQcRegistry<
   if (!q) return rows;
   return rows.filter((r) => {
     const displayId = resolveDisplayPropertyId(r, ulbCodes);
-    const wardVariants = [r.wardNo, r.wardNo ? `ward ${r.wardNo}` : undefined, r.wardNo ? `w${r.wardNo}` : undefined];
+    const wardVariants = [
+      r.wardNo,
+      formatRegistryWardNo(r.wardNo),
+      r.wardNo ? `ward ${r.wardNo}` : undefined,
+      r.wardNo ? `w${r.wardNo}` : undefined,
+    ];
     return [
       displayId,
       r.propertyId,
       r.respondentName,
       r.parcelNo,
+      formatRegistryParcelNo(r.parcelNo),
       ...wardVariants,
       ...(r.owners?.map((o) => o.name) ?? []),
     ]

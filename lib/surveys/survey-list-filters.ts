@@ -35,6 +35,8 @@ export function qcTabToListFilters(activeTab: string): ListStatusFilter {
       return { qcStatus: "approved" as QcStatus };
     case "rejected":
       return { qcStatus: "rejected" as QcStatus };
+    case "parcelShared":
+      return { qcStatuses: ["pending", "approved"] as QcStatus[] };
     default:
       return {};
   }

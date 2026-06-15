@@ -8,6 +8,7 @@ import { normalizeAddressFields } from "./addressRules";
 import { normalizeFloorFields, presentFloorRow, usageTypeToOccupied, validateFloorRow } from "./areaMasters";
 import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
 import { assertCanReadWard, clientError, mapTruthyById, requireRole, requireUser, writeAudit } from "./helpers";
+import { lookupSurveyByPropertyId } from "./lib/propertyIdLookup";
 import { comparePropertyIds, resolvePropertyId } from "./propertyId";
 import { gpsCapture, photoSlot, qcStatus, sanitationType, surveyOwnerEntry, surveyStatus, waterSource } from "./schema";
 import {
@@ -18,6 +19,17 @@ import {
   withResolvedPropertyId,
 } from "./survey";
 import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds } from "./tenancy";
+
+function registerPropertyIdMapping(
+  map: Map<string, Id<"surveys">>,
+  surveyId: Id<"surveys">,
+  ...ids: (string | undefined)[]
+): void {
+  for (const id of ids) {
+    const key = id?.trim().toUpperCase();
+    if (key) map.set(key, surveyId);
+  }
+}
 
 const listFilterArgs = {
   status: v.optional(surveyStatus),
@@ -342,11 +354,7 @@ export const importExcelBundle = mutation({
         let existing: Doc<"surveys"> | null = null;
         const pid = row.propertyId?.trim().toUpperCase();
         if (pid) {
-          existing =
-            (await ctx.db
-              .query("surveys")
-              .withIndex("by_property_id", (q) => q.eq("propertyId", pid))
-              .first()) ?? null;
+          existing = (await lookupSurveyByPropertyId(ctx, pid)) ?? null;
         }
         if (!existing) {
           existing =
@@ -416,7 +424,7 @@ export const importExcelBundle = mutation({
             clientUpdatedAt: Date.now(),
           });
           updated++;
-          if (normalized.propertyId) propertyIdToSurveyId.set(normalized.propertyId, existing._id);
+          registerPropertyIdMapping(propertyIdToSurveyId, existing._id, normalized.propertyId, pid);
         } else {
           const newId = await ctx.db.insert("surveys", {
             ...writable,
@@ -428,7 +436,7 @@ export const importExcelBundle = mutation({
             clientUpdatedAt: Date.now(),
           } as Doc<"surveys">);
           created++;
-          if (normalized.propertyId) propertyIdToSurveyId.set(normalized.propertyId, newId);
+          registerPropertyIdMapping(propertyIdToSurveyId, newId, normalized.propertyId, pid);
         }
       } catch (e) {
         errors.push({
@@ -443,10 +451,7 @@ export const importExcelBundle = mutation({
       const pid = fl.propertyId.trim().toUpperCase();
       let surveyId = propertyIdToSurveyId.get(pid);
       if (!surveyId) {
-        const s = await ctx.db
-          .query("surveys")
-          .withIndex("by_property_id", (q) => q.eq("propertyId", pid))
-          .first();
+        const s = await lookupSurveyByPropertyId(ctx, pid);
         surveyId = s?._id;
       }
       if (!surveyId) {

@@ -25,6 +25,8 @@ function QcRegistryContent() {
     isLoading,
     stats,
     rejectedCount,
+    parcelSharedCount,
+    parcelSiblingIndex,
     filteredByTab,
     pagedRows,
     registrySearch,
@@ -60,6 +62,8 @@ function QcRegistryContent() {
       <QcReviewRegistry
         stats={stats}
         rejectedCount={rejectedCount}
+        parcelSharedCount={parcelSharedCount}
+        parcelSiblingIndex={parcelSiblingIndex}
         activeTab={activeTab}
         filteredCount={filteredByTab.length}
         isLoading={isLoading}

@@ -56,7 +56,8 @@ export function TenantPropertySection({
           className="bg-muted/50 font-mono"
         />
         <p className="text-xs text-muted-foreground">
-          Format: ULB (6 digits) – Ward (3 digits) – Parcel (5 digits) – Use code, e.g. 800828-001-00001-P
+          Format: ULB (6 digits) – Ward (3 digits) – Parcel (5 digits) – Unit (3 digits) – Use letter, e.g.
+          801262-001-00004-001-R
         </p>
       </div>
       <div className="space-y-1.5">

@@ -134,6 +134,7 @@ export function SurveyForm({
   const propertyUse = watch("propertyUse");
   const wardNo = watch("wardNo");
   const parcelNo = watch("parcelNo");
+  const unitNo = watch("unitNo");
   const subcats = propertyUse ? (masters?.propertyUseSubcategories?.[propertyUse] ?? []) : [];
   const selectedUlb = (masters?.ulbs ?? []).find((m: { _id: string }) => m._id === muniId);
   const previewPropertyId =
@@ -141,6 +142,7 @@ export function SurveyForm({
       ulbCode: selectedUlb?.code ?? "",
       wardNo: wardNo ?? "",
       parcelNo: parcelNo ?? "",
+      unitNo: unitNo ?? "",
       propertyUse: propertyUse ?? "",
     }) ?? existing?.propertyId;
 

@@ -9,6 +9,7 @@ import { useMasters } from "@/hooks/masters/useMasters";
 import { useFrontThumbnails } from "@/hooks/surveys/usePhotos";
 import { SURVEY_ROW_TONE } from "@/lib/design-system";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
+import { formatRegistryParcelNo, formatRegistryWardNo } from "@/lib/survey/format-registry-parcel";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import { resolveOwnerDisplayName } from "@/lib/survey/resolve-owner-name";
 import { fmtDay } from "@/lib/utils";
@@ -32,6 +33,7 @@ export interface SurveyRow {
   municipalityId?: string;
   propertyUse?: string;
   parcelNo: string;
+  unitNo?: string;
   respondentName?: string;
   owners?: { name?: string }[];
   surveyorName?: string;
@@ -73,7 +75,7 @@ function SurveyRegistryTable({
         <TableHeader>
           <TableRow className="border-b border-brand-navy/10 bg-linear-to-r from-brand-navy/6 via-muted/25 to-brand-navy/4 hover:from-brand-navy/6 dark:border-primary/15 dark:from-primary/12 dark:via-muted/10 dark:to-primary/6">
             <TableHead className="h-10 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              S.No
+              S. No
             </TableHead>
             <TableHead className="h-10 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               Action
@@ -90,10 +92,10 @@ function SurveyRegistryTable({
               Property ID
             </TableHead>
             <TableHead className="h-10 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              Ward No.
+              Ward Number
             </TableHead>
             <TableHead className="h-10 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              Parcel
+              Parcel No
             </TableHead>
             <TableHead className="h-10 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               Owner Name
@@ -131,8 +133,8 @@ function SurveyRegistryTable({
               <TableCell className="py-2.5 font-mono text-xs font-medium">
                 {resolveDisplayPropertyId(row, ulbCodes) || "—"}
               </TableCell>
-              <TableCell className="py-2.5 tabular-nums">{row.wardNo}</TableCell>
-              <TableCell className="py-2.5 font-mono text-xs">{row.parcelNo}</TableCell>
+              <TableCell className="py-2.5 tabular-nums">{formatRegistryWardNo(row.wardNo)}</TableCell>
+              <TableCell className="py-2.5 font-mono text-xs">{formatRegistryParcelNo(row.parcelNo)}</TableCell>
               <TableCell className="py-2.5 font-medium">{resolveOwnerDisplayName(row)}</TableCell>
               <TableCell className="py-2.5 tabular-nums">{row.mobileNo}</TableCell>
               <TableCell className="py-2.5 whitespace-nowrap text-muted-foreground">
@@ -208,11 +210,16 @@ export function SurveyTable({
         cell: (c) => <span className="font-medium">{resolveOwnerDisplayName(c.row.original)}</span>,
       }),
       col.accessor("mobileNo", { header: "Mobile", cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
-      col.accessor("parcelNo", {
-        header: "Parcel",
+      col.accessor((row) => formatRegistryParcelNo(row.parcelNo), {
+        id: "parcelNo",
+        header: "Parcel No",
         cell: (c) => <span className="font-mono text-xs">{c.getValue()}</span>,
       }),
-      col.accessor("wardNo", { header: "Ward", cell: (c) => `W${c.getValue()}` }),
+      col.accessor((row) => formatRegistryWardNo(row.wardNo), {
+        id: "wardNo",
+        header: "Ward Number",
+        cell: (c) => <span className="tabular-nums">{c.getValue()}</span>,
+      }),
       col.accessor("city", { header: "ULB" }),
       ...(showSurveyor
         ? [

@@ -12,7 +12,7 @@ import {
   validateAreaSection,
   validateFloorRow,
 } from "./areaMasters";
-import { requireCapability } from "./capabilities";
+import { hasCapability, requireCapability } from "./capabilities";
 import {
   collectSurveysInFieldScope,
   fieldSurveyAccess,
@@ -21,8 +21,9 @@ import {
 } from "./fieldAccess";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS, GPS_TARGET_ACCURACY_METERS } from "./gpsAccuracy";
 import { assertCanReadWard, canReadWard, clientError, requireUser, writeAudit } from "./helpers";
+import { assertUniqueSurveySlot } from "./lib/surveyUniqueness";
 import { isValidIndianOwnerMobile, normalizeOwners, primaryOwnerMobile, validateOwnerSection } from "./ownerRules";
-import { comparePropertyIds, resolvePropertyId } from "./propertyId";
+import { comparePropertyIds, compareWardThenParcel, resolvePropertyId } from "./propertyId";
 import { gpsCapture, qcStatus, sanitationType, surveyOwnerEntry, surveyStatus, waterSource } from "./schema";
 import { validateServicesSection } from "./serviceMasters";
 import {
@@ -262,19 +263,6 @@ function wardNumbersMatch(rowWard: string, filterWard: string): boolean {
   const a = Number(rowWard);
   const b = Number(filterWard);
   return !Number.isNaN(a) && !Number.isNaN(b) && a === b;
-}
-
-function compareWardThenParcel(a: Doc<"surveys">, b: Doc<"surveys">): number {
-  const wardA = Number(a.wardNo);
-  const wardB = Number(b.wardNo);
-  const wardDiff =
-    !Number.isNaN(wardA) && !Number.isNaN(wardB) ? wardA - wardB : String(a.wardNo).localeCompare(String(b.wardNo));
-  if (wardDiff !== 0) return wardDiff;
-
-  const parcelA = Number(a.parcelNo);
-  const parcelB = Number(b.parcelNo);
-  if (!Number.isNaN(parcelA) && !Number.isNaN(parcelB)) return parcelA - parcelB;
-  return String(a.parcelNo).localeCompare(String(b.parcelNo));
 }
 
 function applySurveyListFilters(
@@ -601,6 +589,21 @@ export const saveDraft = mutation({
     );
     validateBusinessRules(normalized, addressCtx, "draft");
 
+    if (existing && existing.status === "submitted") {
+      const isQcEditor = await hasCapability(ctx, me, "qc.review");
+      if (isQcEditor) {
+        await assertUniqueSurveySlot(ctx, {
+          municipalityId: args.municipalityId,
+          wardNo: (normalized.wardNo as string) ?? existing.wardNo,
+          parcelNo: normalized.parcelNo as string,
+          propertyUse: normalized.propertyUse as string | undefined,
+          unitNo: normalized.unitNo as string | undefined,
+          propertyId: normalized.propertyId as string | undefined,
+          excludeId: existing._id,
+        });
+      }
+    }
+
     const writable = { ...stripLocalId(normalized as SurveyUpsertArgs), districtId: muni.districtId };
 
     if (existing) {
@@ -685,6 +688,16 @@ export const upsert = mutation({
     if (!existing && !ownScope) {
       clientError("BAD_REQUEST", "No survey found to update — open the record from QC review and try saving again");
     }
+
+    await assertUniqueSurveySlot(ctx, {
+      municipalityId: args.municipalityId,
+      wardNo: normalized.wardNo as string,
+      parcelNo: normalized.parcelNo as string,
+      propertyUse: normalized.propertyUse as string | undefined,
+      unitNo: normalized.unitNo as string,
+      propertyId: normalized.propertyId as string | undefined,
+      excludeId: existing?._id,
+    });
 
     const writable = { ...stripLocalId(normalized), districtId: muni.districtId };
 
@@ -1095,6 +1108,7 @@ export function withResolvedPropertyId<
     propertyId?: string;
     wardNo?: string;
     parcelNo?: string;
+    unitNo?: string;
     propertyUse?: string;
   },
 >(args: T, ulbCode: string): T {

@@ -1,4 +1,5 @@
 import type { Doc, Id } from "../_generated/dataModel";
+import { compareWardThenParcel } from "../propertyId";
 
 export type QcWardAggregate = {
   wardNo: string;
@@ -21,19 +22,6 @@ export function normalizeWardNo(wardNo: string): string {
 
 function wardGroupKey(municipalityId: Id<"municipalities">, wardNo: string): string {
   return `${municipalityId}:${normalizeWardNo(wardNo)}`;
-}
-
-function compareWardThenParcel(a: Doc<"surveys">, b: Doc<"surveys">): number {
-  const wardA = Number(a.wardNo);
-  const wardB = Number(b.wardNo);
-  const wardDiff =
-    !Number.isNaN(wardA) && !Number.isNaN(wardB) ? wardA - wardB : String(a.wardNo).localeCompare(String(b.wardNo));
-  if (wardDiff !== 0) return wardDiff;
-
-  const parcelA = Number(a.parcelNo);
-  const parcelB = Number(b.parcelNo);
-  if (!Number.isNaN(parcelA) && !Number.isNaN(parcelB)) return parcelA - parcelB;
-  return String(a.parcelNo).localeCompare(String(b.parcelNo));
 }
 
 /** Aggregate QC counts per ward from the full scoped survey set. */

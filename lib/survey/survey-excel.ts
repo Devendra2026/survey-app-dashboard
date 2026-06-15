@@ -222,7 +222,7 @@ const GUIDE_ROWS = [
     Topic: "Import",
     Detail: "Edit the Surveys sheet; use CoOwners and Floors for related rows. Re-import via Surveys page.",
   },
-  { Topic: "Property ID", Detail: "Format: ULB(6)-Ward(3)-Parcel(5)-UseLetter e.g. 800828-001-00001-P" },
+  { Topic: "Property ID", Detail: "Format: ULB(6)-Ward(3)-Parcel(5)-Unit(3)-UseLetter e.g. 801262-001-00004-001-R" },
   { Topic: "Match key", Detail: "Imports match existing surveys by Property ID, then Local ID." },
   { Topic: "Municipality ID", Detail: "Required Convex ID on each survey row — do not change unless moving ULB." },
 ];

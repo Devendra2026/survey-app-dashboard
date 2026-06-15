@@ -4,15 +4,15 @@ import { ExecutiveHero, SectionHeader } from "@/components/design-system/executi
 import { GlassCard } from "@/components/design-system/glass-card";
 import { MetricCard } from "@/components/design-system/metric-card";
 import { PageTransition } from "@/components/design-system/motion";
-import { EmptyState } from "@/components/shared/empty-state";
+import { QcDataTable } from "@/components/qc/qc-data-table";
 import { RoleGate } from "@/components/shared/role-gate";
-import { QcStatusBadge } from "@/components/shared/status-badge";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useWardsForMunicipality } from "@/hooks/masters/useMasters";
+import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters";
 import { useSurveyList, useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
+import { activeParcelSiblingPool, buildParcelSiblingIndex } from "@/lib/qc/parcel-siblings";
 import { computeQcWardStats } from "@/lib/qc/ward-stats";
+import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
 import { ArrowLeft, CheckCircle2, Clock3, FileText, MapPin, Receipt, Table2 } from "lucide-react";
 import Link from "next/link";
 import { use, useMemo, useState } from "react";
@@ -51,6 +51,10 @@ export default function QcWardReportPage({
   });
 
   const wards = useWardsForMunicipality(municipalityId);
+  const { masters } = useMasters();
+  const ulbCodes = useMemo(() => buildUlbCodeMap(masters?.ulbs), [masters?.ulbs]);
+  const propertyUses = masters?.propertyUses;
+
   const wardLabel = wards?.find((w) => w.wardNo === decodedWard)?.name;
 
   const wardRow = useMemo(
@@ -63,6 +67,11 @@ export default function QcWardReportPage({
     if (showDemand) return rows;
     return rows.filter((r) => r.status !== "draft");
   }, [surveys, showDemand]);
+
+  const siblingIndex = useMemo(() => {
+    const pool = activeParcelSiblingPool((aggregateSurveys ?? []) as Parameters<typeof activeParcelSiblingPool>[0]);
+    return buildParcelSiblingIndex(pool);
+  }, [aggregateSurveys]);
 
   const title = wardLabel ? `Ward ${decodedWard} — ${wardLabel}` : `Ward ${decodedWard}`;
 
@@ -154,55 +163,19 @@ export default function QcWardReportPage({
               }
             />
           </div>
-          <div className="overflow-x-auto">
-            {isLoading ? (
-              <p className="p-6 text-sm text-muted-foreground">Loading ward data…</p>
-            ) : listRows.length === 0 ? (
-              <EmptyState title="No records" description="No properties match this ward view." />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b border-amber-500/25 bg-amber-500/10 hover:bg-amber-500/10">
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider">Property ID</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider">Owner</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider">QC</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {listRows.map((row) => (
-                    <TableRow key={row._id} className="border-border/40">
-                      <TableCell className="font-mono text-xs">{row.propertyId || row.parcelNo}</TableCell>
-                      <TableCell>{row.respondentName || "—"}</TableCell>
-                      <TableCell>
-                        <QcStatusBadge status={row.qcStatus} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1.5">
-                          <Button asChild size="sm" variant="outline" className="h-7 rounded-full px-2.5 text-xs">
-                            <Link href={`/qc/${row._id}`}>Review</Link>
-                          </Button>
-                          {row.qcStatus === "approved" && (
-                            <>
-                              <Button asChild size="sm" variant="outline" className="h-7 rounded-full px-2.5 text-xs">
-                                <Link href={`/qc/${row._id}/report`}>
-                                  <FileText className="h-3 w-3" aria-hidden /> Report
-                                </Link>
-                              </Button>
-                              <Button asChild size="sm" variant="outline" className="h-7 rounded-full px-2.5 text-xs">
-                                <Link href={`/qc/${row._id}/demand-notice`}>
-                                  <Receipt className="h-3 w-3" aria-hidden /> Demand
-                                </Link>
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+          <div className="p-4">
+            <QcDataTable
+              rows={isLoading ? undefined : listRows}
+              pageStart={(pageNumber - 1) * pageSize}
+              hrefBase="/qc"
+              siblingIndex={siblingIndex}
+              propertyUses={propertyUses}
+              ulbCodes={ulbCodes}
+              showSurveyor
+              showDemandActions={showDemand}
+              emptyTitle="No records"
+              emptyDescription="No properties match this ward view."
+            />
           </div>
         </GlassCard>
 

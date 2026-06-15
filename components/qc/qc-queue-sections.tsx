@@ -12,6 +12,7 @@ import { SurveyFilters, type FilterState } from "@/components/surveys/survey-fil
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMasters } from "@/hooks/masters/useMasters";
 import type { QcQueueStats } from "@/hooks/qc/useQcQueue";
+import type { ParcelSiblingIndex } from "@/lib/qc/parcel-siblings";
 import type { QcWardRow } from "@/lib/qc/ward-stats";
 import { isQcScopeComplete, type QcWorkScope } from "@/lib/qc/work-scope";
 import { estimateQcPendingCount } from "@/lib/surveys/survey-list-filters";
@@ -273,6 +274,7 @@ export function QcFiltersSection({
 export function QcReviewRegistry({
   stats,
   rejectedCount,
+  parcelSharedCount = 0,
   activeTab,
   filteredCount,
   isLoading,
@@ -281,9 +283,11 @@ export function QcReviewRegistry({
   registrySearch,
   onRegistrySearchChange,
   onTabChange,
+  parcelSiblingIndex,
 }: {
   stats: QcQueueStats;
   rejectedCount: number;
+  parcelSharedCount?: number;
   activeTab: string;
   filteredCount: number;
   isLoading: boolean;
@@ -292,6 +296,7 @@ export function QcReviewRegistry({
   registrySearch: string;
   onRegistrySearchChange: (term: string) => void;
   onTabChange: (tab: string) => void;
+  parcelSiblingIndex?: ParcelSiblingIndex;
 }) {
   const totalDecided = stats.pending + stats.approved + rejectedCount;
   const activeCount = stats.pending + stats.approved;
@@ -336,6 +341,12 @@ export function QcReviewRegistry({
                 activeColor="data-[state=active]:bg-brand-red data-[state=active]:text-white"
               />
               <TabPill
+                value="parcelShared"
+                label="Parcel shared"
+                count={parcelSharedCount}
+                activeColor="data-[state=active]:bg-amber-700 data-[state=active]:text-white"
+              />
+              <TabPill
                 value="all"
                 label="All"
                 count={totalDecided}
@@ -345,7 +356,12 @@ export function QcReviewRegistry({
           </Tabs>
         </div>
         <div className="overflow-x-auto p-4">
-          <QcRegistryTable rows={isLoading ? undefined : rows} pageStart={pageStart} hrefBase="/qc" />
+          <QcRegistryTable
+            rows={isLoading ? undefined : rows}
+            pageStart={pageStart}
+            hrefBase="/qc"
+            siblingIndex={parcelSiblingIndex}
+          />
         </div>
       </GlassCard>
     </FadeIn>

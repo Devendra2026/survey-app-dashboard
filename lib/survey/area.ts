@@ -7,7 +7,19 @@ import {
 
 export { builtUpSqftFromFloors, isOpenLandFloor, openLandSqftFromFloors, plinthSqftFromFloors };
 
-export { formatPropertyId, PROPERTY_ID_PATTERN, propertyUseCode } from "@/convex/propertyId";
+export {
+  formatPropertyId,
+  isLegacyPropertyIdFormat,
+  isNewPropertyIdFormat,
+  LEGACY_PROPERTY_ID_PATTERN,
+  normalizeParcelKey,
+  padParcelNo,
+  padUnitNo,
+  padWardNo,
+  PROPERTY_ID_PATTERN,
+  propertyUseCode,
+  validatePropertyIdFormat,
+} from "@/convex/propertyId";
 
 /** 1 sq ft = 0.09290304 sq m (standard conversion). */
 export const SQFT_TO_SQM = 0.09290304;

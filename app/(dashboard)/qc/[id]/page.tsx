@@ -2,6 +2,7 @@
 
 import { PageTransition } from "@/components/design-system/motion";
 import { QcActionBar } from "@/components/qc/qc-action-bar";
+import { QcParcelSiblingsPanel } from "@/components/qc/qc-parcel-siblings-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { QcPageSkeleton } from "@/components/shared/qc-route-skeleton";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -83,6 +84,24 @@ function QcReviewBody({ id }: { id: string }) {
             </span>
           )}
         </div>
+
+        <QcParcelSiblingsPanel
+          surveyId={id}
+          wardNo={survey.wardNo}
+          parcelNo={survey.parcelNo}
+          currentSurvey={{
+            _id: survey._id,
+            wardNo: survey.wardNo,
+            parcelNo: survey.parcelNo,
+            unitNo: survey.unitNo,
+            propertyUse: survey.propertyUse,
+            propertyId: survey.propertyId,
+            respondentName: survey.respondentName,
+            owners: survey.owners,
+            qcStatus: survey.qcStatus,
+            status: survey.status,
+          }}
+        />
 
         <QcReviewDetailView survey={survey} surveyId={id} />
 

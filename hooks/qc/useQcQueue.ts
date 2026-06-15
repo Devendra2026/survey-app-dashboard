@@ -8,6 +8,7 @@ import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters"
 import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
 import { searchQcRegistry, useSurveyList, useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
+import { activeParcelSiblingPool, buildParcelSiblingIndex, filterParcelSharedRows } from "@/lib/qc/parcel-siblings";
 import { computeQcWardStats, enrichServerWardStats, type QcWardRow } from "@/lib/qc/ward-stats";
 import { sanitizeQcWorkScope, type QcWorkScope } from "@/lib/qc/work-scope";
 import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
@@ -152,6 +153,13 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     if (mode === "registry" && activeTab === "all") {
       filtered = filtered.filter((r) => r.status !== "draft" || r.qcStatus !== "pending");
     }
+    if (activeTab === "parcelShared" && aggregateSurveys) {
+      const activePool = (aggregateSurveys as SurveyRow[]).filter(
+        (r) => r.qcStatus === "approved" || (r.qcStatus === "pending" && r.status === "submitted"),
+      );
+      const sharedIds = new Set(filterParcelSharedRows(activePool).map((r) => r._id));
+      filtered = filtered.filter((r) => sharedIds.has(r._id));
+    }
     return filtered;
   }, [mode, paginated.surveys, aggregateSurveys, registrySearch, activeTab, ulbCodes]);
 
@@ -175,6 +183,12 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     if (activeTab === "rejected") return rows.filter((r) => r.qcStatus === "rejected");
     if (activeTab === "active") {
       return rows.filter((r) => r.qcStatus === "approved" || (r.qcStatus === "pending" && r.status === "submitted"));
+    }
+    if (activeTab === "parcelShared") {
+      const activePool = rows.filter(
+        (r) => r.qcStatus === "approved" || (r.qcStatus === "pending" && r.status === "submitted"),
+      );
+      return filterParcelSharedRows(activePool);
     }
     return rows.filter((r) => r.status !== "draft" || r.qcStatus !== "pending");
   }, [mode, registryFiltered, filteredByDate, activeTab]);
@@ -211,6 +225,17 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
 
   const rejectedCount = stats.rejected;
 
+  const parcelSharedCount = useMemo(() => {
+    const base = (aggregateSurveys ?? filteredByDate) as SurveyRow[];
+    const activePool = activeParcelSiblingPool(base);
+    return filterParcelSharedRows(activePool).length;
+  }, [aggregateSurveys, filteredByDate]);
+
+  const parcelSiblingIndex = useMemo(() => {
+    const base = (aggregateSurveys ?? []) as SurveyRow[];
+    return buildParcelSiblingIndex(activeParcelSiblingPool(base));
+  }, [aggregateSurveys]);
+
   return {
     scope,
     dateFilters,
@@ -223,6 +248,8 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     stats,
     wardStats,
     rejectedCount,
+    parcelSharedCount,
+    parcelSiblingIndex,
     filteredByTab,
     pagedRows,
     canGoPrev,

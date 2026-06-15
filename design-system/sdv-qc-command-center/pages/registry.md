@@ -27,13 +27,19 @@
 
 ### Color Overrides
 
-- **Strategy:** Table: Alternating rows (white/light grey). Your product: Highlight #FFFACD (light yellow) or green. Text: Dark
+- **Strategy:** Navy header tint + amber QC accent border. Status row tints from `SURVEY_ROW_TONE`.
+- **Duplicate badge:** Brand red when same parcel has different owners; muted amber for shared parcel only.
+
+### Table Columns (registry + ward report)
+
+1. S.No · 2. Action · 3. Status · 4. Surveyor Name · 5. Property ID · 6. Ward Number · 7. Parcel Number (+ duplicate badge) · 8. Property Use · 9. Owner Name · 10. Mobile · 11. Date
 
 ### Component Overrides
 
-- Avoid: Wide tables breaking layout
+- Use shared `QcDataTable` with horizontal scroll on mobile (`min-w-[1100px]`)
+- Parcel duplicate badge inline in Parcel column — not a combined Registry Slot column
+- Avoid: Wide tables breaking layout without scroll wrapper
 - Avoid: Single row actions only
-- Avoid: Auto-play high-res video loops
 
 ---
 

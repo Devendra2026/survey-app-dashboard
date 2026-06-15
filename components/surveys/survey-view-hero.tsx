@@ -4,6 +4,8 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { useMasters } from "@/hooks/masters/useMasters";
+import { QC_TABLE } from "@/lib/design-system";
+import { formatRegistryParcelNo } from "@/lib/survey/format-registry-parcel";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import { resolveOwnerDisplayName } from "@/lib/survey/resolve-owner-name";
 import { cn } from "@/lib/utils";
@@ -26,7 +28,7 @@ function HeaderField({
   const empty = value == null || value === "" || value === "—";
   return (
     <div className={cn("min-w-0 space-y-0.5", className)}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">{label}</p>
+      <p className={QC_TABLE.sectionLabel}>{label}</p>
       <p
         className={cn(
           "truncate text-sm font-semibold text-foreground",
@@ -138,10 +140,11 @@ export function SurveyViewHero({
       </div>
 
       <div className={cn("grid gap-4 px-4 py-4 sm:px-5", showStatus && "lg:grid-cols-[1fr_auto] lg:items-end")}>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4 xl:grid-cols-5">
           <HeaderField label="Property ID" value={propertyId} mono className="sm:col-span-2 xl:col-span-1" />
           <HeaderField label="ULB Name" value={ulbName} className="sm:col-span-2 xl:col-span-1" />
           <HeaderField label="Ward No" value={survey.wardNo} mono />
+          <HeaderField label="Parcel No" value={formatRegistryParcelNo(survey.parcelNo)} mono />
           <HeaderField label="Owner Name" value={ownerName} />
         </div>
 
