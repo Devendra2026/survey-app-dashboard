@@ -2,22 +2,40 @@
 
 import type { DateFilterState } from "@/components/surveys/survey-filters";
 import type { SurveyRow } from "@/components/surveys/survey-tables";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters";
 import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
 import { searchQcRegistry, useSurveyList, useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
-import { computeQcWardStats, type QcWardRow } from "@/lib/qc/ward-stats";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
+import { computeQcWardStats, enrichServerWardStats, type QcWardRow } from "@/lib/qc/ward-stats";
 import { sanitizeQcWorkScope, type QcWorkScope } from "@/lib/qc/work-scope";
+import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
 import { qcTabToListFilters } from "@/lib/surveys/survey-list-filters";
+import { useQuery as useConvexQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 
-/** Cap for aggregate stats / ward roll-ups on command center (avoids 2000-row bulk load). */
+/** Cap for ward roll-up fallback only (primary stats come from server). */
 const QC_AGGREGATE_LIMIT = 500;
 
 export type QcQueueStats = {
   pending: number;
   approved: number;
+  rejected: number;
   drafts: number;
   submittedToday: number;
+  submitted: number;
+  qcCompletionPct: number;
+};
+
+const EMPTY_STATS: QcQueueStats = {
+  pending: 0,
+  approved: 0,
+  rejected: 0,
+  drafts: 0,
+  submittedToday: 0,
+  submitted: 0,
+  qcCompletionPct: 0,
 };
 
 export type UseQcQueueOptions = {
@@ -30,6 +48,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
   const mode = options.mode ?? "registry";
   const { scope, setScope, patchScope, scopeReady } = useQcWorkScope();
   const { masters } = useMasters();
+  const authReady = useConvexAuthReady();
 
   const queryScope = useMemo(() => {
     if (!masters) return {} as QcWorkScope;
@@ -39,10 +58,12 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     });
   }, [scope, masters]);
 
+  const ulbCodes = useMemo(() => (masters ? buildUlbCodeMap(masters.ulbs) : undefined), [masters]);
+
   const [dateFilters, setDateFilters] = useState<DateFilterState>({});
   const [registrySearch, setRegistrySearch] = useState("");
   const [pageSize, setPageSize] = useState(20);
-  const [activeTab, setActiveTab] = useState(options.initialTab ?? "pending");
+  const [activeTab, setActiveTab] = useState(options.initialTab ?? "active");
 
   const wardsForMuni = useWardsForMunicipality(scopeReady ? queryScope.municipalityId : undefined);
   const wardLabels = useMemo(() => {
@@ -85,31 +106,6 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     [queryScope.wardNo, queryScope.districtId, queryScope.municipalityId],
   );
 
-  const tabFilters = useMemo(() => qcTabToListFilters(activeTab), [activeTab]);
-
-  const aggregateSurveys = useSurveyList(scopeReady ? { ...scopeFilters, limit: QC_AGGREGATE_LIMIT } : {});
-
-  const paginated = useSurveyListPaginated(
-    { ...scopeFilters, ...tabFilters },
-    pageSize,
-    scopeReady && mode === "registry",
-  );
-
-  const isLoading =
-    mode === "registry"
-      ? paginated.isLoading || (scopeReady && aggregateSurveys === undefined)
-      : aggregateSurveys === undefined;
-
-  const registryFiltered = useMemo(() => {
-    const rows = mode === "registry" ? paginated.surveys : aggregateSurveys;
-    if (!rows) return rows;
-    let filtered = searchQcRegistry(rows as SurveyRow[], registrySearch) as SurveyRow[];
-    if (mode === "registry" && activeTab === "all") {
-      filtered = filtered.filter((r) => r.status !== "draft" || r.qcStatus !== "pending");
-    }
-    return filtered;
-  }, [mode, paginated.surveys, aggregateSurveys, registrySearch, activeTab]);
-
   const fromDateMs = useMemo(
     () => (dateFilters.fromDate ? new Date(`${dateFilters.fromDate}T00:00:00`).getTime() : undefined),
     [dateFilters.fromDate],
@@ -119,31 +115,69 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     [dateFilters.toDate],
   );
 
+  const tabFilters = useMemo(() => qcTabToListFilters(activeTab), [activeTab]);
+
+  const serverStats = useConvexQuery(
+    api.qc.commandCenterStats,
+    authReady && scopeReady
+      ? {
+          wardNo: scopeFilters.wardNo,
+          districtId: scopeFilters.districtId as Id<"districts"> | undefined,
+          municipalityId: scopeFilters.municipalityId as Id<"municipalities"> | undefined,
+          fromMs: fromDateMs,
+          toMs: toDateMs,
+        }
+      : "skip",
+  );
+
+  const aggregateSurveys = useSurveyList(scopeReady ? { ...scopeFilters, limit: QC_AGGREGATE_LIMIT } : {});
+
+  const paginated = useSurveyListPaginated(
+    { ...scopeFilters, ...tabFilters, fromMs: fromDateMs, toMs: toDateMs },
+    pageSize,
+    scopeReady && mode === "registry",
+  );
+
+  const isLoading =
+    mode === "registry"
+      ? paginated.isLoading || (scopeReady && serverStats === undefined)
+      : scopeReady
+        ? serverStats === undefined || aggregateSurveys === undefined
+        : aggregateSurveys === undefined;
+
+  const registryFiltered = useMemo(() => {
+    const rows = mode === "registry" ? paginated.surveys : aggregateSurveys;
+    if (!rows) return rows;
+    let filtered = searchQcRegistry(rows as SurveyRow[], registrySearch, ulbCodes) as SurveyRow[];
+    if (mode === "registry" && activeTab === "all") {
+      filtered = filtered.filter((r) => r.status !== "draft" || r.qcStatus !== "pending");
+    }
+    return filtered;
+  }, [mode, paginated.surveys, aggregateSurveys, registrySearch, activeTab, ulbCodes]);
+
   const filteredByDate = useMemo(() => {
-    const base = mode === "command" ? (aggregateSurveys ?? []) : (registryFiltered ?? []);
+    const base = aggregateSurveys ?? [];
     return base.filter((r) => {
       const ts = r.submittedAt ?? r._creationTime;
       if (fromDateMs !== undefined && ts < fromDateMs) return false;
       if (toDateMs !== undefined && ts > toDateMs) return false;
       return true;
     }) as SurveyRow[];
-  }, [mode, aggregateSurveys, registryFiltered, fromDateMs, toDateMs]);
+  }, [aggregateSurveys, fromDateMs, toDateMs]);
 
   const filteredByTab = useMemo(() => {
     if (mode === "registry") {
-      return (registryFiltered ?? []).filter((r) => {
-        const ts = r.submittedAt ?? r._creationTime;
-        if (fromDateMs !== undefined && ts < fromDateMs) return false;
-        if (toDateMs !== undefined && ts > toDateMs) return false;
-        return true;
-      }) as SurveyRow[];
+      return (registryFiltered ?? []) as SurveyRow[];
     }
     const rows = filteredByDate;
     if (activeTab === "pending") return rows.filter((r) => r.qcStatus === "pending" && r.status === "submitted");
     if (activeTab === "approved") return rows.filter((r) => r.qcStatus === "approved");
     if (activeTab === "rejected") return rows.filter((r) => r.qcStatus === "rejected");
+    if (activeTab === "active") {
+      return rows.filter((r) => r.qcStatus === "approved" || (r.qcStatus === "pending" && r.status === "submitted"));
+    }
     return rows.filter((r) => r.status !== "draft" || r.qcStatus !== "pending");
-  }, [mode, registryFiltered, filteredByDate, activeTab, fromDateMs, toDateMs]);
+  }, [mode, registryFiltered, filteredByDate, activeTab]);
 
   const pagedRows = useMemo(() => {
     if (mode === "registry") return filteredByTab;
@@ -156,26 +190,26 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
   const canGoNext = mode === "registry" ? paginated.canGoNext : false;
 
   const stats = useMemo((): QcQueueStats => {
-    const rows = filteredByDate;
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayMs = todayStart.getTime();
-
+    if (!serverStats) return EMPTY_STATS;
     return {
-      pending: rows.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length,
-      approved: rows.filter((r) => r.qcStatus === "approved").length,
-      drafts: rows.filter((r) => r.status === "draft").length,
-      submittedToday: rows.filter((r) => r.status === "submitted" && (r.submittedAt ?? r._creationTime) >= todayMs)
-        .length,
+      pending: serverStats.pending,
+      approved: serverStats.approved,
+      rejected: serverStats.rejected,
+      drafts: serverStats.drafts,
+      submittedToday: serverStats.submittedToday,
+      submitted: serverStats.submitted,
+      qcCompletionPct: serverStats.qcCompletionPct,
     };
-  }, [filteredByDate]);
+  }, [serverStats]);
 
-  const wardStats = useMemo(
-    (): QcWardRow[] => computeQcWardStats(filteredByDate, wardLabels),
-    [filteredByDate, wardLabels],
-  );
+  const wardStats = useMemo((): QcWardRow[] => {
+    if (serverStats?.wardStats) {
+      return enrichServerWardStats(serverStats.wardStats, wardLabels);
+    }
+    return computeQcWardStats(filteredByDate, wardLabels);
+  }, [serverStats?.wardStats, filteredByDate, wardLabels]);
 
-  const rejectedCount = useMemo(() => filteredByDate.filter((r) => r.qcStatus === "rejected").length, [filteredByDate]);
+  const rejectedCount = stats.rejected;
 
   return {
     scope,

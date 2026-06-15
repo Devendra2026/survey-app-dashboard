@@ -177,6 +177,7 @@ export const list = query({
   args: {
     status: v.optional(surveyStatus),
     qcStatus: v.optional(qcStatus),
+    qcStatuses: v.optional(v.array(qcStatus)),
     wardNo: v.optional(v.string()),
     districtId: v.optional(v.id("districts")),
     municipalityId: v.optional(v.id("municipalities")),
@@ -223,6 +224,14 @@ export const list = query({
     if (args.qcStatus) {
       rows = rows.filter((r) => r.qcStatus === args.qcStatus);
     }
+    if (args.qcStatuses && args.qcStatuses.length > 0) {
+      const allowed = new Set(args.qcStatuses);
+      rows = rows.filter((r) => {
+        if (!allowed.has(r.qcStatus)) return false;
+        if (r.qcStatus === "pending" && r.status !== "submitted") return false;
+        return true;
+      });
+    }
     if (args.wardNo) {
       rows = rows.filter((r) => wardNumbersMatch(r.wardNo, args.wardNo!));
     }
@@ -239,6 +248,7 @@ export const list = query({
 const listFilterArgs = {
   status: v.optional(surveyStatus),
   qcStatus: v.optional(qcStatus),
+  qcStatuses: v.optional(v.array(qcStatus)),
   wardNo: v.optional(v.string()),
   districtId: v.optional(v.id("districts")),
   municipalityId: v.optional(v.id("municipalities")),
@@ -272,6 +282,7 @@ function applySurveyListFilters(
   args: {
     status?: Doc<"surveys">["status"];
     qcStatus?: Doc<"surveys">["qcStatus"];
+    qcStatuses?: Doc<"surveys">["qcStatus"][];
     wardNo?: string;
     districtId?: Id<"districts">;
     municipalityId?: Id<"municipalities">;
@@ -291,6 +302,14 @@ function applySurveyListFilters(
     filtered = filtered.filter((r) => r.status === args.status);
   }
   if (args.qcStatus) filtered = filtered.filter((r) => r.qcStatus === args.qcStatus);
+  if (args.qcStatuses && args.qcStatuses.length > 0) {
+    const allowed = new Set(args.qcStatuses);
+    filtered = filtered.filter((r) => {
+      if (!allowed.has(r.qcStatus)) return false;
+      if (r.qcStatus === "pending" && r.status !== "submitted") return false;
+      return true;
+    });
+  }
   if (args.wardNo) filtered = filtered.filter((r) => wardNumbersMatch(r.wardNo, args.wardNo!));
   if (args.fromMs !== undefined) filtered = filtered.filter((r) => r._creationTime >= args.fromMs!);
   if (args.toMs !== undefined) filtered = filtered.filter((r) => r._creationTime <= args.toMs!);
@@ -340,20 +359,23 @@ async function querySurveysByDistrict(
     .collect();
 }
 
+export type SurveyListFilterArgs = {
+  status?: Doc<"surveys">["status"];
+  qcStatus?: Doc<"surveys">["qcStatus"];
+  qcStatuses?: Doc<"surveys">["qcStatus"][];
+  wardNo?: string;
+  districtId?: Id<"districts">;
+  municipalityId?: Id<"municipalities">;
+  surveyorId?: Id<"users">;
+  fromMs?: number;
+  toMs?: number;
+};
+
 /** Load all rows matching list filters using indexes, then scope + filter in memory. */
-async function collectSurveysForListPaginated(
+export async function collectSurveysForListPaginated(
   ctx: QueryCtx,
   me: Doc<"users">,
-  args: {
-    status?: Doc<"surveys">["status"];
-    qcStatus?: Doc<"surveys">["qcStatus"];
-    wardNo?: string;
-    districtId?: Id<"districts">;
-    municipalityId?: Id<"municipalities">;
-    surveyorId?: Id<"users">;
-    fromMs?: number;
-    toMs?: number;
-  },
+  args: SurveyListFilterArgs,
   scope: Awaited<ReturnType<typeof resolveTenantScope>>,
   muniIds: Set<Id<"municipalities">>,
   access: Awaited<ReturnType<typeof fieldSurveyAccess>>,

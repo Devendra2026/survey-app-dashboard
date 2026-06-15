@@ -16,6 +16,7 @@ import { useMemo } from "react";
 export interface SurveyListFilters {
   status?: SurveyStatus;
   qcStatus?: QcStatus;
+  qcStatuses?: QcStatus[];
   wardNo?: string;
   districtId?: string;
   municipalityId?: string;
@@ -34,6 +35,7 @@ export function useSurveyList(filters: SurveyListFilters = {}) {
       ? {
           status: filters.status,
           qcStatus: filters.qcStatus,
+          qcStatuses: filters.qcStatuses,
           wardNo: filters.wardNo,
           districtId: filters.districtId as Id<"districts"> | undefined,
           municipalityId: filters.municipalityId as Id<"municipalities"> | undefined,
@@ -46,7 +48,7 @@ export function useSurveyList(filters: SurveyListFilters = {}) {
 
 /** Cursor-paginated survey list sorted by ward then parcel ascending. */
 export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize = 20, enabled = true) {
-  const resetKey = `${filters.status ?? ""}|${filters.qcStatus ?? ""}|${filters.wardNo ?? ""}|${filters.districtId ?? ""}|${filters.municipalityId ?? ""}|${filters.surveyorId ?? ""}|${filters.fromMs ?? ""}|${filters.toMs ?? ""}`;
+  const resetKey = `${filters.status ?? ""}|${filters.qcStatus ?? ""}|${(filters.qcStatuses ?? []).join(",")}|${filters.wardNo ?? ""}|${filters.districtId ?? ""}|${filters.municipalityId ?? ""}|${filters.surveyorId ?? ""}|${filters.fromMs ?? ""}|${filters.toMs ?? ""}`;
   const {
     cursor,
     pageIndex,
@@ -65,6 +67,7 @@ export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize
           paginationOpts: { numItems: size, cursor },
           status: filters.status,
           qcStatus: filters.qcStatus,
+          qcStatuses: filters.qcStatuses,
           wardNo: filters.wardNo,
           districtId: filters.districtId as Id<"districts"> | undefined,
           municipalityId: filters.municipalityId as Id<"municipalities"> | undefined,
@@ -143,20 +146,28 @@ export function searchSurveys<
   });
 }
 
-/** QC registry search — owner name, parcel number, and ward number. */
+/** QC registry search — property ID, owner name, parcel number, and ward number. */
 export function searchQcRegistry<
-  T extends {
+  T extends PropertyIdSource & {
     respondentName?: string;
     parcelNo?: string;
     wardNo?: string;
     owners?: { name?: string }[];
   },
->(rows: T[], term: string): T[] {
+>(rows: T[], term: string, ulbCodes?: Map<string, string>): T[] {
   const q = term.trim().toLowerCase();
   if (!q) return rows;
   return rows.filter((r) => {
+    const displayId = resolveDisplayPropertyId(r, ulbCodes);
     const wardVariants = [r.wardNo, r.wardNo ? `ward ${r.wardNo}` : undefined, r.wardNo ? `w${r.wardNo}` : undefined];
-    return [r.respondentName, r.parcelNo, ...wardVariants, ...(r.owners?.map((o) => o.name) ?? [])]
+    return [
+      displayId,
+      r.propertyId,
+      r.respondentName,
+      r.parcelNo,
+      ...wardVariants,
+      ...(r.owners?.map((o) => o.name) ?? []),
+    ]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(q));
   });

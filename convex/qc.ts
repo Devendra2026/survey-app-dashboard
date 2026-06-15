@@ -10,8 +10,111 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireCapability } from "./capabilities";
+import { fieldSurveyAccess } from "./fieldAccess";
 import { assertCanReadWard, clientError, mapTruthyById, requireUser, writeAudit } from "./helpers";
-import { assertMunicipalityInScope } from "./tenancy";
+import { computeQcWardAggregates } from "./lib/qcWardStats";
+import { collectSurveysForListPaginated } from "./survey";
+import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
+
+const wardStatsEntryShape = {
+  wardNo: v.string(),
+  municipalityId: v.id("municipalities"),
+  city: v.string(),
+  pending: v.number(),
+  approved: v.number(),
+  rejected: v.number(),
+  drafts: v.number(),
+  total: v.number(),
+  qcCompletionPct: v.number(),
+  firstPendingId: v.optional(v.id("surveys")),
+};
+
+const commandCenterStatsShape = {
+  pending: v.number(),
+  approved: v.number(),
+  rejected: v.number(),
+  drafts: v.number(),
+  submittedToday: v.number(),
+  submitted: v.number(),
+  qcCompletionPct: v.number(),
+  wardStats: v.array(v.object(wardStatsEntryShape)),
+};
+
+/** Scoped KPI counts for the QC command center — full dataset, not client-capped. */
+export const commandCenterStats = query({
+  args: {
+    districtId: v.optional(v.id("districts")),
+    municipalityId: v.optional(v.id("municipalities")),
+    wardNo: v.optional(v.string()),
+    fromMs: v.optional(v.number()),
+    toMs: v.optional(v.number()),
+  },
+  returns: v.object(commandCenterStatsShape),
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    await requireCapability(ctx, me, "qc.review");
+
+    const scope = await resolveTenantScope(ctx, me);
+    const districtIds = tenantDistrictIds(scope);
+    const muniIds = tenantMunicipalityIds(scope);
+    const access = await fieldSurveyAccess(ctx, me);
+
+    if (args.municipalityId) {
+      await assertMunicipalityInScope(ctx, me, args.municipalityId);
+    }
+    if (args.districtId && access !== "admin" && !districtIds.has(args.districtId)) {
+      clientError("FORBIDDEN", "This district is outside your assigned scope");
+    }
+
+    const rows = await collectSurveysForListPaginated(
+      ctx,
+      me,
+      {
+        districtId: args.districtId,
+        municipalityId: args.municipalityId,
+        wardNo: args.wardNo,
+      },
+      scope,
+      muniIds,
+      access,
+    );
+
+    const inDateRange = (submittedAt: number | undefined, creationTime: number) => {
+      const ts = submittedAt ?? creationTime;
+      if (args.fromMs !== undefined && ts < args.fromMs) return false;
+      if (args.toMs !== undefined && ts > args.toMs) return false;
+      return true;
+    };
+
+    const filtered = rows.filter((r) => inDateRange(r.submittedAt, r._creationTime));
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+
+    const pending = filtered.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length;
+    const approved = filtered.filter((r) => r.qcStatus === "approved").length;
+    const rejected = filtered.filter((r) => r.qcStatus === "rejected").length;
+    const decided = pending + approved + rejected;
+    const qcCompletionPct = decided > 0 ? Math.round((approved / decided) * 100) : 0;
+    const wardStats = computeQcWardAggregates(filtered);
+
+    return {
+      pending,
+      approved,
+      rejected,
+      drafts: filtered.filter((r) => r.status === "draft").length,
+      submittedToday: filtered.filter(
+        (r) =>
+          r.status === "submitted" &&
+          (r.submittedAt !== undefined ? r.submittedAt >= todayMs : r._creationTime >= todayMs),
+      ).length,
+      submitted: filtered.filter((r) => r.status === "submitted").length,
+      qcCompletionPct,
+      wardStats,
+    };
+  },
+});
 
 export const listRemarks = query({
   args: { surveyId: v.id("surveys") },

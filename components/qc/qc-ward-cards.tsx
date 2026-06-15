@@ -15,7 +15,7 @@ const WARD_METRIC_TONES: Record<WardMetricTone, string> = {
   pending: "text-amber-800 dark:text-amber-200",
   approved: "text-emerald-700 dark:text-emerald-300",
   drafts: "text-violet-800 dark:text-violet-300",
-  total: "text-sky-800 dark:text-sky-200",
+  total: "text-brand-navy dark:text-primary",
 };
 
 const WARD_METRIC_ICONS: Record<WardMetricTone, LucideIcon> = {
@@ -66,17 +66,27 @@ function WardCard({ row }: { row: QcWardRow }) {
   const reportHref = `/qc/wards/${encodeURIComponent(row.wardNo)}${
     row.municipalityId ? `?municipalityId=${row.municipalityId}` : ""
   }`;
+  const qcQueue = row.pending + row.approved + row.rejected;
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-xl border-2 border-sky-200/80 bg-card shadow-sm transition-shadow duration-200 hover:shadow-md dark:border-sky-500/25 dark:bg-card/90">
-      <header className="flex items-start justify-between gap-2 border-b border-sky-100/80 bg-sky-50/50 px-4 py-3 dark:border-sky-500/15 dark:bg-sky-500/8">
+    <article className="flex flex-col overflow-hidden rounded-xl border-2 border-amber-200/70 bg-card shadow-sm transition-shadow duration-200 hover:shadow-md dark:border-amber-500/25 dark:bg-card/90">
+      <header className="flex items-start justify-between gap-2 border-b border-amber-100/80 bg-linear-to-r from-amber-50/80 via-amber-50/40 to-transparent px-4 py-3 dark:border-amber-500/15 dark:from-amber-500/10">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-bold text-foreground">{title}</h3>
+          <h3 className="truncate font-display text-sm font-bold text-foreground">{title}</h3>
           {row.city && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{row.city}</p>}
+          {qcQueue > 0 && (
+            <p className="mt-1 text-[11px] font-medium text-amber-800 dark:text-amber-200">
+              {row.approved.toLocaleString()} approved · {row.pending.toLocaleString()} pending
+              {row.qcCompletionPct > 0 ? ` · ${row.qcCompletionPct}% complete` : ""}
+            </p>
+          )}
         </div>
-        <span className="shrink-0 rounded-lg bg-sky-600 px-2.5 py-1 text-sm font-bold tabular-nums text-white dark:bg-sky-500">
-          {row.total.toLocaleString()}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+          <span className="rounded-lg bg-amber-600 px-2.5 py-1 font-mono text-sm font-bold tabular-nums text-white dark:bg-amber-500">
+            {row.pending.toLocaleString()}
+          </span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">QC Pending</span>
+        </div>
       </header>
 
       <div className="grid grid-cols-2 divide-x divide-y divide-border/50 px-2 py-4 sm:grid-cols-4 sm:divide-y-0">
@@ -103,7 +113,7 @@ function WardCard({ row }: { row: QcWardRow }) {
           asChild
           size="sm"
           variant="outline"
-          className="h-7 flex-1 cursor-pointer rounded-lg border-sky-200/80 text-xs dark:border-sky-600/40"
+          className="h-7 flex-1 cursor-pointer rounded-lg border-amber-200/80 text-xs dark:border-amber-600/40"
         >
           <Link href={wardHref("/qc/registry", row)}>
             <Table2 className="h-3 w-3" aria-hidden />
@@ -114,7 +124,7 @@ function WardCard({ row }: { row: QcWardRow }) {
           asChild
           size="sm"
           variant="outline"
-          className="h-7 flex-1 cursor-pointer rounded-lg border-sky-200/80 text-xs dark:border-sky-600/40"
+          className="h-7 flex-1 cursor-pointer rounded-lg border-amber-200/80 text-xs dark:border-amber-600/40"
         >
           <Link href={reportHref}>
             <FileText className="h-3 w-3" aria-hidden />

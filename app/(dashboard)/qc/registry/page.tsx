@@ -14,6 +14,7 @@ function QcRegistryContent() {
   const wardFromUrl = searchParams.get("wardNo") ?? undefined;
   const muniFromUrl = searchParams.get("municipalityId") ?? undefined;
   const districtFromUrl = searchParams.get("districtId") ?? undefined;
+  const tabFromUrl = searchParams.get("tab") ?? undefined;
 
   const {
     scope,
@@ -35,7 +36,7 @@ function QcRegistryContent() {
     handlePageSizeChange,
     goNext,
     goPrev,
-  } = useQcQueue({ mode: "registry" });
+  } = useQcQueue({ mode: "registry", initialTab: tabFromUrl ?? "active" });
 
   useEffect(() => {
     if (!wardFromUrl && !muniFromUrl && !districtFromUrl) return;
@@ -45,6 +46,12 @@ function QcRegistryContent() {
       districtId: districtFromUrl ?? scope.districtId,
     });
   }, [wardFromUrl, muniFromUrl, districtFromUrl, patchScope, scope.districtId, scope.municipalityId, scope.wardNo]);
+
+  useEffect(() => {
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      handleTabChange(tabFromUrl);
+    }
+  }, [tabFromUrl, activeTab, handleTabChange]);
 
   return (
     <PageTransition className="space-y-6 lg:space-y-8">

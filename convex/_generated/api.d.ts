@@ -22,6 +22,7 @@ import type * as floors from "../floors.js";
 import type * as gpsAccuracy from "../gpsAccuracy.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
+import type * as lib_qcWardStats from "../lib/qcWardStats.js";
 import type * as masterCatalog from "../masterCatalog.js";
 import type * as masters from "../masters.js";
 import type * as ownerConstants from "../ownerConstants.js";
@@ -65,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   gpsAccuracy: typeof gpsAccuracy;
   helpers: typeof helpers;
   http: typeof http;
+  "lib/qcWardStats": typeof lib_qcWardStats;
   masterCatalog: typeof masterCatalog;
   masters: typeof masters;
   ownerConstants: typeof ownerConstants;

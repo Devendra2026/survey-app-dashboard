@@ -13,9 +13,10 @@ export default function QcPortalLayout({ children }: { children: React.ReactNode
   return (
     <div
       className={cn(
-        "qc-portal -mx-4 -mt-2 min-h-full space-y-0 rounded-none sm:-mx-5 lg:-mx-8",
-        "border-t-4 border-amber-500/80 bg-linear-to-b from-amber-500/6 via-transparent to-transparent",
-        "dark:border-amber-400/70 dark:from-amber-500/10",
+        "qc-portal font-display -mx-4 -mt-2 min-h-full space-y-0 rounded-none sm:-mx-5 lg:-mx-8",
+        "border-t-4 border-amber-500/80 bg-[#F8FAFC] dark:bg-background",
+        "bg-[radial-gradient(ellipse_at_top_left,rgba(245,158,11,0.08),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(0,35,102,0.04),transparent_55%)]",
+        "dark:border-amber-400/70 dark:bg-[radial-gradient(ellipse_at_top_left,rgba(245,158,11,0.12),transparent_50%)]",
       )}
       data-module="qc"
     >

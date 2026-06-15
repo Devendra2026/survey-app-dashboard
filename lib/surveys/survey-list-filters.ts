@@ -3,6 +3,7 @@ import type { QcStatus, SurveyStatus } from "@/lib/domain";
 type ListStatusFilter = {
   status?: SurveyStatus;
   qcStatus?: QcStatus;
+  qcStatuses?: QcStatus[];
 };
 
 /** Map Surveys registry tab → server-side list filters. */
@@ -26,6 +27,8 @@ export function surveyTabToListFilters(activeTab: string): ListStatusFilter {
 /** Map QC registry tab → server-side list filters. */
 export function qcTabToListFilters(activeTab: string): ListStatusFilter {
   switch (activeTab) {
+    case "active":
+      return { qcStatuses: ["pending", "approved"] as QcStatus[] };
     case "pending":
       return { status: "submitted" as SurveyStatus, qcStatus: "pending" as QcStatus };
     case "approved":

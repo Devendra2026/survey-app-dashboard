@@ -81,6 +81,26 @@ export const ADMIN_MODULE = {
   } as const,
 } as const;
 
+/** QC Command Center module — amber workflow accent on navy data canvas. */
+export const QC_MODULE = {
+  accent: "#F59E0B",
+  approved: "#10B981",
+  structure: "#002366",
+  canvas: "#F8FAFC",
+  heroGradient: "amber" as const,
+  tabActive: "data-[state=active]:bg-amber-600 data-[state=active]:text-white",
+  tableHeader:
+    "border-amber-500/15 bg-linear-to-r from-amber-500/12 via-amber-500/6 to-transparent dark:from-amber-500/18",
+  cardBorder: "border-amber-500/15",
+  scopeBanner: "border-amber-500/20 bg-amber-50/30 dark:bg-amber-950/15",
+  metricTones: {
+    pending: "warning",
+    approved: "success",
+    progress: "info",
+    drafts: "default",
+  } as const,
+} as const;
+
 export const NAV_ITEMS = [
   { key: "dashboard", href: "/dashboard", label: "Dashboard", shortLabel: "Home" },
   { key: "surveys", href: "/surveys", label: "Surveys", shortLabel: "Surveys" },

@@ -4,6 +4,7 @@ import { ExecutiveHero, SectionHeader } from "@/components/design-system/executi
 import { GlassCard } from "@/components/design-system/glass-card";
 import { MetricCard } from "@/components/design-system/metric-card";
 import { FadeIn, StaggerGrid, StaggerItem } from "@/components/design-system/motion";
+import { QcPipeline } from "@/components/design-system/qc-pipeline";
 import { QcRegistrySearchBar, QcRegistryTable, type QcRegistryRow } from "@/components/qc/qc-registry-table";
 import { QcWardCards } from "@/components/qc/qc-ward-cards";
 import { CardsSkeleton } from "@/components/shared/loading";
@@ -13,8 +14,10 @@ import { useMasters } from "@/hooks/masters/useMasters";
 import type { QcQueueStats } from "@/hooks/qc/useQcQueue";
 import type { QcWardRow } from "@/lib/qc/ward-stats";
 import { isQcScopeComplete, type QcWorkScope } from "@/lib/qc/work-scope";
-import { CalendarDays, CheckCircle2, Clock3, FileEdit, Filter, MapPin, ShieldCheck, Table2 } from "lucide-react";
+import { estimateQcPendingCount } from "@/lib/surveys/survey-list-filters";
+import { CheckCircle2, Clock3, FileEdit, Filter, MapPin, Percent, ShieldCheck, Table2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 function TabPill({
   value,
@@ -69,6 +72,12 @@ export function QcRegistryHero() {
 }
 
 export function QcMetricsSection({ stats, isLoading }: { stats: QcQueueStats; isLoading: boolean }) {
+  const remaining = estimateQcPendingCount({
+    submitted: stats.submitted,
+    approved: stats.approved,
+    rejected: stats.rejected,
+  });
+
   return (
     <section aria-labelledby="qc-kpi-heading">
       <SectionHeader
@@ -83,18 +92,9 @@ export function QcMetricsSection({ stats, isLoading }: { stats: QcQueueStats; is
         <StaggerGrid className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           <StaggerItem>
             <MetricCard
-              label="Field Drafts"
-              value={stats.drafts.toLocaleString()}
-              hint="not yet submitted"
-              icon={FileEdit}
-              tone="default"
-            />
-          </StaggerItem>
-          <StaggerItem>
-            <MetricCard
               label="Pending QC"
               value={stats.pending.toLocaleString()}
-              hint="awaiting verification"
+              hint={`${remaining.toLocaleString()} remaining · ${stats.submitted.toLocaleString()} submitted total`}
               icon={Clock3}
               tone="warning"
             />
@@ -103,23 +103,63 @@ export function QcMetricsSection({ stats, isLoading }: { stats: QcQueueStats; is
             <MetricCard
               label="Approved QC"
               value={stats.approved.toLocaleString()}
-              hint="QC passed"
+              hint={`${stats.qcCompletionPct}% QC complete`}
               icon={CheckCircle2}
               tone="success"
             />
           </StaggerItem>
           <StaggerItem>
             <MetricCard
-              label="Submitted Today"
-              value={stats.submittedToday.toLocaleString()}
-              hint="new intake today"
-              icon={CalendarDays}
+              label="QC Progress"
+              value={`${stats.qcCompletionPct}%`}
+              hint={`${stats.approved.toLocaleString()} approved of ${(stats.pending + stats.approved + stats.rejected).toLocaleString()} in queue`}
+              icon={Percent}
               tone="info"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <MetricCard
+              label="Field Drafts"
+              value={stats.drafts.toLocaleString()}
+              hint={`${stats.submittedToday.toLocaleString()} submitted today`}
+              icon={FileEdit}
+              tone="default"
             />
           </StaggerItem>
         </StaggerGrid>
       )}
     </section>
+  );
+}
+
+export function QcPipelineSection({
+  stats,
+  rejectedCount,
+  isLoading,
+}: {
+  stats: QcQueueStats;
+  rejectedCount: number;
+  isLoading: boolean;
+}) {
+  const router = useRouter();
+
+  if (isLoading) {
+    return (
+      <FadeIn delay={0.03}>
+        <CardsSkeleton count={1} />
+      </FadeIn>
+    );
+  }
+
+  return (
+    <FadeIn delay={0.03}>
+      <QcPipeline
+        pending={stats.pending}
+        approved={stats.approved}
+        rejected={rejectedCount}
+        onStageClick={(tab) => router.push(`/qc/registry?tab=${tab}`)}
+      />
+    </FadeIn>
   );
 }
 
@@ -254,6 +294,7 @@ export function QcReviewRegistry({
   onTabChange: (tab: string) => void;
 }) {
   const totalDecided = stats.pending + stats.approved + rejectedCount;
+  const activeCount = stats.pending + stats.approved;
 
   return (
     <FadeIn delay={0.08}>
@@ -270,6 +311,12 @@ export function QcReviewRegistry({
         <div className="border-b border-border/60 bg-muted/15 px-4 py-2.5">
           <Tabs value={activeTab} onValueChange={onTabChange}>
             <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
+              <TabPill
+                value="active"
+                label="Pending & Approved"
+                count={activeCount}
+                activeColor="data-[state=active]:bg-amber-600 data-[state=active]:text-white"
+              />
               <TabPill
                 value="pending"
                 label="Pending QC"
@@ -292,7 +339,7 @@ export function QcReviewRegistry({
                 value="all"
                 label="All"
                 count={totalDecided}
-                activeColor="data-[state=active]:bg-amber-600 data-[state=active]:text-white"
+                activeColor="data-[state=active]:bg-brand-navy data-[state=active]:text-white dark:data-[state=active]:bg-primary"
               />
             </TabsList>
           </Tabs>
