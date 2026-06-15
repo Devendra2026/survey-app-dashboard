@@ -17,6 +17,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { DraftReassignFilters } from "@/hooks/surveys/useSurveyReassignment";
 import { useDraftOwners, useReassignDrafts } from "@/hooks/surveys/useSurveyReassignment";
+import { useHasCapability } from "@/hooks/use-capability";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { parseConvexError } from "@/lib/errors";
 import { useQuery } from "convex/react";
@@ -36,17 +37,19 @@ export function SurveyReassignDialog({
   scope: DraftReassignFilters;
 }) {
   const ready = useConvexAuthReady();
+  const canReassign = useHasCapability("surveys.reassign");
   const draftOwners = useDraftOwners(scope);
   const reassign = useReassignDrafts();
-  const fieldUsers = useQuery(
-    api.admin.listUsers,
-    ready && open
-      ? {
-          paginationOpts: { numItems: 200, cursor: null },
-          status: "active",
-        }
-      : "skip",
-  );
+  const { page: fieldUserPage } =
+    useQuery(
+      api.admin.listUsers,
+      ready && canReassign && open
+        ? {
+            paginationOpts: { numItems: 200, cursor: null },
+            status: "active",
+          }
+        : "skip",
+    ) ?? {};
 
   const [mode, setMode] = useState<"fromSurveyor" | "orphaned">("fromSurveyor");
   const [fromSurveyorId, setFromSurveyorId] = useState<string>(ALL);
@@ -54,9 +57,9 @@ export function SurveyReassignDialog({
   const [busy, setBusy] = useState(false);
 
   const targetOptions = useMemo(() => {
-    const rows = fieldUsers?.page ?? [];
+    const rows = fieldUserPage ?? [];
     return rows.filter((u) => u.role === "surveyor" || u.role === "supervisor");
-  }, [fieldUsers]);
+  }, [fieldUserPage]);
 
   const sourceOptions = useMemo(() => {
     const owners = draftOwners?.owners ?? [];

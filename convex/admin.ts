@@ -51,6 +51,18 @@ async function assertCanPatchUser(
   }
 }
 
+/** Read paths that list or hydrate user rows for admin UI and survey reassignment. */
+async function assertCanListUsers(ctx: QueryCtx, me: Doc<"users">): Promise<void> {
+  const canList =
+    (await hasCapability(ctx, me, "users.view")) ||
+    (await hasCapability(ctx, me, "users.approve")) ||
+    (await hasCapability(ctx, me, "surveys.viewAll")) ||
+    (await hasCapability(ctx, me, "surveys.reassign"));
+  if (!canList) {
+    clientError("FORBIDDEN", "You don't have permission for this action.");
+  }
+}
+
 /* ────────────────────────── approval workflow ────────────────────────── */
 
 /**
@@ -316,7 +328,7 @@ export const listUsers = query({
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "admin", "supervisor");
+    await assertCanListUsers(ctx, me);
 
     let q;
     if (args.role && args.status) {
@@ -344,7 +356,7 @@ export const countActiveUsers = query({
   args: {},
   handler: async (ctx) => {
     const me = await requireUser(ctx);
-    requireRole(me, "admin", "supervisor");
+    await assertCanListUsers(ctx, me);
 
     const rows = await ctx.db
       .query("users")
@@ -359,7 +371,7 @@ export const getUserForAdmin = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "admin", "supervisor");
+    await assertCanListUsers(ctx, me);
 
     const row = await ctx.db.get(args.userId);
     if (!row) return null;
