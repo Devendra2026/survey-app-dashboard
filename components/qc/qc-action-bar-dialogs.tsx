@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 
-type QcRewriteDialogProps = {
+type QcReopenDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reason: string;
@@ -21,42 +21,41 @@ type QcRewriteDialogProps = {
   onConfirm: () => void;
 };
 
-export function QcRewriteDialog({
+export function QcReopenDialog({
   open,
   onOpenChange,
   reason,
   onReasonChange,
   isWorking,
   onConfirm,
-}: QcRewriteDialogProps) {
+}: QcReopenDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="sm:max-w-md">
         <AlertDialogHeader className="text-left">
-          <AlertDialogTitle>Return for re-write</AlertDialogTitle>
+          <AlertDialogTitle>Reopen for review</AlertDialogTitle>
           <AlertDialogDescription>
-            The survey will return to <strong>draft</strong> so the surveyor can fix and resubmit. Enter a reason they
-            will see in their notification.
+            This survey will return to the QC queue as <strong>pending</strong>. You can correct the data, save, and
+            approve again. Enter a reason for the audit log.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <Textarea
-          placeholder="What needs to be corrected?"
+          placeholder="Why is this survey being reopened?"
           value={reason}
           onChange={(e) => onReasonChange(e.target.value)}
           className="min-h-24 rounded-xl"
-          aria-label="Re-write reason"
+          aria-label="Reopen reason"
         />
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isWorking}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
             disabled={isWorking || !reason.trim()}
             onClick={(e) => {
               e.preventDefault();
               onConfirm();
             }}
           >
-            Confirm re-write
+            Reopen survey
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -8,7 +8,6 @@ import { QcPageSkeleton } from "@/components/shared/qc-route-skeleton";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcReviewDetailView } from "@/components/surveys/survey-detail-view";
 import { SurveyViewHero } from "@/components/surveys/survey-view-hero";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcPendingQueue } from "@/hooks/qc/useQcPendingQueue";
 import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
@@ -17,7 +16,7 @@ import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { isSurveyAwaitingQc, wasEditedAfterSubmit } from "@/lib/domain";
 import { findNextPendingSurvey } from "@/lib/qc/queue-nav";
 import { scopeFromSurveyRow } from "@/lib/qc/work-scope";
-import { ArrowLeft, Building2, ClipboardCheck, FileText } from "lucide-react";
+import { ArrowLeft, Building2, ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 import { Suspense, use, useMemo } from "react";
 
@@ -50,26 +49,20 @@ function QcReviewBody({ id }: { id: string }) {
       deniedDescription="Quality Control review is available to supervisors and administrators."
     >
       <PageTransition className="space-y-6 pb-28">
-        <Button asChild variant="outline" size="sm" className="w-fit cursor-pointer rounded-xl">
-          <Link href="/qc">
-            <ArrowLeft className="h-4 w-4" aria-hidden /> Back to QC queue
-          </Link>
-        </Button>
+        <Link
+          href="/qc"
+          className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium transition-colors duration-200 hover:bg-muted"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden /> Back to QC queue
+        </Link>
 
-        <SurveyViewHero
-          survey={survey}
-          surveyId={id}
-          canEdit={false}
-          title="QC Review"
-          icon={ClipboardCheck}
-          extraActions={
-            <Button asChild size="sm" className="cursor-pointer rounded-xl transition-colors duration-200">
-              <Link href={`/qc/${id}/report`}>
-                <FileText className="h-4 w-4" aria-hidden /> QC Report
-              </Link>
-            </Button>
-          }
-        />
+        <SurveyViewHero survey={survey} surveyId={id} canEdit={false} title="QC Review" icon={ClipboardCheck} />
+
+        {survey.qcStatus === "approved" && (
+          <output className="block rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-950 dark:text-emerald-100">
+            This survey is approved. Use <strong>Reopen for review</strong> in the action bar if the data is incorrect.
+          </output>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           {isSurveyAwaitingQc(survey) && wasEditedAfterSubmit(survey) && (

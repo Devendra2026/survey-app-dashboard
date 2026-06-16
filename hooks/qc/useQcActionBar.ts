@@ -26,9 +26,9 @@ export function useQcActionBar({
   const removeSurvey = useRemoveSurvey();
 
   const [busy, setBusy] = useState(false);
-  const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [reopenOpen, setReopenOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [rewriteReason, setRewriteReason] = useState("");
+  const [reopenReason, setReopenReason] = useState("");
 
   const isApproved = survey.qcStatus === "approved";
   const isPending = survey.qcStatus === "pending" && survey.status === "submitted";
@@ -77,6 +77,7 @@ export function useQcActionBar({
   }
 
   async function handleApprove() {
+    if (!canApprove) return;
     setBusy(true);
     try {
       await decide({ surveyId: survey._id, decision: "approve" });
@@ -89,19 +90,19 @@ export function useQcActionBar({
     }
   }
 
-  async function handleRewrite() {
-    const comment = rewriteReason.trim();
-    if (!comment) {
-      toast.error("Please enter a reason for re-write");
+  async function handleReopen() {
+    const reason = reopenReason.trim();
+    if (!reason) {
+      toast.error("Please enter a reason for reopening");
       return;
     }
     await runAction(
-      () => decide({ surveyId: survey._id, decision: "reject", comment }),
-      "Survey returned for re-write",
+      () => reopen({ surveyId: survey._id, reason }),
+      "Survey reopened for review",
       () => {
-        setRewriteOpen(false);
-        setRewriteReason("");
-        router.push("/qc");
+        setReopenOpen(false);
+        setReopenReason("");
+        router.push(`/qc/${survey._id}/edit`);
       },
     );
   }
@@ -112,10 +113,6 @@ export function useQcActionBar({
       "Survey deleted",
       () => router.push("/qc"),
     );
-  }
-
-  async function handleReopen() {
-    await runAction(() => reopen({ surveyId: survey._id }), "Survey reopened for review");
   }
 
   return {
@@ -130,16 +127,15 @@ export function useQcActionBar({
     saving,
     propertyLabel,
     correctionsSaved,
-    rewriteOpen,
-    setRewriteOpen,
+    reopenOpen,
+    setReopenOpen,
     deleteOpen,
     setDeleteOpen,
-    rewriteReason,
-    setRewriteReason,
+    reopenReason,
+    setReopenReason,
     handleSave,
     handleApprove,
-    handleRewrite,
-    handleDelete,
     handleReopen,
+    handleDelete,
   };
 }

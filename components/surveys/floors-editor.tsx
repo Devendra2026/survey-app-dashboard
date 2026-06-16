@@ -31,12 +31,14 @@ export function FloorsEditor({
   plinthSqft: initialPlinth,
   onRegisterSave,
   onPlotSqftChange,
+  onDirty,
 }: {
   surveyId: string;
   plotSqft?: number;
   plinthSqft?: number;
   onRegisterSave?: (fn: () => Promise<boolean>) => void;
   onPlotSqftChange?: (plotSqft: number) => void;
+  onDirty?: () => void;
 }) {
   const floors = useFloors(surveyId) as FloorRow[] | undefined;
   const survey = useSurvey(surveyId);
@@ -195,6 +197,7 @@ export function FloorsEditor({
                 const value = Number(e.target.value);
                 setPlotOverride(value);
                 onPlotSqftChange?.(value);
+                onDirty?.();
               }}
             />
           </div>

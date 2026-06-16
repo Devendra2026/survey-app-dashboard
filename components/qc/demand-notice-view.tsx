@@ -10,13 +10,36 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMasters } from "@/hooks/masters/useMasters";
+import { useDemandNoticePrintFit } from "@/hooks/qc/useDemandNoticePrintFit";
 import { useTaxRatesForMunicipality } from "@/hooks/qc/useTaxRatesForMunicipality";
 import { buildOfficeTitles, buildSurveyAddress, computeDemandNotice, formatNoticeDate } from "@/lib/qc/demand-notice";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import type { SurveyDetail } from "@/schema/surveys/index";
 import { ArrowLeft, ChevronRight, Printer, Receipt } from "lucide-react";
+import { EB_Garamond, Lato, Noto_Sans_Devanagari } from "next/font/google";
 import Link from "next/link";
+
+const notoDevanagari = Noto_Sans_Devanagari({
+  subsets: ["devanagari"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-devanagari",
+  display: "swap",
+});
+
+const ebGaramond = EB_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-eb-garamond",
+  display: "swap",
+});
+
+const lato = Lato({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-lato",
+  display: "swap",
+});
 
 type DemandNoticeViewProps = {
   survey: SurveyDetail;
@@ -27,16 +50,22 @@ type DemandNoticeViewProps = {
 export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}/report` }: DemandNoticeViewProps) {
   const { masters } = useMasters();
   const { rateConfig, ratesLoading, propertyTaxPct } = useTaxRatesForMunicipality(survey.municipalityId);
+  const { printNotice } = useDemandNoticePrintFit();
 
   const ulbCodes = buildUlbCodeMap(masters?.ulbs);
   const propertyId = resolveDisplayPropertyId(survey, ulbCodes) ?? survey.propertyId ?? survey.parcelNo;
-  const ownerName = survey.respondentName || survey.owners?.[0]?.name || "—";
+  const primaryOwner = survey.owners?.[0];
+  const ownerName = survey.respondentName || primaryOwner?.name || "—";
+  const fatherName = primaryOwner?.fatherOrHusbandName?.trim() || "—";
+  const mobileNo = primaryOwner?.mobileNo?.trim() || survey.mobileNo?.trim() || "—";
+  const oldHouseNo = survey.oldPropertyNo?.trim() || "—";
   const ulb = masters?.ulbs?.find((m) => m._id === survey.municipalityId);
   const district = masters?.districts?.find((d) => d._id === survey.districtId);
   const cityName = ulb?.name ?? survey.city ?? "—";
-  const stateName = district?.stateName ?? "Uttar Pradesh";
-  const office = buildOfficeTitles(cityName, stateName);
-  const taxZone = labelFromOptions(masters?.taxRateZones, survey.taxRateZone);
+  const districtName = district?.name ?? "—";
+  const stateName = district?.stateName ?? ulb?.stateName ?? "Uttar Pradesh";
+  const office = buildOfficeTitles(cityName, stateName, ulb?.bodyType, districtName);
+  const taxZone = labelFromOptions(masters?.taxRateZones, survey.taxRateZone) || survey.taxRateZone || "—";
   const address = buildSurveyAddress(survey);
   const notice =
     rateConfig !== undefined
@@ -45,6 +74,7 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
   const noticeDate = formatNoticeDate(survey.submittedAt ?? Date.now());
   const assessmentYear = survey.assessmentYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
   const frontPhoto = survey.photos?.find((p) => p.slot === "front")?.url;
+  const sidePhoto = survey.photos?.find((p) => p.slot === "side")?.url;
 
   if (ratesLoading || !notice) {
     return (
@@ -72,14 +102,16 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
   }
 
   return (
-    <PageTransition className="demand-notice space-y-6 lg:space-y-8">
+    <PageTransition
+      className={`demand-notice space-y-6 lg:space-y-8 ${notoDevanagari.variable} ${ebGaramond.variable} ${lato.variable}`}
+    >
       <div className="print-hidden flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button asChild variant="outline" size="sm" className="w-fit cursor-pointer rounded-xl">
           <Link href={backHref}>
             <ArrowLeft className="h-4 w-4" aria-hidden /> Back to QC Report
           </Link>
         </Button>
-        <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+        <nav className="flex flex-1 flex-wrap items-center gap-1.5 text-sm text-muted-foreground sm:justify-center">
           <Link href="/qc" className="cursor-pointer font-medium transition-colors duration-200 hover:text-foreground">
             QC Workflow
           </Link>
@@ -93,27 +125,27 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
           <ChevronRight className="h-3.5 w-3.5" aria-hidden />
           <span className="font-semibold text-foreground">Demand Notice</span>
         </nav>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-fit cursor-pointer rounded-xl sm:ml-auto"
+          onClick={printNotice}
+        >
+          <Printer className="h-4 w-4" aria-hidden /> Print Notice
+        </Button>
       </div>
 
-      <FadeIn>
-        <ExecutiveHero
-          eyebrow="Tax Demand Notice"
-          title="Annual Property Tax Assessment"
-          description={`${propertyId} · ${ownerName} · ${cityName}, ${stateName}`}
-          icon={Receipt}
-          gradient="brand"
-          actions={
-            <Button
-              variant="outline"
-              size="sm"
-              className="print-hidden cursor-pointer rounded-xl"
-              onClick={() => window.print()}
-            >
-              <Printer className="h-4 w-4" aria-hidden /> Print Notice
-            </Button>
-          }
-        />
-      </FadeIn>
+      <div className="print-hidden">
+        <FadeIn>
+          <ExecutiveHero
+            eyebrow="Tax Demand Notice"
+            title="Annual Property Tax Assessment"
+            description={`${propertyId} · ${ownerName} · ${cityName}, ${stateName}`}
+            icon={Receipt}
+            gradient="brand"
+          />
+        </FadeIn>
+      </div>
 
       <DemandNoticeKpiStrip
         notice={notice}
@@ -127,6 +159,9 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
           survey={survey}
           propertyId={propertyId}
           ownerName={ownerName}
+          fatherName={fatherName}
+          mobileNo={mobileNo}
+          oldHouseNo={oldHouseNo}
           office={office}
           taxZone={taxZone}
           address={address}
@@ -134,6 +169,7 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
           noticeDate={noticeDate}
           assessmentYear={assessmentYear}
           frontPhoto={frontPhoto}
+          sidePhoto={sidePhoto}
           rateConfig={rateConfig}
         />
       </FadeIn>

@@ -7,9 +7,9 @@ export const qcActionBtn = {
     "bg-emerald-600 text-white shadow-md hover:bg-emerald-500",
     "dark:bg-emerald-600 dark:hover:bg-emerald-500",
   ),
-  rewrite: cn(
-    "border border-brand-red/40 bg-background text-brand-red hover:bg-brand-red/10",
-    "dark:border-brand-red/50 dark:hover:bg-brand-red/15",
+  reopen: cn(
+    "border border-amber-400/60 bg-background text-amber-950 hover:bg-amber-500/10",
+    "dark:border-amber-600/50 dark:text-amber-100 dark:hover:bg-amber-900/30",
   ),
   edit: cn(
     "border border-amber-400/60 bg-background text-amber-950 hover:bg-amber-500/10",

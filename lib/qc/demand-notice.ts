@@ -19,7 +19,8 @@ import { computeFloorPropertyTax, computeTotalAnnualDemand } from "./property-ta
 
 export type FloorAssessmentRow = {
   floorLabel: string;
-  usageLabel: string;
+  usageTypeLabel: string;
+  usageFactorLabel: string;
   constructionLabel: string;
   areaSqft: number;
   monthlyRate: number;
@@ -86,10 +87,54 @@ export function buildSurveyAddress(survey: SurveyDetail): string {
   return [survey.houseNo, survey.colonyName, survey.locality, survey.city, survey.pinCode].filter(Boolean).join(", ");
 }
 
-export function buildOfficeTitles(cityName: string, stateName: string) {
+/** e.g. "Sukhwasi w/o Ram Kishan" when father name is present. */
+export function formatOwnerDisplay(ownerName: string, fatherName?: string): string {
+  const name = ownerName.trim();
+  const father = fatherName?.trim();
+  if (!name || name === "—") return "—";
+  if (!father || father === "—") return name;
+  return `${name} w/o ${father}`;
+}
+
+export const DEMAND_NOTICE_SHORT_LEGAL = {
+  english:
+    "Any objection to this assessment must be submitted in writing to the Executive Officer within 15 days from the date of this notice. Failure to do so will result in the demand being considered final and recoverable as arrears.",
+  hindi:
+    "इस मूल्यांकन पर कोई भी आपत्ति इस नोटिस की तिथि से 15 दिनों के भीतर कार्यकारी अधिकारी को लिखित रूप में प्रस्तुत की जानी चाहिए। ऐसा न करने पर मांग को अंतिम मानकर बकाया के रूप में वसूली जाएगी।",
+} as const;
+
+const BODY_TYPE_LABELS: Record<string, { hindi: string; english: string }> = {
+  municipal_council: {
+    hindi: "नगर पालिका परिषद",
+    english: "Nagar Palika Parishad",
+  },
+  town_panchayat: {
+    hindi: "नगर पंचायत",
+    english: "Town Panchayat",
+  },
+};
+
+export type OfficeTitles = {
+  hindi: string;
+  english: string;
+  ulbName: string;
+  districtName: string;
+  stateName: string;
+};
+
+export function buildOfficeTitles(
+  cityName: string,
+  stateName: string,
+  bodyType?: string,
+  districtName?: string,
+): OfficeTitles {
+  const body = BODY_TYPE_LABELS[bodyType ?? "municipal_council"] ?? BODY_TYPE_LABELS.municipal_council!;
   return {
-    hindi: `कार्यालय नगर पालिका परिषद, ${cityName}, ${stateName}`,
-    english: `Office of Nagar Palika Parishad, ${cityName}, ${stateName}`,
+    hindi: `कार्यालय ${body.hindi}, ${cityName}, ${stateName}`,
+    english: `Office of ${body.english}, ${cityName}, ${stateName}`,
+    ulbName: cityName,
+    districtName: districtName?.trim() || "—",
+    stateName,
   };
 }
 
@@ -166,11 +211,10 @@ export function computeDemandNotice(
       assessableValuePct,
     );
     return {
-      floorLabel: labelFromOptions(masters?.floors, floor.floorName),
-      usageLabel:
-        labelFromOptions(masters?.usageTypes, floor.usageType) ||
-        labelFromOptions(masters?.usageFactors, floor.usageFactor),
-      constructionLabel: labelFromOptions(masters?.constructionTypes, floor.constructionType),
+      floorLabel: labelFromOptions(masters?.floors, floor.floorName) || floor.floorName || "—",
+      usageTypeLabel: labelFromOptions(masters?.usageTypes, floor.usageType) || floor.usageType || "—",
+      usageFactorLabel: labelFromOptions(masters?.usageFactors, floor.usageFactor) || floor.usageFactor || "—",
+      constructionLabel: labelFromOptions(masters?.constructionTypes, floor.constructionType) || "—",
       areaSqft: area,
       monthlyRate,
       baseRate,
@@ -220,5 +264,13 @@ export function formatNoticeDate(ms?: number | null): string {
 export function formatAmountPlain(amount: number): string {
   return amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+/** Official municipal demand-notice legal text (UP Nagar Palika Act / self-assessment rules). */
+export const DEMAND_NOTICE_LEGAL_COPY = {
+  hindi: `कृपया नोटिस प्राप्ति के 15 दिवस के अन्दर यदि कोई आपत्ति हो तो पालिका में दाखिल करें। अन्यथा की स्थिति में आपकी स्वीकृती मानते हुए उक्त मूल्यांकित दर प्रभावी कर दी जायेगी। वाद मियाद डिमांड कायम करते हुए नगर पालिका अधिनियम 1916 की धारा 141 क 2 के अनुसार शास्ति निर्धारण करते हुए बिल मांग प्रेषित की जायेगी एवं अधिनियम 1916 की धारा 144 एवं भूमि/भवन स्वकर निर्धारण नियमावली 2024 के अन्तर्गत वसूली की जायेगी एवं निर्धारण अवधि में कर जमा करने पर सम्पत्ति कर में छूट एवं निर्धारण अवधि में कर जमा न करने पर ब्याज सहित वसूला जाएगा।`,
+  hindiNote: `नोट:- उक्त कर निर्धारण वाद प्रक्रिया हेतु मान्य नहीं होगा एवं कोई भी भवन स्वामी का उक्त प्रक्रिया एवं कर रसीद के स्वामित्व का दावा मान्य नहीं होगा। यदि पूर्व में गृह कर की धन राशि बकाया है तो वह मांग के अनुसार देय होगी।`,
+  english: `Please file any objection with the municipality within 15 days of receipt of this notice. Otherwise, your consent shall be deemed given and the assessed rate shall be made effective. Demand shall be raised as time-barred demand and a bill shall be issued with penalty under Section 141(2) of the Uttar Pradesh Municipalities Act, 1916, and recovery shall be made under Section 144 of the said Act and the Land/Building Self-Tax Assessment Rules, 2024. Rebate on property tax shall apply for payment within the assessment period; otherwise amount shall be recovered with interest.`,
+  englishNote: `Note: This tax assessment shall not be valid for litigation proceedings, and no building owner may claim ownership based on this process or tax receipt. Any prior house-tax arrears shall remain payable as per demand.`,
+} as const;
 
 export { formatInr };

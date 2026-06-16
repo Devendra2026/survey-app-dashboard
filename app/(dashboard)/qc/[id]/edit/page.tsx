@@ -15,7 +15,7 @@ import { useQcPendingQueue } from "@/hooks/qc/useQcPendingQueue";
 import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
 import { useSyncQcScopeFromSurvey } from "@/hooks/qc/useSyncQcScopeFromSurvey";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
-import { canUserEditSurvey, isSurveyAwaitingQc, isSurveyResubmit, wasEditedAfterSubmit } from "@/lib/domain";
+import { canUserEditSurvey, isSurveyAwaitingQc, isSurveyResubmit } from "@/lib/domain";
 import { findNextPendingSurvey } from "@/lib/qc/queue-nav";
 import { scopeFromSurveyRow } from "@/lib/qc/work-scope";
 import { useCurrentUser } from "@/lib/session";
@@ -56,7 +56,7 @@ function QcEditBody({ id }: { id: string }) {
   const canEdit = canUserEditSurvey(survey, { role, capabilities });
   const awaitingQc = isSurveyAwaitingQc(survey);
   const isResubmit = isSurveyResubmit(survey);
-  const readyToApprove = correctionsSaved || wasEditedAfterSubmit(survey);
+  const readyToApprove = correctionsSaved;
 
   return (
     <RoleGate
@@ -126,6 +126,7 @@ function QcEditBody({ id }: { id: string }) {
               showSaveBar={false}
               showSubmitBar={false}
               saveCorrectionsRef={saveCorrectionsRef}
+              onDirty={() => setCorrectionsSaved(false)}
             />
             <QcActionBar
               survey={survey}

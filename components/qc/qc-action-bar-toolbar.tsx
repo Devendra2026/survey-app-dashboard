@@ -4,15 +4,9 @@ import type { QcToolbarVariant } from "@/components/qc/qc-action-bar.types";
 import { qcActionBtn } from "@/components/qc/qc-action-styles";
 import { RoleGate } from "@/components/shared/role-gate";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { SurveyListItem } from "@/schema/surveys/index";
-import { CheckCircle2, Eye, Loader2, MoreHorizontal, Pencil, RotateCcw, Save, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, Loader2, Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 type QcActionBarToolbarProps = {
@@ -21,10 +15,9 @@ type QcActionBarToolbarProps = {
   isWorking: boolean;
   saving: boolean;
   onDeleteOpen: () => void;
-  onRewriteOpen: () => void;
+  onReopenOpen: () => void;
   onSave: () => void;
   onApprove: () => void;
-  onReopen: () => void;
 };
 
 export function QcActionBarToolbar({
@@ -33,10 +26,9 @@ export function QcActionBarToolbar({
   isWorking,
   saving,
   onDeleteOpen,
-  onRewriteOpen,
+  onReopenOpen,
   onSave,
   onApprove,
-  onReopen,
 }: QcActionBarToolbarProps) {
   const isApproved = variant === "approved";
   const showEditLink = variant === "review-pending" || variant === "review-blocked";
@@ -84,32 +76,23 @@ export function QcActionBarToolbar({
 
         {isApproved && (
           <RoleGate capability="qc.reopen" fallback={null}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isWorking}
-                  className={cn(qcActionBtn.base, qcActionBtn.secondary, "min-w-11 px-3")}
-                  aria-label="More actions"
-                >
-                  <MoreHorizontal className="h-4 w-4" aria-hidden />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem disabled={isWorking} onClick={() => void onReopen()} className="cursor-pointer gap-2">
-                  <RotateCcw className="h-4 w-4" aria-hidden />
-                  Reopen for review
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isWorking}
+              onClick={onReopenOpen}
+              className={cn(qcActionBtn.base, qcActionBtn.reopen)}
+            >
+              <RotateCcw className="h-4 w-4" aria-hidden />
+              Reopen for review
+            </Button>
           </RoleGate>
         )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         {showSave && (
-          <RoleGate capability="surveys.editDraft" fallback={null}>
+          <RoleGate anyOf={["surveys.editDraft", "qc.review"]} fallback={null}>
             <Button
               type="button"
               disabled={isWorking}
@@ -128,16 +111,6 @@ export function QcActionBarToolbar({
 
         {showDecide && (
           <RoleGate capability="qc.decide" fallback={null}>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isWorking}
-              onClick={onRewriteOpen}
-              className={cn(qcActionBtn.base, qcActionBtn.rewrite)}
-            >
-              <XCircle className="h-4 w-4" aria-hidden />
-              Re-write
-            </Button>
             <Button
               type="button"
               disabled={isWorking}

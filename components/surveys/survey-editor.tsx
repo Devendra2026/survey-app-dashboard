@@ -63,6 +63,7 @@ export function SurveyEditor({
   saveBarDescription,
   saveBarSecondaryAction,
   saveCorrectionsRef,
+  onDirty,
 }: {
   localId: string;
   surveyId?: string;
@@ -80,6 +81,8 @@ export function SurveyEditor({
   saveBarSecondaryAction?: ReactNode;
   /** QC edit: expose save handler to external sticky action bar */
   saveCorrectionsRef?: MutableRefObject<(() => Promise<boolean>) | null>;
+  /** QC edit: notify parent when unsaved edits are made */
+  onDirty?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState("details");
   const [saving, setSaving] = useState(false);
@@ -187,7 +190,7 @@ export function SurveyEditor({
               <p className="font-heading text-sm font-semibold text-foreground">{saveBarLabel ?? "Save"}</p>
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                 {saveBarDescription ??
-                  "Saves details and plot area. The survey stays in its current QC status until you approve or return it."}
+                  "Saves details and plot area. The survey stays in the QC queue until you approve."}
               </p>
             </div>
           </div>
@@ -271,6 +274,7 @@ export function SurveyEditor({
               surveyId={surveyId ?? survey?._id}
               existing={survey as SurveyListItem | null | undefined}
               onSaved={onSaved}
+              onDirty={onDirty}
               onRegisterSave={(fn) => {
                 saveDetailsFn.current = fn;
               }}
@@ -285,6 +289,7 @@ export function SurveyEditor({
               surveyId={surveyId}
               plotSqft={survey?.plotSqft}
               plinthSqft={survey?.plinthSqft}
+              onDirty={onDirty}
               onRegisterSave={(fn) => {
                 saveAreaFn.current = fn;
               }}

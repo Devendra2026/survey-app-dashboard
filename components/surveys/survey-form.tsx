@@ -67,6 +67,7 @@ export function SurveyForm({
   existing,
   onSaved,
   onRegisterSave,
+  onDirty,
 }: {
   localId: string;
   /** Server row id — required for supervisor QC corrections on web. */
@@ -75,6 +76,7 @@ export function SurveyForm({
   existing?: SurveyListItem | null;
   onSaved?: (surveyId: string) => void;
   onRegisterSave?: (fn: () => Promise<boolean>) => void;
+  onDirty?: () => void;
 }) {
   const { masters } = useMasters();
   const saveDraft = useSaveDraft();
@@ -99,6 +101,21 @@ export function SurveyForm({
   setErrorRef.current = setError;
   const onSavedRef = useRef(onSaved);
   onSavedRef.current = onSaved;
+  const onDirtyRef = useRef(onDirty);
+  onDirtyRef.current = onDirty;
+  const skipDirtyRef = useRef(true);
+
+  useEffect(() => {
+    if (!onDirtyRef.current) return;
+    const subscription = watch(() => {
+      if (skipDirtyRef.current) {
+        skipDirtyRef.current = false;
+        return;
+      }
+      onDirtyRef.current?.();
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
 
   useEffect(() => {
     if (!onRegisterSave) return;

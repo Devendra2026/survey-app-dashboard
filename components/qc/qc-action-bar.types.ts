@@ -52,15 +52,17 @@ export function getQcStatusHint(
   const isDraft = survey.status === "draft";
 
   if (mode === "edit" && isPending && !correctionsSaved) {
-    return "Save your corrections first — then approve or return for re-write.";
+    return "Save your corrections first, then approve to continue to the next survey.";
   }
   if (mode === "edit" && isPending && correctionsSaved) {
     return "Corrections saved — approve to continue to the next survey automatically.";
   }
-  if (isApproved) return "This survey is approved and locked.";
-  if (isDraft) return "Awaiting surveyor re-submit — approve and re-write are unavailable until resubmitted.";
+  if (isApproved) {
+    return "This survey is approved. Use Reopen for review if the data is incorrect.";
+  }
+  if (isDraft) return "Awaiting surveyor re-submit — approve is unavailable until resubmitted.";
   if (isPending) {
-    return "Review the survey, then approve or return for re-write. Approving moves to the next QC automatically.";
+    return "Review the survey. Edit and save corrections if needed, or approve as-is to advance automatically.";
   }
   return null;
 }

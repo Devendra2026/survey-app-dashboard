@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="Municipal emblem">
+  <circle cx="60" cy="60" r="56" stroke="#0369A1" stroke-width="3" fill="#F8FAFC"/>
+  <circle cx="60" cy="60" r="44" stroke="#0F172A" stroke-width="1.5" fill="white"/>
+  <path d="M60 28 L72 52 H48 Z" fill="#0369A1"/>
+  <rect x="44" y="52" width="32" height="24" rx="2" fill="#0369A1"/>
+  <rect x="52" y="60" width="8" height="16" fill="#F8FAFC"/>
+  <rect x="68" y="60" width="8" height="16" fill="#F8FAFC"/>
+  <text x="60" y="92" text-anchor="middle" font-family="serif" font-size="9" fill="#0F172A">(0 *>2?></text>
+</svg>

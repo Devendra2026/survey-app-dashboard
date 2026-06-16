@@ -10,7 +10,23 @@
 ## Layout
 
 - **Max width:** Match QC portal (`max-w-360`)
-- **Sections:** Back nav → Hero → Conflict panel (when siblings exist) → Detail sections → Sticky action bar
+- **Sections:** Back nav → Hero → Approved banner (when applicable) → Conflict panel (when siblings exist) → Detail sections → Sticky action bar
+
+## Hero
+
+- No **QC Report** shortcut in the review hero — report remains on `/qc/[id]/report` and registry flows.
+
+## Action bar
+
+| State          | Primary actions                                                     |
+| -------------- | ------------------------------------------------------------------- |
+| Pending review | Edit, Approved (approve as-is)                                      |
+| Edit — unsaved | Review link, **Save**                                               |
+| Edit — saved   | Review link, **Approved**                                           |
+| Approved       | **Reopen for review** (confirmation dialog with reason → edit page) |
+
+- **Save** requires `qc.review` or `surveys.editDraft`.
+- **Re-write** is removed — supervisors correct data in-place or reopen after approval.
 
 ## Conflict panel (duplicate parcel)
 
