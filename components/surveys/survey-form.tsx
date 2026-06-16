@@ -23,6 +23,16 @@ function buildDefaultValues(
   municipalityId: string | undefined,
   existing?: SurveyListItem | null,
 ): SurveyDraftValues {
+  const defaultOwners =
+    existing?.owners && existing.owners.length > 0
+      ? existing.owners.map((owner) => ({
+          name: owner.name ?? "",
+          fatherOrHusbandName: owner.fatherOrHusbandName ?? "",
+          mobileNo: owner.mobileNo ?? "",
+          altMobileNo: owner.altMobileNo ?? "",
+        }))
+      : [{ name: "", fatherOrHusbandName: "", mobileNo: "", altMobileNo: "" }];
+
   return {
     localId,
     municipalityId: existing?.municipalityId ?? municipalityId ?? "",
@@ -37,6 +47,7 @@ function buildDefaultValues(
     isSlum: existing?.isSlum ?? false,
     respondentName: existing?.respondentName ?? "",
     relationship: existing?.relationship as SurveyDraftValues["relationship"],
+    owners: defaultOwners,
     familySize: existing?.familySize,
     mobileNo: existing?.mobileNo ?? "",
     altMobileNo: existing?.altMobileNo ?? "",

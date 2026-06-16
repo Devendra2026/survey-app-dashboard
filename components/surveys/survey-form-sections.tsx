@@ -110,7 +110,7 @@ export function OwnerSection({ control, register, errors, masters }: SurveyFormS
         <Input {...register("respondentName")} />
       </div>
       <div className="space-y-1.5">
-        <Label>Relationship</Label>
+        <Label>Relationship with Owner</Label>
         <SurveySelect
           control={control}
           name="relationship"
@@ -156,7 +156,13 @@ export function OwnerSection({ control, register, errors, masters }: SurveyFormS
               <div key={field.id} className="rounded-xl border border-border/60 p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold text-muted-foreground">Owner #{index + 1}</p>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => remove(index)}
+                    disabled={fields.length <= 1}
+                  >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
                     Remove
                   </Button>
