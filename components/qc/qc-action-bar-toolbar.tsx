@@ -15,7 +15,7 @@ type QcActionBarToolbarProps = {
   isWorking: boolean;
   saving: boolean;
   onDeleteOpen: () => void;
-  onReopenOpen: () => void;
+  onReopen: () => void;
   onSave: () => void;
   onApprove: () => void;
 };
@@ -26,7 +26,7 @@ export function QcActionBarToolbar({
   isWorking,
   saving,
   onDeleteOpen,
-  onReopenOpen,
+  onReopen,
   onSave,
   onApprove,
 }: QcActionBarToolbarProps) {
@@ -80,7 +80,7 @@ export function QcActionBarToolbar({
               type="button"
               variant="outline"
               disabled={isWorking}
-              onClick={onReopenOpen}
+              onClick={onReopen}
               className={cn(qcActionBtn.base, qcActionBtn.reopen)}
             >
               <RotateCcw className="h-4 w-4" aria-hidden />

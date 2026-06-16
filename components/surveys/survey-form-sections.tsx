@@ -6,11 +6,13 @@ import {
   SurveySelect,
   type SurveyFormSectionProps,
 } from "@/components/surveys/survey-form-fields";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Building2, Droplets, MapPinHouse, Receipt, Users } from "lucide-react";
-import { Controller } from "react-hook-form";
+import { MAX_SURVEY_OWNERS } from "@/lib/domain";
+import { Building2, Droplets, MapPinHouse, Plus, Receipt, Trash2, Users } from "lucide-react";
+import { Controller, useFieldArray } from "react-hook-form";
 
 type WardOption = { wardNo: string };
 
@@ -96,6 +98,11 @@ export function TenantPropertySection({
 }
 
 export function OwnerSection({ control, register, errors, masters }: SurveyFormSectionProps) {
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "owners",
+  });
+
   return (
     <SurveyFormSection title="Owner" icon={<Users className="h-4 w-4" aria-hidden />}>
       <div className="space-y-1.5">
@@ -124,6 +131,58 @@ export function OwnerSection({ control, register, errors, masters }: SurveyFormS
       <div className="space-y-1.5">
         <Label>Alt mobile</Label>
         <Input {...register("altMobileNo")} />
+      </div>
+      <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+        <div className="flex items-center justify-between gap-2">
+          <Label>Co-owner details</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => append({ name: "", fatherOrHusbandName: "", mobileNo: "", altMobileNo: "" })}
+            disabled={fields.length >= MAX_SURVEY_OWNERS}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Add owner
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {fields.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
+              No co-owners added.
+            </p>
+          ) : (
+            fields.map((field, index) => (
+              <div key={field.id} className="rounded-xl border border-border/60 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Owner #{index + 1}</p>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    Remove
+                  </Button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Name</Label>
+                    <Input {...register(`owners.${index}.name`)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Father / Husband Name</Label>
+                    <Input {...register(`owners.${index}.fatherOrHusbandName`)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Mobile</Label>
+                    <Input {...register(`owners.${index}.mobileNo`)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Alt Mobile</Label>
+                    <Input {...register(`owners.${index}.altMobileNo`)} />
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </SurveyFormSection>
   );

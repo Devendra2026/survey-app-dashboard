@@ -26,9 +26,7 @@ export function useQcActionBar({
   const removeSurvey = useRemoveSurvey();
 
   const [busy, setBusy] = useState(false);
-  const [reopenOpen, setReopenOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [reopenReason, setReopenReason] = useState("");
 
   const isApproved = survey.qcStatus === "approved";
   const isPending = survey.qcStatus === "pending" && survey.status === "submitted";
@@ -91,17 +89,10 @@ export function useQcActionBar({
   }
 
   async function handleReopen() {
-    const reason = reopenReason.trim();
-    if (!reason) {
-      toast.error("Please enter a reason for reopening");
-      return;
-    }
     await runAction(
-      () => reopen({ surveyId: survey._id, reason }),
+      () => reopen({ surveyId: survey._id }),
       "Survey reopened for review",
       () => {
-        setReopenOpen(false);
-        setReopenReason("");
         router.push(`/qc/${survey._id}/edit`);
       },
     );
@@ -127,12 +118,8 @@ export function useQcActionBar({
     saving,
     propertyLabel,
     correctionsSaved,
-    reopenOpen,
-    setReopenOpen,
     deleteOpen,
     setDeleteOpen,
-    reopenReason,
-    setReopenReason,
     handleSave,
     handleApprove,
     handleReopen,

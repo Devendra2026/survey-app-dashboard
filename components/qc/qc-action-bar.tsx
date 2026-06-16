@@ -1,6 +1,6 @@
 "use client";
 
-import { QcDeleteSurveyDialog, QcReopenDialog } from "@/components/qc/qc-action-bar-dialogs";
+import { QcDeleteSurveyDialog } from "@/components/qc/qc-action-bar-dialogs";
 import { QcActionBarProgress } from "@/components/qc/qc-action-bar-progress";
 import { QcActionBarToolbar } from "@/components/qc/qc-action-bar-toolbar";
 import {
@@ -52,21 +52,12 @@ export function QcActionBar({
             isWorking={actions.isWorking}
             saving={saving}
             onDeleteOpen={() => actions.setDeleteOpen(true)}
-            onReopenOpen={() => actions.setReopenOpen(true)}
+            onReopen={() => void actions.handleReopen()}
             onSave={actions.handleSave}
             onApprove={actions.handleApprove}
           />
         </div>
       </section>
-
-      <QcReopenDialog
-        open={actions.reopenOpen}
-        onOpenChange={actions.setReopenOpen}
-        reason={actions.reopenReason}
-        onReasonChange={actions.setReopenReason}
-        isWorking={actions.isWorking}
-        onConfirm={() => void actions.handleReopen()}
-      />
 
       <QcDeleteSurveyDialog
         open={actions.deleteOpen}
