@@ -44,6 +44,7 @@ const ACTIONS = [
   { label: "New Survey", href: "/surveys/new", keywords: "create add" },
   { label: "QC Queue", href: "/qc", keywords: "review pending" },
   { label: "Export Reports", href: "/reports", keywords: "pdf excel download" },
+  { label: "Demand Notice Panel", href: "/reports/demand-notices", keywords: "demand notice register print" },
 ];
 
 export function CommandPalette() {

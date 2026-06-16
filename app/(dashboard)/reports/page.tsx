@@ -19,8 +19,10 @@ import {
   LayoutTemplate,
   Loader2,
   Save,
+  ScrollText,
   Users as UsersIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 const SAVED_REPORTS = [
@@ -191,6 +193,17 @@ export default function ReportsPage() {
                 <p className="text-sm text-muted-foreground">
                   Open any survey in QC and click &quot;QC Report Generate&quot; to view the report.
                 </p>
+              </GlassCard>
+
+              <GlassCard padding="md" hover>
+                <GlassCardHeader
+                  icon={<ScrollText className="h-4 w-4" aria-hidden />}
+                  title="Demand Notice Panel"
+                  description="Filtered demand register with printable property notices."
+                />
+                <Button asChild variant="outline" size="sm" className="cursor-pointer gap-1.5">
+                  <Link href="/reports/demand-notices">Open Panel</Link>
+                </Button>
               </GlassCard>
             </div>
           </div>

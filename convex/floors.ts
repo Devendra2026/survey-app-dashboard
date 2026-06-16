@@ -16,8 +16,23 @@ import {
 } from "./areaMasters";
 import { assertCanReadWard, clientError, requireUser, writeAudit } from "./helpers";
 
+const floorRowValidator = v.object({
+  _id: v.id("floors"),
+  _creationTime: v.number(),
+  surveyId: v.id("surveys"),
+  clientFloorId: v.string(),
+  position: v.number(),
+  floorName: v.string(),
+  usageFactor: v.optional(v.string()),
+  usageType: v.string(),
+  constructionType: v.string(),
+  isOccupied: v.boolean(),
+  areaSqft: v.number(),
+});
+
 export const list = query({
   args: { surveyId: v.id("surveys") },
+  returns: v.array(floorRowValidator),
   handler: async (ctx, args) => {
     const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) return [];
@@ -27,6 +42,45 @@ export const list = query({
       .withIndex("by_survey", (q) => q.eq("surveyId", args.surveyId))
       .collect();
     return rows.sort((a, b) => a.position - b.position).map(presentFloorRow);
+  },
+});
+
+export const listForSurveys = query({
+  args: {
+    surveyIds: v.array(v.id("surveys")),
+  },
+  returns: v.array(
+    v.object({
+      surveyId: v.id("surveys"),
+      floors: v.array(floorRowValidator),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    if (args.surveyIds.length > 50) {
+      clientError("VALIDATION", "A maximum of 50 surveys can be requested at once");
+    }
+    const me = await requireUser(ctx);
+    const uniqueSurveyIds = [...new Set(args.surveyIds)];
+    const grouped = [];
+
+    for (const surveyId of uniqueSurveyIds) {
+      const survey = await ctx.db.get(surveyId);
+      if (!survey) {
+        grouped.push({ surveyId, floors: [] });
+        continue;
+      }
+      assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+      const rows = await ctx.db
+        .query("floors")
+        .withIndex("by_survey", (q) => q.eq("surveyId", surveyId))
+        .collect();
+      grouped.push({
+        surveyId,
+        floors: rows.sort((a, b) => a.position - b.position).map(presentFloorRow),
+      });
+    }
+
+    return grouped;
   },
 });
 

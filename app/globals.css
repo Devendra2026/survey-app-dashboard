@@ -473,6 +473,82 @@ html.dn-print-measure [data-dn-layout="print"] {
     display: none !important;
   }
 
+  /* Demand register (report panel) — multi-page table, no absolute clipping */
+  html.demand-register-print-mode .demand-notice-panel-screen,
+  html.demand-register-print-mode [data-slot="sheet-portal"] {
+    display: none !important;
+  }
+
+  html.demand-register-print-mode main,
+  html.demand-register-print-mode main>div {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  html.demand-register-print-mode .demand-register-print {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #0f172a !important;
+    overflow: visible !important;
+  }
+
+  .demand-register-print table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 8pt;
+    line-height: 1.25;
+  }
+
+  .demand-register-print thead {
+    display: table-header-group;
+  }
+
+  .demand-register-print th,
+  .demand-register-print td {
+    border: 1px solid #000;
+    padding: 2px 4px;
+    text-align: left;
+    vertical-align: top;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .demand-register-print tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .demand-register-print .col-serial {
+    width: 6%;
+  }
+
+  .demand-register-print .col-property {
+    width: 22%;
+  }
+
+  .demand-register-print .col-owner {
+    width: 24%;
+  }
+
+  .demand-register-print .col-ward {
+    width: 8%;
+  }
+
+  .demand-register-print .col-parcel {
+    width: 18%;
+  }
+
+  .demand-register-print .col-demand {
+    width: 22%;
+    text-align: right;
+  }
+
   html,
   body {
     overflow: visible !important;
@@ -639,6 +715,8 @@ html.dn-print-measure [data-dn-layout="print"] {
     overflow: hidden !important;
     box-sizing: border-box;
     margin: 0 auto !important;
+    contain: paint;
+    isolation: isolate;
     page-break-after: avoid;
     break-after: avoid;
     break-inside: avoid;
@@ -647,10 +725,18 @@ html.dn-print-measure [data-dn-layout="print"] {
 
   .demand-notice-print-scaler {
     width: var(--dn-content-w) !important;
+    max-width: var(--dn-content-w) !important;
     transform-origin: top left;
     transform: scale(var(--dn-scale, 1));
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  @supports (zoom: 1) {
+    .demand-notice-print-scaler {
+      width: var(--dn-content-w) !important;
+      transform: none !important;
+    }
   }
 
   .demand-notice-sheet {
@@ -741,8 +827,26 @@ html.dn-print-measure [data-dn-layout="print"] {
     overflow: hidden !important;
   }
 
-  .demand-notice-property-section {
+  .demand-notice-property-row {
     grid-row: 1;
+    max-height: 34mm;
+    overflow: hidden;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 1.5mm !important;
+    align-items: start;
+  }
+
+  .demand-notice-property-row .dn-section {
+    padding: 1mm !important;
+    margin: 0 !important;
+  }
+
+  .demand-notice-property-row .demand-notice-property-section {
+    max-height: none;
+  }
+
+  .demand-notice-property-section {
     max-height: 30mm;
     overflow: hidden;
   }
@@ -822,6 +926,12 @@ html.dn-print-measure [data-dn-layout="print"] {
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .demand-notice-table-section>div:first-child {
+    margin-bottom: 0.5mm !important;
+    padding-bottom: 0.5mm !important;
+    border-bottom-width: 1px !important;
   }
 
   .demand-notice-table-section table {

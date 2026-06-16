@@ -38,7 +38,7 @@ export function QcParcelSiblingsPanel({
   const siblings = useParcelSiblings(surveyId);
   const decide = useDecide();
   const { masters } = useMasters();
-  const ulbCodes = useMemo(() => (masters ? buildUlbCodeMap(masters.ulbs) : undefined), [masters?.ulbs]);
+  const ulbCodes = useMemo(() => (masters ? buildUlbCodeMap(masters.ulbs) : undefined), [masters]);
   const propertyUses = masters?.propertyUses;
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 

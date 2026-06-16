@@ -126,51 +126,48 @@ export function DemandNoticeDocument({
           logoUrl={logoUrl}
         />
         <DemandNoticeBody className="print:p-2!">
-          <div className="grid gap-6 print:gap-2">
-            <div className="grid gap-2 print:grid-cols-2 print:items-start">
-              <NoticePropertySpecs
-                survey={survey}
-                propertyId={propertyId}
-                ownerName={ownerName}
-                fatherName={fatherName}
-                mobileNo={mobileNo}
-                oldHouseNo={oldHouseNo}
-                taxZone={taxZone}
-                address={address}
-                notice={notice}
-              />
-              <NoticeOwnerProfile
-                survey={survey}
-                propertyId={propertyId}
-                ownerName={ownerName}
-                fatherName={fatherName}
-                mobileNo={mobileNo}
-                oldHouseNo={oldHouseNo}
-                taxZone={taxZone}
-                address={address}
-                notice={notice}
-              />
-            </div>
-            <NoticeAssessmentTable
+          <div className="demand-notice-property-row">
+            <NoticePropertySpecs
+              survey={survey}
+              propertyId={propertyId}
+              ownerName={ownerName}
+              fatherName={fatherName}
+              mobileNo={mobileNo}
+              oldHouseNo={oldHouseNo}
+              taxZone={taxZone}
+              address={address}
               notice={notice}
-              propertyTaxPct={rateConfig?.propertyTaxPct ?? DEFAULT_TAX_RATES.propertyTaxPct}
-              waterTaxPct={rateConfig?.waterTaxPct ?? DEFAULT_TAX_RATES.waterTaxPct}
-              drainageTaxPct={rateConfig?.drainageTaxPct ?? DEFAULT_TAX_RATES.drainageTaxPct}
             />
-            <NoticeDemandSummary notice={notice} propPct={propPct} waterPct={waterPct} drainPct={drainPct} />
+            <NoticeOwnerProfile
+              survey={survey}
+              propertyId={propertyId}
+              ownerName={ownerName}
+              fatherName={fatherName}
+              mobileNo={mobileNo}
+              oldHouseNo={oldHouseNo}
+              taxZone={taxZone}
+              address={address}
+              notice={notice}
+            />
+          </div>
+          <div className="demand-notice-media-row">
             <NoticePhotoGallery survey={survey} frontPhoto={frontPhoto} sidePhoto={sidePhoto} />
-            <div className="grid gap-2 print:grid-cols-2 print:items-start">
-              <NoticeLegalBlock />
-              <NoticeSignatureBlock />
-            </div>
-            <NoticeSignatureBlockScreen />
-            <div className="demand-notice-print-footer">
-              <NoticePropertyCodes propertyId={propertyId} />
-              <p className="demand-notice-print-only demand-notice-print-caption text-center text-(--dn-secondary)">
-                Computer-generated demand notice issued by the Municipal Board. Property ID:{" "}
-                <span className="font-mono font-semibold text-(--dn-primary)">{propertyId}</span>
-              </p>
-            </div>
+            <NoticeDemandSummary notice={notice} propPct={propPct} waterPct={waterPct} drainPct={drainPct} />
+          </div>
+          <NoticeAssessmentTable
+            notice={notice}
+            propertyTaxPct={rateConfig?.propertyTaxPct ?? DEFAULT_TAX_RATES.propertyTaxPct}
+            waterTaxPct={rateConfig?.waterTaxPct ?? DEFAULT_TAX_RATES.waterTaxPct}
+            drainageTaxPct={rateConfig?.drainageTaxPct ?? DEFAULT_TAX_RATES.drainageTaxPct}
+          />
+          <NoticeLegalBlock />
+          <div className="demand-notice-print-footer">
+            <NoticeSignatureBlock />
+            <NoticePropertyCodes propertyId={propertyId} />
+            <p className="demand-notice-print-only demand-notice-print-caption text-center text-(--dn-secondary)">
+              Computer-generated demand notice issued by the Municipal Board. Property ID:{" "}
+              <span className="font-mono font-semibold text-(--dn-primary)">{propertyId}</span>
+            </p>
           </div>
         </DemandNoticeBody>
       </div>

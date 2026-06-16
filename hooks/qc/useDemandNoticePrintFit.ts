@@ -4,7 +4,7 @@ import { useCallback, useEffect } from "react";
 
 /** Printable A4 height at 96dpi minus 16mm margins (297mm − 16mm). */
 const PRINTABLE_HEIGHT_PX = 1062;
-const MIN_SCALE = 0.55;
+const MIN_SCALE = 0.48;
 
 const SCALER_SELECTOR = ".demand-notice-print-scaler";
 const SCREEN_LAYOUT_SELECTOR = '[data-dn-layout="screen"]';
@@ -17,6 +17,32 @@ function waitForLayout(): Promise<void> {
       requestAnimationFrame(() => resolve());
     });
   });
+}
+
+function clearPrintScale(scaler: HTMLElement) {
+  scaler.style.removeProperty("--dn-scale");
+  scaler.style.removeProperty("zoom");
+  scaler.style.removeProperty("transform");
+  scaler.style.removeProperty("transform-origin");
+  scaler.style.width = "";
+}
+
+function applyPrintScale(scaler: HTMLElement, scale: number) {
+  clearPrintScale(scaler);
+  if (scale >= 0.999) return;
+
+  const rounded = Math.floor(scale * 100) / 100;
+  scaler.style.setProperty("--dn-scale", String(rounded));
+
+  // zoom scales layout + paint together in Chromium — avoids half-width gap from transform-only scale
+  if (typeof CSS !== "undefined" && CSS.supports("zoom", "1")) {
+    scaler.style.zoom = String(rounded);
+    return;
+  }
+
+  scaler.style.width = `calc(var(--dn-content-w) / ${rounded})`;
+  scaler.style.transform = `scale(${rounded})`;
+  scaler.style.transformOrigin = "top left";
 }
 
 async function fitDemandNoticeDocument() {
@@ -45,7 +71,7 @@ async function fitDemandNoticeDocument() {
 
     await waitForLayout();
 
-    scaler.style.removeProperty("--dn-scale");
+    clearPrintScale(scaler);
 
     const naturalHeight = scaler.scrollHeight;
     let scale = 1;
@@ -56,11 +82,7 @@ async function fitDemandNoticeDocument() {
       }
     }
 
-    if (scale < 1) {
-      scaler.style.setProperty("--dn-scale", String(Math.floor(scale * 100) / 100));
-    } else {
-      scaler.style.removeProperty("--dn-scale");
-    }
+    applyPrintScale(scaler, scale);
   } finally {
     if (screenLayout) {
       screenLayout.style.display = screenLayout.dataset.dnMeasureRestoreDisplay ?? "";
@@ -77,7 +99,7 @@ async function fitDemandNoticeDocument() {
 function resetDemandNoticeDocument() {
   const scaler = document.querySelector<HTMLElement>(SCALER_SELECTOR);
   if (scaler) {
-    scaler.style.removeProperty("--dn-scale");
+    clearPrintScale(scaler);
   }
   document.documentElement.classList.remove(PRINT_MEASURE_CLASS);
 }
@@ -85,13 +107,19 @@ function resetDemandNoticeDocument() {
 /** Scales the demand notice to fit one A4 page when printing. */
 export function useDemandNoticePrintFit() {
   useEffect(() => {
-    const onBeforePrint = () => {
-      void fitDemandNoticeDocument();
+    const printMedia = window.matchMedia("print");
+    const onPrintChange = (event: MediaQueryListEvent | MediaQueryList) => {
+      if (event.matches) {
+        void fitDemandNoticeDocument();
+      } else {
+        resetDemandNoticeDocument();
+      }
     };
-    window.addEventListener("beforeprint", onBeforePrint);
+
+    printMedia.addEventListener("change", onPrintChange);
     window.addEventListener("afterprint", resetDemandNoticeDocument);
     return () => {
-      window.removeEventListener("beforeprint", onBeforePrint);
+      printMedia.removeEventListener("change", onPrintChange);
       window.removeEventListener("afterprint", resetDemandNoticeDocument);
     };
   }, []);
