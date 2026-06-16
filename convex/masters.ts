@@ -205,7 +205,7 @@ export const bundle = query({
           : FLOOR_USAGE_FACTORS,
       usageTypes: grouped["floor_usage_type"]?.length ? grouped["floor_usage_type"]! : FLOOR_USAGE_TYPES,
       constructionTypes: grouped["construction_type"]?.length ? grouped["construction_type"]! : CONSTRUCTION_TYPES,
-      floors: grouped["floor_name"]?.length ? grouped["floor_name"]! : FLOOR_NAMES,
+      floors: mergeMasterOptions(FLOOR_NAMES, grouped["floor_name"]),
     };
   },
 });

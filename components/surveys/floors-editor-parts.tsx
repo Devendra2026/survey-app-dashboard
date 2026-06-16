@@ -121,13 +121,7 @@ export function FloorTable({
   );
 }
 
-export function FloorDraftDialog({
-  draft,
-  opts,
-  onClose,
-  onChange,
-  onSave,
-}: {
+type FloorDraftDialogProps = {
   draft: FloorDraft | null;
   opts: {
     floors: { value: string; label: string }[];
@@ -138,7 +132,18 @@ export function FloorDraftDialog({
   onClose: () => void;
   onChange: (draft: FloorDraft) => void;
   onSave: () => void;
-}) {
+};
+
+function applyFloorNameChange(draft: FloorDraft, floorName: string): FloorDraft {
+  if (floorName === "open_land") {
+    return { ...draft, floorName, constructionType: "open_land_plot" };
+  }
+  const constructionType =
+    draft.floorName === "open_land" && draft.constructionType === "open_land_plot" ? "" : draft.constructionType;
+  return { ...draft, floorName, constructionType };
+}
+
+export function FloorDraftDialog({ draft, opts, onClose, onChange, onSave }: FloorDraftDialogProps) {
   return (
     <Dialog open={!!draft} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="rounded-2xl border-border/70 shadow-premium-lg sm:max-w-lg">
@@ -152,14 +157,9 @@ export function FloorDraftDialog({
             <Field label="Floor">
               <Sel
                 value={draft.floorName}
-                onChange={(v) => onChange({ ...draft, floorName: v })}
-                options={
-                  draft.floorName === "open_land"
-                    ? opts.floors.filter((o) => o.value === "open_land")
-                    : opts.floors.filter((o) => o.value !== "open_land")
-                }
+                onChange={(v) => onChange(applyFloorNameChange(draft, v))}
+                options={opts.floors}
                 placeholder="Select floor"
-                disabled={draft.floorName === "open_land"}
               />
             </Field>
             <Field label="Usage type">
