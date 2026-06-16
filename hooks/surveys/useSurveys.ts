@@ -25,6 +25,7 @@ export interface SurveyListFilters {
   fromMs?: number;
   toMs?: number;
   limit?: number;
+  searchTerm?: string;
 }
 
 /** api.survey.list — server enforces tenant scope + role visibility. */
@@ -49,7 +50,8 @@ export function useSurveyList(filters: SurveyListFilters = {}) {
 
 /** Cursor-paginated survey list sorted by ward then parcel ascending. */
 export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize = 20, enabled = true) {
-  const resetKey = `${filters.status ?? ""}|${filters.qcStatus ?? ""}|${(filters.qcStatuses ?? []).join(",")}|${filters.wardNo ?? ""}|${filters.districtId ?? ""}|${filters.municipalityId ?? ""}|${filters.surveyorId ?? ""}|${filters.fromMs ?? ""}|${filters.toMs ?? ""}`;
+  const searchKey = filters.searchTerm?.trim() ?? "";
+  const resetKey = `${filters.status ?? ""}|${filters.qcStatus ?? ""}|${(filters.qcStatuses ?? []).join(",")}|${filters.wardNo ?? ""}|${filters.districtId ?? ""}|${filters.municipalityId ?? ""}|${filters.surveyorId ?? ""}|${filters.fromMs ?? ""}|${filters.toMs ?? ""}|${searchKey}`;
   const {
     cursor,
     pageIndex,
@@ -75,16 +77,19 @@ export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize
           surveyorId: filters.surveyorId as Id<"users"> | undefined,
           fromMs: filters.fromMs,
           toMs: filters.toMs,
+          searchTerm: searchKey || undefined,
         }
       : "skip",
   );
 
   const surveys = result?.page;
+  const totalCount = result?.totalCount;
   const canGoNext = result ? !result.isDone : false;
 
   return useMemo(
     () => ({
       surveys,
+      totalCount,
       isLoading: result === undefined,
       pageNumber,
       pageIndex,
@@ -96,7 +101,7 @@ export function useSurveyListPaginated(filters: SurveyListFilters = {}, pageSize
       },
       goPrev,
     }),
-    [surveys, result, pageNumber, pageIndex, size, canGoPrev, canGoNext, goNext, goPrev],
+    [surveys, totalCount, result, pageNumber, pageIndex, size, canGoPrev, canGoNext, goNext, goPrev],
   );
 }
 

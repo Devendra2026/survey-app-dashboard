@@ -6,6 +6,7 @@ import { QcPageSkeleton } from "@/components/shared/qc-route-skeleton";
 import { RoleGate } from "@/components/shared/role-gate";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { useQcQueue } from "@/hooks/qc/useQcQueue";
+import { QC_TABLE_PAGE_SIZE_OPTIONS } from "@/lib/table-pagination";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 
@@ -27,7 +28,7 @@ function QcRegistryContent() {
     rejectedCount,
     parcelSharedCount,
     parcelSiblingIndex,
-    filteredByTab,
+    filteredCount,
     pagedRows,
     registrySearch,
     canGoPrev,
@@ -65,7 +66,7 @@ function QcRegistryContent() {
         parcelSharedCount={parcelSharedCount}
         parcelSiblingIndex={parcelSiblingIndex}
         activeTab={activeTab}
-        filteredCount={filteredByTab.length}
+        filteredCount={filteredCount}
         isLoading={isLoading}
         rows={pagedRows}
         pageStart={pageStart}
@@ -76,12 +77,12 @@ function QcRegistryContent() {
       <TablePagination
         pageNumber={pageNumber}
         pageSize={pageSize}
-        itemCount={pagedRows.length}
+        itemCount={pagedRows?.length ?? 0}
         canGoPrev={canGoPrev}
         canGoNext={canGoNext}
         onPrev={goPrev}
         onNext={goNext}
-        pageSizeOptions={[10, 20, 50, 100]}
+        pageSizeOptions={[...QC_TABLE_PAGE_SIZE_OPTIONS]}
         onPageSizeChange={handlePageSizeChange}
       />
     </PageTransition>

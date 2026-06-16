@@ -12,6 +12,7 @@ import {
   SurveysRegistrySection,
 } from "@/components/surveys/surveys-page-sections";
 import { useSurveysPage } from "@/hooks/surveys/useSurveysPage";
+import { QC_TABLE_PAGE_SIZE_OPTIONS } from "@/lib/table-pagination";
 
 export default function SurveysPage() {
   const {
@@ -94,7 +95,7 @@ export default function SurveysPage() {
           canGoNext={canGoNext}
           onPrev={goPrev}
           onNext={goNext}
-          pageSizeOptions={[10, 20, 50, 100]}
+          pageSizeOptions={[...QC_TABLE_PAGE_SIZE_OPTIONS]}
           onPageSizeChange={(size) => dispatchListUi({ type: "setPageSize", value: size })}
         />
 

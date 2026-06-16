@@ -13,6 +13,7 @@ import { useSurveyList, useSurveyListPaginated } from "@/hooks/surveys/useSurvey
 import { activeParcelSiblingPool, buildParcelSiblingIndex } from "@/lib/qc/parcel-siblings";
 import { computeQcWardStats } from "@/lib/qc/ward-stats";
 import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
+import { QC_TABLE_PAGE_SIZE_OPTIONS } from "@/lib/table-pagination";
 import { ArrowLeft, CheckCircle2, Clock3, FileText, MapPin, Receipt, Table2 } from "lucide-react";
 import Link from "next/link";
 import { use, useMemo, useState } from "react";
@@ -187,7 +188,7 @@ export default function QcWardReportPage({
           canGoNext={canGoNext}
           onPrev={goPrev}
           onNext={goNext}
-          pageSizeOptions={[10, 20, 50]}
+          pageSizeOptions={[...QC_TABLE_PAGE_SIZE_OPTIONS]}
           onPageSizeChange={setPageSize}
         />
       </PageTransition>

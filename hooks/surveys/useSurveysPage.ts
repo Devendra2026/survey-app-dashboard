@@ -3,12 +3,10 @@
 import type { FilterState } from "@/components/surveys/survey-filters";
 import { api } from "@/convex/_generated/api";
 import { useDashboardCounts, useStatsBreakdown } from "@/hooks/analytics/useAnalytics";
-import { useMasters } from "@/hooks/masters/useMasters";
-import { searchSurveys, useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
+import { useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
 import { useHasCapability } from "@/hooks/use-capability";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
-import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
 import { estimateQcPendingCount, surveyTabToListFilters } from "@/lib/surveys/survey-list-filters";
 import type { DashboardCounts } from "@/schema/analytics";
 import { useQuery } from "convex/react";
@@ -65,8 +63,6 @@ export function useSurveysPage() {
   );
   const [reassignOpen, setReassignOpen] = useState(false);
   const [registrySearch, setRegistrySearch] = useState("");
-  const { masters } = useMasters();
-  const ulbCodes = useMemo(() => buildUlbCodeMap(masters?.ulbs), [masters?.ulbs]);
   const [listUi, dispatchListUi] = useReducer(surveysListUiReducer, {
     filters: {},
     pageSize: 20,
@@ -93,9 +89,10 @@ export function useSurveysPage() {
       surveyorId: canViewAll ? filters.surveyorId : undefined,
       fromMs,
       toMs,
+      searchTerm: registrySearch.trim() || undefined,
       ...surveyTabToListFilters(activeTab),
     }),
-    [filters, canViewAll, activeTab, fromMs, toMs],
+    [filters, canViewAll, activeTab, fromMs, toMs, registrySearch],
   );
 
   const { surveys, isLoading, pageNumber, pageIndex, canGoPrev, canGoNext, goNext, goPrev } = useSurveyListPaginated(
@@ -113,10 +110,7 @@ export function useSurveysPage() {
 
   const pageStart = pageIndex * pageSize;
 
-  const pagedRows = useMemo(() => {
-    if (!surveys) return surveys;
-    return searchSurveys(surveys as Parameters<typeof searchSurveys>[0], registrySearch, ulbCodes);
-  }, [surveys, registrySearch, ulbCodes]);
+  const pagedRows = surveys;
 
   const stats = useMemo((): SurveysPageStats => {
     if (showAnalytics && breakdown?.summary) {

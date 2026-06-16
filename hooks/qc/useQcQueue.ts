@@ -118,6 +118,8 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
 
   const tabFilters = useMemo(() => qcTabToListFilters(activeTab), [activeTab]);
 
+  const registrySearchTerm = registrySearch.trim() || undefined;
+
   const serverStats = useConvexQuery(
     api.qc.commandCenterStats,
     authReady && scopeReady
@@ -134,7 +136,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
   const aggregateSurveys = useSurveyList(scopeReady ? { ...scopeFilters, limit: QC_AGGREGATE_LIMIT } : {});
 
   const paginated = useSurveyListPaginated(
-    { ...scopeFilters, ...tabFilters, fromMs: fromDateMs, toMs: toDateMs },
+    { ...scopeFilters, ...tabFilters, fromMs: fromDateMs, toMs: toDateMs, searchTerm: registrySearchTerm },
     pageSize,
     scopeReady && mode === "registry",
   );
@@ -149,7 +151,10 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
   const registryFiltered = useMemo(() => {
     const rows = mode === "registry" ? paginated.surveys : aggregateSurveys;
     if (!rows) return rows;
-    let filtered = searchQcRegistry(rows as SurveyRow[], registrySearch, ulbCodes) as SurveyRow[];
+    let filtered =
+      mode === "registry"
+        ? ([...rows] as SurveyRow[])
+        : (searchQcRegistry(rows as SurveyRow[], registrySearch, ulbCodes) as SurveyRow[]);
     if (mode === "registry" && activeTab === "all") {
       filtered = filtered.filter((r) => r.status !== "draft" || r.qcStatus !== "pending");
     }
@@ -236,6 +241,8 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     return buildParcelSiblingIndex(activeParcelSiblingPool(base));
   }, [aggregateSurveys]);
 
+  const filteredCount = mode === "registry" ? (paginated.totalCount ?? filteredByTab.length) : filteredByTab.length;
+
   return {
     scope,
     dateFilters,
@@ -251,6 +258,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     parcelSharedCount,
     parcelSiblingIndex,
     filteredByTab,
+    filteredCount,
     pagedRows,
     canGoPrev,
     canGoNext,

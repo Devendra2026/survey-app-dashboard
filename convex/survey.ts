@@ -21,6 +21,7 @@ import {
 } from "./fieldAccess";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS, GPS_TARGET_ACCURACY_METERS } from "./gpsAccuracy";
 import { assertCanReadWard, canReadWard, clientError, requireUser, writeAudit } from "./helpers";
+import { filterSurveysBySearch } from "./lib/surveySearch";
 import { assertUniqueSurveySlot } from "./lib/surveyUniqueness";
 import { isValidIndianOwnerMobile, normalizeOwners, primaryOwnerMobile, validateOwnerSection } from "./ownerRules";
 import { comparePropertyIds, compareWardThenParcel, resolvePropertyId } from "./propertyId";
@@ -256,6 +257,7 @@ const listFilterArgs = {
   surveyorId: v.optional(v.id("users")),
   fromMs: v.optional(v.number()),
   toMs: v.optional(v.number()),
+  searchTerm: v.optional(v.string()),
 };
 
 function wardNumbersMatch(rowWard: string, filterWard: string): boolean {
@@ -421,6 +423,12 @@ export const listPaginated = query({
     paginationOpts: paginationOptsValidator,
     ...listFilterArgs,
   },
+  returns: v.object({
+    page: v.array(v.any()),
+    continueCursor: v.union(v.string(), v.null()),
+    isDone: v.boolean(),
+    totalCount: v.number(),
+  }),
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
     const scope = await resolveTenantScope(ctx, me);
@@ -435,8 +443,17 @@ export const listPaginated = query({
       clientError("FORBIDDEN", "This district is outside your assigned scope");
     }
 
-    const filtered = await collectSurveysForListPaginated(ctx, me, args, scope, muniIds, access);
+    let filtered = await collectSurveysForListPaginated(ctx, me, args, scope, muniIds, access);
 
+    if (args.searchTerm?.trim()) {
+      const searchCodes = await loadMunicipalityCodes(
+        ctx,
+        filtered.map((r) => r.municipalityId),
+      );
+      filtered = filterSurveysBySearch(filtered, args.searchTerm, searchCodes);
+    }
+
+    const totalCount = filtered.length;
     const offset = parseListOffset(args.paginationOpts.cursor);
     const numItems = args.paginationOpts.numItems;
     const pageRows = filtered.slice(offset, offset + numItems);
@@ -453,6 +470,7 @@ export const listPaginated = query({
       page,
       continueCursor: nextOffset < filtered.length ? String(nextOffset) : null,
       isDone: nextOffset >= filtered.length,
+      totalCount,
     };
   },
 });

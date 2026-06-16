@@ -24,6 +24,7 @@ import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as lib_propertyIdLookup from "../lib/propertyIdLookup.js";
 import type * as lib_qcWardStats from "../lib/qcWardStats.js";
+import type * as lib_surveySearch from "../lib/surveySearch.js";
 import type * as lib_surveyUniqueness from "../lib/surveyUniqueness.js";
 import type * as masterCatalog from "../masterCatalog.js";
 import type * as masters from "../masters.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/propertyIdLookup": typeof lib_propertyIdLookup;
   "lib/qcWardStats": typeof lib_qcWardStats;
+  "lib/surveySearch": typeof lib_surveySearch;
   "lib/surveyUniqueness": typeof lib_surveyUniqueness;
   masterCatalog: typeof masterCatalog;
   masters: typeof masters;
