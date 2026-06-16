@@ -1,75 +1,50 @@
-# Premium A4 Demand Notice — Design Spec
+# Demand Notice Page Overrides
 
-> Government-grade property tax demand notice · WYSIWYG screen + print
+> **PROJECT:** SDV Demand Notice
+> **Generated:** 2026-06-16 12:34:58
+> **Page Type:** General
 
----
-
-## Sheet
-
-| Property        | Value                                               |
-| --------------- | --------------------------------------------------- |
-| Page size       | A4 portrait (210mm × 297mm)                         |
-| Printable width | 198mm (6mm margins)                                 |
-| Root classes    | `.demand-notice-document`, `.demand-notice-sheet`   |
-| Single page     | Auto-scale via `useDemandNoticePrintFit` (min 0.65) |
+> ⚠️ **IMPORTANT:** Rules in this file **override** the Master file (`design-system/MASTER.md`).
+> Only deviations from the Master are documented here. For all other rules, refer to the Master.
 
 ---
 
-## Section order
+## Page-Specific Rules
 
-1. **NoticeHeader** — logo, office titles, year, date, property ID
-2. **NoticePropertyGrid** — owner, mobile, ward, ID, zone, rate, house no.
-3. **NoticeAddressCard** — full-width address
-4. **NoticePhotoGallery** — front, side, GPS/map
-5. **NoticeDemandSummary** — tax breakdown + total highlight
-6. **NoticeAssessmentTable** — 6-col zebra table
-7. **NoticeLegalBlock** — short EN/HI screen; full Hindi on print
-8. **NoticeSignatureBlock** — EO + Tax Collector (dual column on print)
-9. **NoticePropertyCodes** — QR + Code128 barcode
-10. **NoticeWatermark** — ULB name, ~6% opacity
+### Layout Overrides
 
----
+- **Max Width:** 1400px or full-width
+- **Grid:** 12-column grid for data flexibility
+- **Sections:** 1. Hero (Name/Role), 2. Project Grid (Masonry), 3. About/Philosophy, 4. Contact
 
-## Tokens (`--dn-*`)
+### Spacing Overrides
 
-Primary `#0F172A` · Secondary `#334155` · Accent `#0369A1` · Summary `#EEF2FF` · Zebra `#F8FAFC` · Border `#E2E8F0`
+- **Content Density:** High — optimize for information display
 
-Spacing: 4 / 8 / 12 / 16 / 24 / 32px (`--dn-space-1` … `--dn-space-6`)
+### Typography Overrides
 
-Typography: EB Garamond (titles), Lato (body), Noto Sans Devanagari (Hindi)
+- No overrides — use Master typography
 
----
+### Color Overrides
 
-## Module layout
+- **Strategy:** Neutral background (let work shine). Text: Black/White. Accent: Minimal.
 
-```
-components/qc/demand-notice/
-  document.tsx          — composer
-  notice-header.tsx
-  notice-property-grid.tsx
-  notice-address-card.tsx
-  notice-photo-gallery.tsx
-  notice-demand-summary.tsx
-  notice-assessment-table.tsx
-  notice-legal-block.tsx
-  notice-signature-block.tsx
-  notice-property-codes.tsx
-  notice-watermark.tsx
-  notice-sheet.tsx
-  shared.tsx
-```
+### Component Overrides
+
+- Avoid: Large blocking CSS files
+- Avoid: Desktop-first causing mobile issues
 
 ---
 
-## Print rules
+## Page-Specific Components
 
-- Dashboard hero/KPI hidden (`.print-hidden`)
-- `.dn-section { break-inside: avoid }`
-- `print-color-adjust: exact` for summary + watermark
-- Bilingual Hindi labels hidden on print
+- No unique components for this page
 
 ---
 
-## QR / barcode
+## Recommendations
 
-`lib/qc/demand-notice-codes.ts` — QR encodes verify URL; barcode is Code128 of `propertyId`.
+- Effects: Smooth scroll, reveal on scroll, parallax images, text animations, page-flip transitions
+- Performance: Inline critical CSS defer non-critical
+- Responsive: Start with mobile styles then add breakpoints
+- CTA Placement: Project Card Hover + Footer Contact

@@ -7,8 +7,8 @@
 ---
 
 **Project:** SDV Demand Notice
-**Generated:** 2026-06-15 17:34:16
-**Category:** Real Estate/Property
+**Generated:** 2026-06-16 12:34:58
+**Category:** Government/Public Service
 
 ---
 
@@ -28,14 +28,14 @@
 
 ### Typography
 
-- **Heading Font:** EB Garamond
-- **Body Font:** Lato
-- **Mood:** legal, professional, traditional, trustworthy, formal, authoritative
-- **Google Fonts:** [EB Garamond + Lato](https://fonts.google.com/share?selection.family=EB+Garamond:wght@400;500;600;700|Lato:wght@300;400;700)
+- **Heading Font:** Atkinson Hyperlegible
+- **Body Font:** Atkinson Hyperlegible
+- **Mood:** accessible, readable, inclusive, WCAG, dyslexia-friendly, clear
+- **Google Fonts:** [Atkinson Hyperlegible + Atkinson Hyperlegible](https://fonts.google.com/share?selection.family=Atkinson+Hyperlegible:wght@400;700)
 
 **CSS Import:**
 ```css
-@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap');
 ```
 
 ### Spacing Variables
@@ -153,27 +153,30 @@
 
 ## Style Guidelines
 
-**Style:** Glassmorphism
+**Style:** Accessible & Ethical
 
-**Keywords:** Frosted glass, transparent, blurred background, layered, vibrant background, light source, depth, multi-layer
+**Keywords:** High contrast, large text (16px+), keyboard navigation, screen reader friendly, WCAG compliant, focus state, semantic
 
-**Best For:** Modern SaaS, financial dashboards, high-end corporate, lifestyle apps, modal overlays, navigation
+**Best For:** Government, healthcare, education, inclusive products, large audience, legal compliance, public
 
-**Key Effects:** Backdrop blur (10-20px), subtle border (1px solid rgba white 0.2), light reflection, Z-depth
+**Key Effects:** Clear focus rings (3-4px), ARIA labels, skip links, responsive design, reduced motion, 44x44px touch targets
 
 ### Page Pattern
 
-**Pattern Name:** Hero-Centric + Feature-Rich
+**Pattern Name:** Portfolio Grid
 
-- **CTA Placement:** Above fold
-- **Section Order:** Hero > Features > CTA
+- **Conversion Strategy:**  hover overlay info,  lightbox view, Visuals first. Filter by category. Fast loading essential.
+- **CTA Placement:** Project Card Hover + Footer Contact
+- **Section Order:** 1. Hero (Name/Role), 2. Project Grid (Masonry), 3. About/Philosophy, 4. Contact
 
 ---
 
 ## Anti-Patterns (Do NOT Use)
 
-- ❌ Poor photos
-- ❌ No virtual tours
+- ❌ Ornate design
+- ❌ Low contrast
+- ❌ Motion effects
+- ❌ AI purple/pink gradients
 
 ### Additional Forbidden Patterns
 

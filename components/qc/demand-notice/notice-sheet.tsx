@@ -7,7 +7,7 @@ export function DemandNoticeSheet({ children, floorCount }: { children: ReactNod
 
   return (
     <article
-      className={`demand-notice-document demand-notice-sheet a4-page relative mx-auto w-full max-w-[var(--dn-page-w,210mm)] overflow-hidden rounded-2xl border border-[var(--dn-border)] bg-white shadow-premium-lg print:max-w-[var(--dn-content-w,194mm)] print:rounded-none print:border-0 print:shadow-none${densityClass ? ` ${densityClass}` : ""}`}
+      className={`demand-notice-document demand-notice-sheet a4-page relative mx-auto w-full max-w-480 overflow-hidden rounded-2xl border border-(--dn-border) bg-white shadow-premium-lg print:max-w-(--dn-content-w,194mm) print:rounded-none print:border-0 print:shadow-none${densityClass ? ` ${densityClass}` : ""}`}
       data-floors={floorCount}
     >
       <div className="demand-notice-print-viewport">
@@ -17,9 +17,11 @@ export function DemandNoticeSheet({ children, floorCount }: { children: ReactNod
   );
 }
 
-export function DemandNoticeBody({ children }: { children: ReactNode }) {
+export function DemandNoticeBody({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className="demand-notice-sheet-body relative z-[1] space-y-[var(--dn-space-4,16px)] bg-white p-[var(--dn-space-4,16px)] sm:p-[var(--dn-space-5,24px)]">
+    <div
+      className={`demand-notice-sheet-body relative z-1 space-y-(--dn-space-4,16px) bg-white p-(--dn-space-4,16px) sm:p-(--dn-space-5,24px) ${className ?? ""}`}
+    >
       {children}
     </div>
   );

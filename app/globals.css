@@ -454,6 +454,14 @@
   }
 }
 
+html.dn-print-measure [data-dn-layout="screen"] {
+  display: none !important;
+}
+
+html.dn-print-measure [data-dn-layout="print"] {
+  display: block !important;
+}
+
 @media print {
   @page {
     size: A4 portrait;

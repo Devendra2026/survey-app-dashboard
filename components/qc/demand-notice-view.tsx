@@ -1,12 +1,7 @@
 "use client";
 
-import { ExecutiveHero } from "@/components/design-system/executive-hero";
-import { FadeIn, PageTransition } from "@/components/design-system/motion";
-import {
-  DemandNoticeDocument,
-  DemandNoticeFooterCards,
-  DemandNoticeKpiStrip,
-} from "@/components/qc/demand-notice-sections";
+import { PageTransition } from "@/components/design-system/motion";
+import { DemandNoticeDocument } from "@/components/qc/demand-notice";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMasters } from "@/hooks/masters/useMasters";
@@ -16,8 +11,8 @@ import { buildOfficeTitles, buildSurveyAddress, computeDemandNotice, formatNotic
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import type { SurveyDetail } from "@/schema/surveys/index";
-import { ArrowLeft, ChevronRight, Printer, Receipt } from "lucide-react";
-import { EB_Garamond, Lato, Noto_Sans_Devanagari } from "next/font/google";
+import { ArrowLeft, Printer } from "lucide-react";
+import { Geist, JetBrains_Mono, Noto_Sans_Devanagari } from "next/font/google";
 import Link from "next/link";
 
 const notoDevanagari = Noto_Sans_Devanagari({
@@ -27,17 +22,16 @@ const notoDevanagari = Noto_Sans_Devanagari({
   display: "swap",
 });
 
-const ebGaramond = EB_Garamond({
+const geist = Geist({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-eb-garamond",
+  variable: "--font-geist-sans",
   display: "swap",
 });
 
-const lato = Lato({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-lato",
+  weight: ["500", "600", "700"],
+  variable: "--font-jetbrains-mono",
   display: "swap",
 });
 
@@ -49,7 +43,7 @@ type DemandNoticeViewProps = {
 
 export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}/report` }: DemandNoticeViewProps) {
   const { masters } = useMasters();
-  const { rateConfig, ratesLoading, propertyTaxPct } = useTaxRatesForMunicipality(survey.municipalityId);
+  const { rateConfig, ratesLoading } = useTaxRatesForMunicipality(survey.municipalityId);
   const { printNotice } = useDemandNoticePrintFit();
 
   const ulbCodes = buildUlbCodeMap(masters?.ulbs);
@@ -78,15 +72,17 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
 
   if (ratesLoading || !notice) {
     return (
-      <PageTransition className="demand-notice space-y-6 lg:space-y-8">
-        <div className="print-hidden flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <PageTransition
+        className={`demand-notice ${notoDevanagari.variable} ${geist.variable} bg-slate-50 ${jetbrainsMono.variable}`}
+      >
+        <div className="print-hidden sticky top-4 z-40 mx-auto flex w-full max-w-480 flex-col gap-3 rounded-xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <Button asChild variant="outline" size="sm" className="w-fit cursor-pointer rounded-xl">
             <Link href={backHref}>
               <ArrowLeft className="h-4 w-4" aria-hidden /> Back to QC Report
             </Link>
           </Button>
         </div>
-        <div className="space-y-4 rounded-2xl border border-border/60 bg-card p-8">
+        <div className="mx-auto w-full max-w-480 space-y-4 rounded-2xl border border-zinc-200 bg-white p-8">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-full max-w-xl" />
           <div className="grid gap-3 pt-4 sm:grid-cols-3">
@@ -103,28 +99,18 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
 
   return (
     <PageTransition
-      className={`demand-notice space-y-6 lg:space-y-8 ${notoDevanagari.variable} ${ebGaramond.variable} ${lato.variable}`}
+      className={`demand-notice ${notoDevanagari.variable} ${geist.variable} bg-slate-50 ${jetbrainsMono.variable}`}
     >
-      <div className="print-hidden flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="print-hidden sticky top-4 z-40 mx-auto flex w-full max-w-480 flex-col gap-3 rounded-xl border border-zinc-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <Button asChild variant="outline" size="sm" className="w-fit cursor-pointer rounded-xl">
           <Link href={backHref}>
             <ArrowLeft className="h-4 w-4" aria-hidden /> Back to QC Report
           </Link>
         </Button>
-        <nav className="flex flex-1 flex-wrap items-center gap-1.5 text-sm text-muted-foreground sm:justify-center">
-          <Link href="/qc" className="cursor-pointer font-medium transition-colors duration-200 hover:text-foreground">
-            QC Workflow
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-          <Link
-            href={`/qc/${surveyId}/report`}
-            className="cursor-pointer font-medium transition-colors duration-200 hover:text-foreground"
-          >
-            Final Report
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-          <span className="font-semibold text-foreground">Demand Notice</span>
-        </nav>
+        <div className="min-w-0 flex-1 text-center sm:px-2">
+          <p className="truncate text-sm font-semibold text-zinc-900">Property Tax Demand Notice</p>
+          <p className="truncate font-mono text-xs text-zinc-500">{propertyId}</p>
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -135,26 +121,7 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
         </Button>
       </div>
 
-      <div className="print-hidden">
-        <FadeIn>
-          <ExecutiveHero
-            eyebrow="Tax Demand Notice"
-            title="Annual Property Tax Assessment"
-            description={`${propertyId} · ${ownerName} · ${cityName}, ${stateName}`}
-            icon={Receipt}
-            gradient="brand"
-          />
-        </FadeIn>
-      </div>
-
-      <DemandNoticeKpiStrip
-        notice={notice}
-        noticeDate={noticeDate}
-        assessmentYear={assessmentYear}
-        propertyTaxPct={propertyTaxPct}
-      />
-
-      <FadeIn delay={0.06}>
+      <div className="demand-notice-canvas demand-notice-fullpage mx-auto w-full max-w-480 px-6 pb-8 print:max-w-none print:px-0">
         <DemandNoticeDocument
           survey={survey}
           propertyId={propertyId}
@@ -172,15 +139,7 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
           sidePhoto={sidePhoto}
           rateConfig={rateConfig}
         />
-      </FadeIn>
-
-      <DemandNoticeFooterCards
-        survey={survey}
-        surveyId={surveyId}
-        cityName={cityName}
-        taxZone={taxZone}
-        notice={notice}
-      />
+      </div>
     </PageTransition>
   );
 }

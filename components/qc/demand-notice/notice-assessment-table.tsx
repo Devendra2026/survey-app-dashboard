@@ -4,18 +4,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatAmountPlain, type DemandNoticeData } from "@/lib/qc/demand-notice";
 import { BilingualLabel, SectionLabel } from "./shared";
 
-function formatUsageCell(row: DemandNoticeData["floorRows"][number]): string {
-  if (row.usageMult !== 1 && row.usageFactorLabel) {
-    return `${row.usageTypeLabel} (${row.usageFactorLabel})`;
-  }
-  return row.usageTypeLabel;
-}
-
 export function NoticeAssessmentTable({
   notice,
   propertyTaxPct,
-  waterTaxPct,
-  drainageTaxPct,
+  waterTaxPct: _waterTaxPct,
+  drainageTaxPct: _drainageTaxPct,
 }: {
   notice: DemandNoticeData;
   propertyTaxPct: number;
@@ -23,37 +16,41 @@ export function NoticeAssessmentTable({
   drainageTaxPct: number;
 }) {
   const effectivePct = (propertyTaxPct * 100).toFixed(1).replace(/\.0$/, "");
-  const assessablePct = (notice.assessableValuePct * 100).toFixed(0);
-  const taxOnAssessablePct = ((propertyTaxPct / notice.assessableValuePct) * 100).toFixed(1).replace(/\.0$/, "");
-  const waterPerHundred = (waterTaxPct * 100).toFixed(1).replace(/\.0$/, "");
-  const drainagePerHundred = (drainageTaxPct * 100).toFixed(1).replace(/\.0$/, "");
 
   return (
-    <section className="dn-section demand-notice-table-section">
-      <SectionLabel>
-        <BilingualLabel en="Assessment Details" hi="मूल्यांकन विवरण" />
-      </SectionLabel>
-      <div className="overflow-hidden rounded-lg border border-[var(--dn-border)] print:rounded-none">
+    <section className="dn-section demand-notice-table-section rounded-md border border-slate-200 bg-white p-4 print:p-2">
+      <div className="mb-4 border-b border-slate-200 pb-3">
+        <SectionLabel>
+          <BilingualLabel en="Assessment & ALV Calculation Details" hi="मूल्यांकन एवं वार्षिक मूल्यांकन विवरण" />
+        </SectionLabel>
+      </div>
+      <div className="overflow-hidden rounded-md border border-slate-200 print:rounded-none">
         <div className="overflow-x-auto">
-          <Table className="dn-zebra-table print:text-[7px]">
+          <Table className="dn-zebra-table min-w-180 print:text-[6px]">
             <TableHeader>
-              <TableRow className="border-b border-[var(--dn-border)] bg-slate-100 hover:bg-slate-100">
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[var(--dn-primary)] print:px-1 print:py-0.5 print:text-[6px]">
+              <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
+                <TableHead className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
+                  S.No
+                </TableHead>
+                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
                   <BilingualLabel en="Floor" hi="तल" />
                 </TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[var(--dn-primary)] print:px-1 print:py-0.5 print:text-[6px]">
-                  <BilingualLabel en="Usage" hi="उपयोग" />
+                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
+                  <BilingualLabel en="Usage Factor" hi="उपयोग कारक" />
                 </TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[var(--dn-primary)] print:px-1 print:py-0.5 print:text-[6px]">
+                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
                   <BilingualLabel en="Construction" hi="निर्माण" />
                 </TableHead>
-                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest text-[var(--dn-primary)] print:px-1 print:py-0.5 print:text-[6px]">
+                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
                   <BilingualLabel en="Area (SqFt)" hi="क्षेत्रफल" />
                 </TableHead>
-                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest text-[var(--dn-primary)] print:px-1 print:py-0.5 print:text-[6px]">
+                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
+                  <BilingualLabel en="Rate (₹)" hi="दर" />
+                </TableHead>
+                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
                   <BilingualLabel en="ALV (₹)" hi="वार्षिक मूल्यांकन" />
                 </TableHead>
-                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest text-[var(--dn-primary)] print:px-1 print:py-0.5 print:text-[6px]">
+                <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
                   <BilingualLabel en={`Tax (${effectivePct})`} hi="कर" />
                 </TableHead>
               </TableRow>
@@ -63,17 +60,23 @@ export function NoticeAssessmentTable({
                 notice.floorRows.map((row, i) => (
                   <TableRow
                     key={`${row.floorLabel}-${i}`}
-                    className="border-b border-border/40 text-sm even:bg-[var(--dn-zebra)] print:text-[7px]"
+                    className="border-b border-slate-200 text-sm even:bg-slate-50/70 print:text-[7px]"
                   >
-                    <TableCell className="font-semibold print:px-1 print:py-0.5">{row.floorLabel}</TableCell>
-                    <TableCell className="text-[var(--dn-secondary)] print:px-1 print:py-0.5">
-                      {formatUsageCell(row)}
+                    <TableCell className="text-center font-mono tabular-nums print:px-1 print:py-0.5">
+                      {i + 1}
                     </TableCell>
-                    <TableCell className="text-[var(--dn-secondary)] print:px-1 print:py-0.5">
-                      {row.constructionLabel}
+                    <TableCell className="font-semibold text-slate-900 print:px-1 print:py-0.5">
+                      {row.floorLabel}
                     </TableCell>
+                    <TableCell className="text-slate-700 print:px-1 print:py-0.5">
+                      {row.usageFactorLabel || "—"}
+                    </TableCell>
+                    <TableCell className="text-slate-700 print:px-1 print:py-0.5">{row.constructionLabel}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums print:px-1 print:py-0.5">
                       {formatAmountPlain(row.areaSqft)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums print:px-1 print:py-0.5">
+                      {formatAmountPlain(row.baseRate)}
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums print:px-1 print:py-0.5">
                       {formatAmountPlain(row.alv)}
@@ -86,7 +89,7 @@ export function NoticeAssessmentTable({
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={8}
                     className="py-8 text-center text-sm text-muted-foreground print:py-2 print:text-[7px]"
                   >
                     No floor assessment data available
@@ -94,36 +97,25 @@ export function NoticeAssessmentTable({
                 </TableRow>
               )}
               {notice.floorRows.length > 0 && (
-                <TableRow className="border-t-2 border-[var(--dn-border)] bg-slate-100 font-bold print:text-[7px]">
-                  <TableCell
-                    colSpan={3}
-                    className="uppercase tracking-wide text-[var(--dn-primary)] print:px-1 print:py-0.5"
-                  >
+                <TableRow className="border-t-2 border-(--dn-border) bg-slate-100 font-bold print:text-[7px]">
+                  <TableCell colSpan={4} className="uppercase tracking-wide text-slate-900 print:px-1 print:py-0.5">
                     Total
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums print:px-1 print:py-0.5">
                     {formatAmountPlain(notice.totalArea)}
                   </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums print:px-1 print:py-0.5">—</TableCell>
                   <TableCell className="text-right font-mono tabular-nums print:px-1 print:py-0.5">
                     {formatAmountPlain(notice.totalAlv)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-base tabular-nums text-[var(--dn-primary)] print:px-1 print:py-0.5 print:text-[7px]">
-                    ₹ {formatAmountPlain(notice.totalTax)}
+                  <TableCell className="text-right font-mono text-base font-bold tabular-nums text-indigo-800 print:px-1 print:py-0.5 print:text-[7px]">
+                    {formatAmountPlain(notice.totalTax)}
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
-        {notice.floorRows.length > 0 && (
-          <p className="demand-notice-print-hide border-t border-border/50 bg-muted/15 px-4 py-3 text-[11px] leading-relaxed text-muted-foreground">
-            <span className="font-semibold text-foreground">Formula:</span> Gross ALV = Area × yearly rate
-            {notice.floorRows.some((r) => r.usageMult !== 1) && " × usage multiplier"} · Yearly Assessable = Gross ALV ×{" "}
-            {assessablePct}% · Property tax = Yearly Assessable ÷ 100 × {taxOnAssessablePct} ({effectivePct}% effective)
-            · Water = Yearly Assessable ÷ 100 × {waterPerHundred} · Drainage = Yearly Assessable ÷ 100 ×{" "}
-            {drainagePerHundred}
-          </p>
-        )}
       </div>
     </section>
   );
