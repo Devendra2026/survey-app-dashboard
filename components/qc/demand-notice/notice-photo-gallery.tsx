@@ -4,7 +4,8 @@ import { googleMapsEmbedUrl, googleMapsStaticUrl } from "@/lib/maps/google-maps"
 import type { SurveyDetail } from "@/schema/surveys/index";
 import { ImageOff, MapPin } from "lucide-react";
 import Image from "next/image";
-import { BilingualLabel, SectionLabel } from "./shared";
+import { BilingualLabel } from "./bilingual-label";
+import { SectionLabel } from "./section-label";
 
 function GalleryPhoto({ url, label }: { url?: string | null; label: string }) {
   return (

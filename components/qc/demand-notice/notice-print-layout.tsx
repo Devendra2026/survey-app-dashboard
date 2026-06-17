@@ -8,7 +8,6 @@ import { NoticeDemandSummary } from "./notice-demand-summary";
 import { NoticeHeader } from "./notice-header";
 import { NoticeLegalBlock } from "./notice-legal-block";
 import { NoticePhotoGallery } from "./notice-photo-gallery";
-import { NoticePropertyCodes } from "./notice-property-codes";
 import { NoticeOwnerProfile, NoticePropertySpecs } from "./notice-property-grid";
 import { DemandNoticeBody } from "./notice-sheet";
 import { NoticeSignatureBlock } from "./notice-signature-block";
@@ -57,7 +56,7 @@ export function NoticePrintLayout({
   const drainPct = rateConfig ? pctLabel(rateConfig.drainageTaxPct) : "2.5%";
 
   return (
-    <div className="demand-notice-print-root hidden print:flex" data-dn-layout="print">
+    <div className="print-page demand-notice-print-root hidden print:flex" data-dn-layout="print">
       <NoticeHeader
         office={office}
         propertyId={propertyId}
@@ -95,10 +94,6 @@ export function NoticePrintLayout({
           <NoticePhotoGallery survey={survey} frontPhoto={frontPhoto} sidePhoto={sidePhoto} variant="print" />
         </div>
 
-        <div className="demand-notice-tax-row">
-          <NoticeDemandSummary notice={notice} propPct={propPct} waterPct={waterPct} drainPct={drainPct} />
-        </div>
-
         <NoticeAssessmentTable
           notice={notice}
           propertyTaxPct={rateConfig?.propertyTaxPct ?? DEFAULT_TAX_RATES.propertyTaxPct}
@@ -106,14 +101,24 @@ export function NoticePrintLayout({
           drainageTaxPct={rateConfig?.drainageTaxPct ?? DEFAULT_TAX_RATES.drainageTaxPct}
         />
 
+        <div className="demand-notice-tax-row">
+          <NoticeDemandSummary notice={notice} propPct={propPct} waterPct={waterPct} drainPct={drainPct} />
+        </div>
+
         <NoticeLegalBlock />
 
-        <div className="demand-notice-print-footer">
+        <div className="demand-notice-signature-section">
           <NoticeSignatureBlock />
-          <NoticePropertyCodes propertyId={propertyId} />
-          <p className="demand-notice-print-only demand-notice-print-caption text-center text-(--dn-secondary)">
-            Computer-generated demand notice issued by the Municipal Board. Property ID:{" "}
-            <span className="font-mono font-semibold text-(--dn-primary)">{propertyId}</span>
+        </div>
+
+        <div className="demand-notice-print-footer">
+          <p className="demand-notice-print-footer-inner demand-notice-print-only">
+            <span className="dn-footer-ref">Property Reference: {propertyId}</span>
+            <span className="dn-footer-sep" aria-hidden>
+              {" "}
+              ·{" "}
+            </span>
+            <span>Computer-generated demand notice issued by the Municipal Board. Property ID: {propertyId}</span>
           </p>
         </div>
       </DemandNoticeBody>

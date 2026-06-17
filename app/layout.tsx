@@ -2,6 +2,8 @@ import { Providers } from "@/components/provider/provider";
 import type { Metadata } from "next";
 import { Fira_Code, Fira_Sans, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import "./demand-notice-a4-measure.css";
+import "./demand-notice-a4-print.css";
 
 const firaSans = Fira_Sans({
   variable: "--font-geist-sans",

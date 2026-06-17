@@ -1,7 +1,8 @@
 "use client";
 
 import { formatInr, type DemandNoticeData } from "@/lib/qc/demand-notice";
-import { BilingualLabel, SectionLabel } from "./shared";
+import { BilingualLabel } from "./bilingual-label";
+import { SectionLabel } from "./section-label";
 
 export function NoticeDemandSummary({
   notice,

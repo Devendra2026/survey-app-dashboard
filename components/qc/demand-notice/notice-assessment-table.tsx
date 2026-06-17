@@ -2,7 +2,8 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatAmountPlain, type DemandNoticeData } from "@/lib/qc/demand-notice";
-import { BilingualLabel, SectionLabel } from "./shared";
+import { BilingualLabel } from "./bilingual-label";
+import { SectionLabel } from "./section-label";
 
 export function NoticeAssessmentTable({
   notice,
@@ -39,6 +40,9 @@ export function NoticeAssessmentTable({
                   <BilingualLabel en="Floor" hi="तल" />
                 </TableHead>
                 <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
+                  <BilingualLabel en="Usage Type" hi="उपयोग प्रकार" />
+                </TableHead>
+                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
                   <BilingualLabel en="Usage Factor" hi="उपयोग कारक" />
                 </TableHead>
                 <TableHead className="text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">
@@ -72,6 +76,9 @@ export function NoticeAssessmentTable({
                       {row.floorLabel}
                     </TableCell>
                     <TableCell className="text-slate-700 print:px-1 print:py-0.5">
+                      {row.usageTypeLabel || "—"}
+                    </TableCell>
+                    <TableCell className="text-slate-700 print:px-1 print:py-0.5">
                       {row.usageFactorLabel || "—"}
                     </TableCell>
                     <TableCell className="text-slate-700 print:px-1 print:py-0.5">{row.constructionLabel}</TableCell>
@@ -92,7 +99,7 @@ export function NoticeAssessmentTable({
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="py-8 text-center text-sm text-muted-foreground print:py-2 print:text-[7px]"
                   >
                     No floor assessment data available
@@ -101,7 +108,7 @@ export function NoticeAssessmentTable({
               )}
               {notice.floorRows.length > 0 && (
                 <TableRow className="border-t-2 border-(--dn-border) bg-slate-100 font-bold print:text-[7px]">
-                  <TableCell colSpan={4} className="uppercase tracking-wide text-slate-900 print:px-1 print:py-0.5">
+                  <TableCell colSpan={5} className="uppercase tracking-wide text-slate-900 print:px-1 print:py-0.5">
                     Total
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums print:px-1 print:py-0.5">

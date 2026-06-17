@@ -1,458 +1,770 @@
-/* JS pre-print measure — mirrors @media print layout */
-html.dn-print-measure {
-.demand-notice-print-root {
+/* JS pre-print measure — flat selectors (auto-generated; do not edit by hand) */
+/* Regenerate: node scripts/sync-demand-notice-measure-css.mjs */
+
+html.dn-print-measure .print-page,
+html.dn-print-measure .demand-notice-print-root {
+
     display: flex !important;
     flex-direction: column !important;
     width: 100% !important;
-    height: 281mm !important;
-    min-height: 281mm !important;
-    max-height: 281mm !important;
-    overflow: hidden !important;
+    min-height: 285mm !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
     box-sizing: border-box !important;
-  }
+    font-family: var(--font-lato), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif !important;
+    color: #0f172a !important;
+}
 
-  .demand-notice-print-body,
-  .demand-notice-print-root .demand-notice-sheet-body {
+html.dn-print-measure .demand-notice-print-body,
+html.dn-print-measure .demand-notice-print-root .demand-notice-sheet-body {
+
     flex: 1 1 auto !important;
     display: flex !important;
     flex-direction: column !important;
-    min-height: 0 !important;
-    height: 100% !important;
-    padding: 1.5mm 2.5mm 1mm !important;
-    gap: 1.2mm !important;
-    overflow: hidden !important;
+    gap: 1.4mm !important;
+    min-height: auto !important;
+    height: auto !important;
     margin: 0 !important;
-  }
+    padding: 1mm 1.5mm 0.8mm !important;
+    overflow: visible !important;
+}
 
-  .demand-notice-print-section-label {
-    display: block !important;
-    margin: 0 0 0.8mm !important;
-    font-size: 6.5px !important;
+
+
+  /* -- Typography scale -- */
+
+html.dn-print-measure .demand-notice-print-root .dn-print-title {
+
+    font-size: 11px !important;
     font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.1em !important;
-    color: #334155 !important;
-    border-bottom: 1px solid #cbd5e1 !important;
-    padding-bottom: 0.5mm !important;
-  }
-
-  .demand-notice-print-subhead {
-    display: block !important;
-    font-size: 6px !important;
-    margin-bottom: 0.8mm !important;
-  }
-
-  /* Header — compact government masthead */
-  .demand-notice-header {
-    flex: 0 0 20mm !important;
-    max-height: 20mm !important;
-    overflow: hidden !important;
-    padding: 1.2mm 2.5mm !important;
-    border-bottom: 1.5px solid #000 !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
-
-  .demand-notice-header-details {
-    display: none !important;
-  }
-
-  .demand-notice-header-meta {
-    display: grid !important;
-    flex: 0 0 34mm !important;
-    border: 1px solid #000 !important;
-    padding: 1mm !important;
-    font-size: 5.5px !important;
-    background: #f8fafc !important;
-  }
-
-  .demand-notice-header-meta dl {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 0.4mm !important;
-  }
-
-  .demand-notice-header-meta dt {
-    font-size: 4.5px !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    color: #64748b !important;
-  }
-
-  .demand-notice-header-meta dd {
-    font-size: 6px !important;
-    font-family: var(--font-jetbrains-mono, ui-monospace, monospace) !important;
-    font-weight: 700 !important;
-    line-height: 1.1 !important;
-  }
-
-  .demand-notice-header-title .dn-title,
-  .demand-notice-header-title h1 {
-    font-size: 8px !important;
     line-height: 1.15 !important;
-    margin: 0 !important;
+}
+
+html.dn-print-measure .demand-notice-print-root .dn-print-office-line {
+
+    font-size: 8px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+}
+
+html.dn-print-measure .demand-notice-print-root .dn-print-subtitle {
+
+    font-size: 10px !important;
     font-weight: 700 !important;
-  }
-
-  .demand-notice-header-title p:nth-child(2) {
-    font-size: 7px !important;
-    margin-top: 0.4mm !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
     color: #0369a1 !important;
-  }
+}
 
-  .demand-notice-header-title p:nth-child(3) {
-    font-size: 6px !important;
-    margin-top: 0.3mm !important;
-  }
+html.dn-print-measure .demand-notice-print-section-label {
 
-  /* Property + Owner — two compact cards */
-  .demand-notice-property-row {
-    flex: 0 0 38mm !important;
-    min-height: 38mm !important;
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 1.5mm !important;
-    overflow: hidden !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
+    display: block !important;
+    margin: 0 0 0.5mm !important;
+    padding: 0 0 0.4mm !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    color: #1e293b !important;
+    border-bottom: 1px solid #94a3b8 !important;
+}
 
-  .demand-notice-property-row .dn-section {
-    display: flex !important;
-    flex-direction: column !important;
-    padding: 1mm 1.2mm !important;
-    margin: 0 !important;
+html.dn-print-measure .demand-notice-print-subhead {
+
+    display: block !important;
+    margin: 0 0 0.5mm !important;
+    font-size: 8px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    color: #475569 !important;
+}
+
+html.dn-print-measure .demand-notice-print-root .dn-label {
+
+    font-size: 8px !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    color: #64748b !important;
+}
+
+html.dn-print-measure .demand-notice-print-root .dn-value {
+
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    color: #0f172a !important;
+}
+
+
+
+  /* -- Dynamic values (no clipping) -- */
+
+html.dn-print-measure .demand-notice-print-root .property-id,
+html.dn-print-measure .demand-notice-print-root .dn-dynamic-value {
+
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+    hyphens: auto !important;
+}
+
+html.dn-print-measure .demand-notice-print-root .property-id {
+
+    font-family: var(--font-jetbrains-mono, ui-monospace, monospace) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+}
+
+
+
+  /* -- Header -- */
+
+html.dn-print-measure .demand-notice-header {
+
+    flex: 0 0 auto !important;
+    padding: 0 !important;
     border: 1px solid #000 !important;
     border-radius: 0 !important;
-    overflow: hidden !important;
-    min-height: 0 !important;
-  }
+    background: #fff !important;
+    overflow: visible !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+}
 
-  .demand-notice-property-row .dn-section > div:first-child {
-    margin-bottom: 0.6mm !important;
-    padding-bottom: 0.5mm !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-  }
+html.dn-print-measure .demand-notice-header-main {
 
-  .demand-notice-property-row .dn-section > div:first-child p {
-    font-size: 6.5px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 2.5mm !important;
+    padding: 1.5mm 2mm !important;
+    border-bottom: 1px solid #000 !important;
+}
+
+html.dn-print-measure .demand-notice-header-logo img,
+html.dn-print-measure .demand-notice-header-logo > div {
+
+    width: 12mm !important;
+    height: 12mm !important;
+}
+
+html.dn-print-measure .demand-notice-header-title {
+
+    flex: 1 1 auto !important;
+    text-align: center !important;
+    min-width: 0 !important;
+}
+
+html.dn-print-measure .demand-notice-header-title .dn-print-office-name {
+
     margin: 0 !important;
-  }
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    color: #0f172a !important;
+}
 
-  .demand-notice-property-row svg {
-    display: none !important;
-  }
+html.dn-print-measure .demand-notice-header-title .dn-print-municipality {
 
-  .demand-notice-property-row dl {
+    margin: 0.4mm 0 0 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+    color: #334155 !important;
+}
+
+html.dn-print-measure .demand-notice-header-title .dn-print-notice-title {
+
+    margin: 1mm 0 0 !important;
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px !important;
+    line-height: 1.1 !important;
+    color: #0369a1 !important;
+    text-transform: none !important;
+}
+
+html.dn-print-measure .demand-notice-header-title .dn-print-notice-title-hi {
+
+    margin: 0.5mm 0 0 !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    line-height: 1.2 !important;
+    color: #334155 !important;
+}
+
+
+
+  /* Metadata strip — 3 equal cards below header */
+
+html.dn-print-measure .demand-notice-header-meta-strip,
+html.dn-print-measure .demand-notice-header-details {
+
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 1.5mm !important;
+    margin: 0 !important;
+    padding: 1.5mm 2mm !important;
+    border-top: none !important;
+}
+
+html.dn-print-measure .demand-notice-meta-card {
+
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    height: auto !important;
+    padding: 2mm !important;
+    border: 1px solid #000 !important;
+    background: #f8fafc !important;
+    text-align: center !important;
+}
+
+html.dn-print-measure .demand-notice-meta-card .dn-meta-label {
+
+    margin: 0 0 0.8mm !important;
+    font-size: 8px !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    color: #64748b !important;
+}
+
+html.dn-print-measure .demand-notice-meta-card .dn-meta-value {
+
+    margin: 0 !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+    color: #0f172a !important;
+}
+
+html.dn-print-measure .demand-notice-meta-card .property-id {
+
+    font-size: 11px !important;
+}
+
+
+
+  /* -- Property & owner -- */
+
+html.dn-print-measure .demand-notice-property-row {
+
+    flex: 0 0 auto !important;
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 0.8mm !important;
-    flex: 1 1 auto !important;
-    align-content: start !important;
-  }
+    gap: 1mm !important;
+    align-items: stretch !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+}
 
-  .demand-notice-property-row dl > div {
+html.dn-print-measure .demand-notice-property-row .dn-section {
+
+    display: flex !important;
+    flex-direction: column !important;
+    margin: 0 !important;
+    padding: 0.8mm 1mm !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+}
+
+html.dn-print-measure .demand-notice-property-row .dn-section > div:first-child {
+
+    margin: 0 0 0.6mm !important;
+    padding: 0 0 0.5mm !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+}
+
+html.dn-print-measure .demand-notice-property-row .dn-section>div:first-child p {
+
+    margin: 0 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+}
+
+html.dn-print-measure .demand-notice-property-row svg {
+
+    display: none !important;
+}
+
+html.dn-print-measure .demand-notice-property-row .dn-field-grid {
+
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.6mm !important;
+    margin: 0 !important;
+    flex: 1 1 auto !important;
+}
+
+html.dn-print-measure .demand-notice-property-row .dn-field-cell {
+
     padding: 0.6mm 0.8mm !important;
     border: 1px solid #e2e8f0 !important;
     background: #f8fafc !important;
-    border-radius: 0 !important;
-  }
-
-  .demand-notice-property-row dt {
-    font-size: 4.5px !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    color: #64748b !important;
-  }
-
-  .demand-notice-property-row dd {
-    font-size: 7px !important;
-    font-weight: 700 !important;
-    margin-top: 0.2mm !important;
-    line-height: 1.15 !important;
-  }
-
-  .demand-notice-property-row .sm\:col-span-2,
-  .demand-notice-property-row dl > div:last-child:nth-child(odd) {
-    grid-column: 1 / -1 !important;
-  }
-
-  /* Site imagery + GIS — side by side */
-  .demand-notice-imagery-row {
-    flex: 0 0 44mm !important;
-    min-height: 44mm !important;
-    overflow: hidden !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
-
-  .demand-notice-gallery-print,
-  .demand-notice-imagery-row .demand-notice-gallery {
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    padding: 1mm !important;
-    border: 1px solid #000 !important;
-    border-radius: 0 !important;
-  }
-
-  .demand-notice-imagery-grid {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    height: 100% !important;
-  }
-
-  .demand-notice-site-photos,
-  .demand-notice-gis-panel {
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    min-height: 0 !important;
-  }
-
-  .demand-notice-photo-frame,
-  .demand-notice-gis-frame {
-    flex: 1 1 auto !important;
-    height: 34mm !important;
-    min-height: 34mm !important;
-    max-height: 34mm !important;
-    aspect-ratio: auto !important;
-  }
-
-  .demand-notice-site-photos .grid {
-    height: 100% !important;
-    flex: 1 1 auto !important;
-  }
-
-  .demand-notice-photo-cell {
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  /* Tax demand — highlighted band */
-  .demand-notice-tax-row {
-    flex: 0 0 16mm !important;
-    min-height: 16mm !important;
-    overflow: hidden !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
-
-  .demand-notice-tax-row .demand-notice-summary-panel {
-    height: 100% !important;
-    padding: 1mm 1.5mm !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  .demand-notice-summary-box {
-    flex: 1 1 auto !important;
-    height: 100% !important;
-  }
-
-  .demand-notice-summary-grid {
-    height: 100% !important;
-    display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 1mm !important;
-    align-items: stretch !important;
-  }
-
-  .demand-notice-summary-item {
-    border: 1px solid #0369a1 !important;
-    background: #fff !important;
-  }
-
-  .demand-notice-summary-total {
-    border: 2px solid #047857 !important;
-    background: #d1fae5 !important;
-  }
-
-  /* Assessment table — grows to fill */
-  .demand-notice-table-section {
-    flex: 1 1 48mm !important;
-    min-height: 48mm !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-    padding: 1mm !important;
-    border: 1px solid #000 !important;
-    border-radius: 0 !important;
-  }
-
-  .demand-notice-table-section > div:first-child {
-    margin-bottom: 0.5mm !important;
-    padding-bottom: 0.4mm !important;
-    flex-shrink: 0 !important;
-  }
-
-  .demand-notice-table-section > div:first-child h2,
-  .demand-notice-table-section .demand-notice-print-section-label {
-    font-size: 6.5px !important;
-    margin: 0 !important;
-  }
-
-  .demand-notice-table-section > div:nth-child(2) {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  .demand-notice-table-section [data-slot="table-container"] {
-    flex: 1 1 auto !important;
-    overflow: visible !important;
-    height: 100% !important;
-  }
-
-  .demand-notice-table-section table {
-    width: 100% !important;
     min-width: 0 !important;
-    table-layout: fixed !important;
+    height: auto !important;
+}
+
+html.dn-print-measure .demand-notice-property-row .dn-field-label,
+html.dn-print-measure .demand-notice-property-row dt {
+
+    font-size: 8px !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+    color: #64748b !important;
+}
+
+html.dn-print-measure .demand-notice-property-row .dn-dynamic-value,
+html.dn-print-measure .demand-notice-property-row dd {
+
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    margin: 0.3mm 0 0 !important;
+    line-height: 1.25 !important;
+}
+
+html.dn-print-measure .demand-notice-property-row .dn-field-wide,
+html.dn-print-measure .demand-notice-property-row .sm\:col-span-2 {
+
+    grid-column: 1 / -1 !important;
+}
+
+
+
+  /* -- Site imagery & GIS -- */
+
+html.dn-print-measure .demand-notice-imagery-row {
+
+    flex: 0 0 auto !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+}
+
+html.dn-print-measure .demand-notice-imagery-row .demand-notice-gallery {
+
+    padding: 0.8mm !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+}
+
+html.dn-print-measure .demand-notice-imagery-grid {
+
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1mm !important;
+}
+
+html.dn-print-measure .demand-notice-site-photos,
+html.dn-print-measure .demand-notice-gis-panel {
+
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: auto !important;
+    height: auto !important;
+}
+
+html.dn-print-measure .demand-notice-photo-frame,
+html.dn-print-measure .demand-notice-gis-frame {
+
+    height: 48mm !important;
+    min-height: 48mm !important;
+    max-height: 48mm !important;
+    overflow: hidden !important;
+}
+
+html.dn-print-measure .demand-notice-photo-frame img,
+html.dn-print-measure .demand-notice-gis-frame img {
+
+    object-fit: cover !important;
+    width: 100% !important;
     height: 100% !important;
-  }
+}
 
-  .demand-notice-table-section th:nth-child(1) { width: 5% !important; }
-  .demand-notice-table-section th:nth-child(2) { width: 9% !important; }
-  .demand-notice-table-section th:nth-child(3) { width: 14% !important; }
-  .demand-notice-table-section th:nth-child(4) { width: 14% !important; }
-  .demand-notice-table-section th:nth-child(5) { width: 12% !important; }
-  .demand-notice-table-section th:nth-child(6) { width: 14% !important; }
-  .demand-notice-table-section th:nth-child(7) { width: 14% !important; }
-  .demand-notice-table-section th:nth-child(8) { width: 18% !important; }
+html.dn-print-measure .demand-notice-site-photos .grid {
 
-  .demand-notice-table-section th,
-  .demand-notice-table-section td {
-    padding: 1.2mm 0.8mm !important;
-    font-size: 7.5px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.8mm !important;
+    height: 48mm !important;
+}
+
+html.dn-print-measure .demand-notice-photo-cell {
+
+    height: 100% !important;
+    overflow: hidden !important;
+}
+
+
+
+  /* -- Assessment table -- */
+
+html.dn-print-measure .demand-notice-table-section {
+
+    flex: 0 0 auto !important;
+    padding: 0.8mm !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+}
+
+html.dn-print-measure .demand-notice-table-section > div:first-child {
+
+    margin: 0 0 0.5mm !important;
+    padding: 0 !important;
+}
+
+html.dn-print-measure .demand-notice-table-section [data-slot="table-container"] {
+
+    overflow: visible !important;
+    height: auto !important;
+}
+
+html.dn-print-measure .demand-notice-table-section table {
+
+    width: 100% !important;
+    table-layout: fixed !important;
+    height: auto !important;
+    border-collapse: collapse !important;
+}
+
+html.dn-print-measure .demand-notice-table-section th:nth-child(1) {
+
+    width: 4% !important;
+}
+
+html.dn-print-measure .demand-notice-table-section th:nth-child(2) {
+
+    width: 8% !important;
+}
+
+html.dn-print-measure .demand-notice-table-section th:nth-child(3) {
+
+    width: 11% !important;
+}
+
+html.dn-print-measure .demand-notice-table-section th:nth-child(4) {
+
+    width: 11% !important;
+}
+
+html.dn-print-measure .demand-notice-table-section th:nth-child(5) {
+
+    width: 14% !important;
+}
+
+html.dn-print-measure .demand-notice-table-section th:nth-child(6) {
+
+    width: 11% !important;
+}
+
+html.dn-print-measure .demand-notice-table-section th:nth-child(7) {
+
+    width: 10% !important;
+}
+
+html.dn-print-measure .demand-notice-table-section th:nth-child(8) {
+
+    width: 14% !important;
+}
+
+html.dn-print-measure .demand-notice-table-section th:nth-child(9) {
+
+    width: 17% !important;
+}
+
+html.dn-print-measure .demand-notice-table-section th,
+html.dn-print-measure .demand-notice-table-section td {
+
+    padding: 0.6mm 0.45mm !important;
     line-height: 1.2 !important;
+    border: 1px solid #000 !important;
+    vertical-align: middle !important;
     white-space: normal !important;
     word-break: break-word !important;
-    vertical-align: middle !important;
-    border: 1px solid #000 !important;
-  }
+    overflow-wrap: anywhere !important;
+}
 
-  .demand-notice-table-section thead tr {
+html.dn-print-measure .demand-notice-table-section thead th {
+
+    font-size: 9px !important;
+    font-weight: 700 !important;
     background: #f1f5f9 !important;
-  }
+}
 
-  .demand-notice-table-section tbody tr {
-    min-height: 7mm !important;
-    height: auto !important;
-  }
+html.dn-print-measure .demand-notice-table-section tbody td {
 
-  /* Important notice — expands before footer */
-  .demand-notice-legal-section {
-    flex: 1 1 36mm !important;
-    min-height: 32mm !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
+    font-size: 8.5px !important;
+    font-weight: 500 !important;
+}
+
+
+
+  /* -- Tax demand summary -- */
+
+html.dn-print-measure .demand-notice-tax-row {
+
+    flex: 0 0 auto !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-  }
+}
 
-  .demand-notice-legal-section > h2 {
-    display: none !important;
-  }
+html.dn-print-measure .demand-notice-tax-row .demand-notice-summary-panel {
 
-  .demand-notice-print-legal {
-    flex: 1 1 auto !important;
-    display: flex !important;
-    flex-direction: column !important;
-    min-height: 0 !important;
-    height: 100% !important;
-  }
+    padding: 0.6mm 0.8mm !important;
+    border: 1.5px solid #0369a1 !important;
+    background: #f0f9ff !important;
+    border-radius: 0 !important;
+}
 
-  .demand-notice-legal-box {
-    flex: 1 1 auto !important;
-    height: 100% !important;
-    border: 1px solid #000 !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
+html.dn-print-measure .demand-notice-summary-grid {
 
-  .demand-notice-legal-text {
-    flex: 1 1 auto !important;
-    padding: 2mm 2.5mm !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
-    height: 100% !important;
-  }
-
-  .demand-notice-print-legal .demand-notice-hi {
-    font-size: 7.5px !important;
-    line-height: 1.35 !important;
-    text-align: justify !important;
-  }
-
-  /* Footer — pinned at bottom */
-  .demand-notice-print-footer {
-    flex: 0 0 24mm !important;
-    margin-top: auto !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-end !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
     gap: 0.8mm !important;
-    overflow: hidden !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-    border-top: 1px solid #000 !important;
-    padding-top: 1mm !important;
-  }
+    height: auto !important;
+    max-height: 16mm !important;
+}
 
-  .demand-notice-print-footer .demand-notice-print-only > div {
-    border: none !important;
-  }
+html.dn-print-measure .demand-notice-summary-item,
+html.dn-print-measure .demand-notice-summary-total {
 
-  .demand-notice-print-footer .demand-notice-print-only > div > div {
-    padding: 0.5mm 1mm !important;
-    text-align: right !important;
-  }
-
-  .demand-notice-signature-pad {
-    min-height: 10mm !important;
-    border-bottom: 1px solid #000 !important;
-  }
-
-  .demand-notice-print-caption {
-    font-size: 6px !important;
-    line-height: 1.25 !important;
-    margin: 0 !important;
-  }
-
-  .demand-notice-codes {
-    border-top: none !important;
-    padding: 0 !important;
-  }
-
-  /* Scaler fills viewport — no JS shrink unless overflow */
-  .demand-notice-print-scaler {
-    height: 281mm !important;
-    min-height: 281mm !important;
     display: flex !important;
     flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    padding: 0.8mm 0.6mm !important;
+    border: 1px solid #0369a1 !important;
+    background: #fff !important;
+    min-height: 0 !important;
+    max-height: 16mm !important;
+}
+
+html.dn-print-measure .demand-notice-summary-item p:first-child {
+
+    font-size: 7px !important;
+    font-weight: 500 !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+    color: #475569 !important;
+}
+
+html.dn-print-measure .demand-notice-summary-item p:last-child {
+
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    margin: 0.3mm 0 0 !important;
+    font-family: var(--font-jetbrains-mono, ui-monospace, monospace) !important;
+}
+
+html.dn-print-measure .demand-notice-summary-total {
+
+    border: 2px solid #047857 !important;
+    background: #d1fae5 !important;
+}
+
+html.dn-print-measure .demand-notice-summary-total p:first-child {
+
+    font-size: 7px !important;
+    font-weight: 600 !important;
+    color: #065f46 !important;
+    margin: 0 !important;
+}
+
+html.dn-print-measure .demand-notice-summary-total p:last-child {
+
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    color: #047857 !important;
+    margin: 0.3mm 0 0 !important;
+    font-family: var(--font-jetbrains-mono, ui-monospace, monospace) !important;
+}
+
+
+
+  /* -- Important notice -- */
+
+html.dn-print-measure .demand-notice-legal-section {
+
+    flex: 0 0 auto !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+}
+
+html.dn-print-measure .demand-notice-legal-section > h2 {
+
+    display: none !important;
+}
+
+html.dn-print-measure .demand-notice-legal-box {
+
+    border: 1px solid #000 !important;
+    background: #fff !important;
+}
+
+html.dn-print-measure .demand-notice-legal-text {
+
+    padding: 1.2mm 1.5mm !important;
+    height: auto !important;
+}
+
+html.dn-print-measure .demand-notice-print-legal .demand-notice-hi {
+
+    font-size: 9px !important;
+    line-height: 1.4 !important;
+    text-align: justify !important;
+    margin: 0 !important;
+}
+
+html.dn-print-measure .demand-notice-legal-text .demand-notice-hi + .demand-notice-hi {
+
+    margin-top: 0.8mm !important;
+}
+
+
+
+  /* -- Signature (attached to notice) -- */
+
+html.dn-print-measure .demand-notice-signature-section {
+
+    flex: 0 0 auto !important;
+    margin-top: 0.8mm !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+}
+
+html.dn-print-measure .demand-notice-signature-block {
+
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+html.dn-print-measure .demand-notice-signature-inner {
+
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    margin-left: auto !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    text-align: right !important;
+}
+
+html.dn-print-measure .demand-notice-signature-sd {
+
+    margin: 0 0 0.3mm !important;
+    font-family: ui-serif, Georgia, serif !important;
+    font-size: 9px !important;
+    color: #334155 !important;
+}
+
+html.dn-print-measure .demand-notice-signature-pad {
+
+    width: 45mm !important;
+    min-height: 6mm !important;
+    height: auto !important;
+    max-height: none !important;
+    border-bottom: 1px solid #000 !important;
+    margin: 0 0 0.6mm !important;
+}
+
+html.dn-print-measure .demand-notice-signature-title {
+
+    margin: 0 !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    color: #334155 !important;
+}
+
+html.dn-print-measure .demand-notice-signature-title-hi {
+
+    margin: 0.3mm 0 0 !important;
+    font-size: 9px !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+}
+
+
+
+  /* -- Compact footer -- */
+
+html.dn-print-measure .demand-notice-print-footer {
+
+    flex: 0 0 auto !important;
+    margin-top: auto !important;
+    padding: 0.8mm 0 0 !important;
+    border-top: 1px solid #cbd5e1 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+}
+
+html.dn-print-measure .demand-notice-print-footer-inner {
+
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 7px !important;
+    line-height: 1.3 !important;
+    color: #64748b !important;
+    text-align: center !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+}
+
+html.dn-print-measure .demand-notice-print-footer-inner .dn-footer-ref {
+
+    font-weight: 600 !important;
+    font-family: var(--font-jetbrains-mono, ui-monospace, monospace) !important;
+}
+
+html.dn-print-measure .demand-notice-print-footer-inner .dn-footer-sep {
+
+    color: #94a3b8 !important;
+}
+
+html.dn-print-measure .demand-notice-print-scaler {
+
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 285mm !important;
+    height: auto !important;
     transform: none !important;
     zoom: 1 !important;
-  }
+}
 
-  .dn-floors-many .demand-notice-table-section th,
-  .dn-floors-many .demand-notice-table-section td {
-    font-size: 6.5px !important;
-    padding: 0.8mm 0.6mm !important;
-  }
+html.dn-print-measure .dn-floors-many .demand-notice-table-section th,
+html.dn-print-measure .dn-floors-many .demand-notice-table-section td {
 
-  .dn-floors-extra .demand-notice-property-row { flex-basis: 34mm !important; min-height: 34mm !important; }
-  .dn-floors-extra .demand-notice-imagery-row { flex-basis: 38mm !important; min-height: 38mm !important; }
-  .dn-floors-extra .demand-notice-table-section th,
-  .dn-floors-extra .demand-notice-table-section td {
-    font-size: 6px !important;
-    padding: 0.6mm 0.5mm !important;
-  }
-  .dn-floors-extra .demand-notice-print-legal .demand-notice-hi {
-    font-size: 6.5px !important;
-  }
+    font-size: 7.5px !important;
+    padding: 0.5mm 0.4mm !important;
+}
 
+html.dn-print-measure .dn-floors-extra .demand-notice-photo-frame,
+html.dn-print-measure .dn-floors-extra .demand-notice-gis-frame,
+html.dn-print-measure .dn-floors-extra .demand-notice-site-photos .grid {
+
+    height: 42mm !important;
+    min-height: 42mm !important;
+    max-height: 42mm !important;
+}
+
+html.dn-print-measure .dn-floors-extra .demand-notice-table-section th,
+html.dn-print-measure .dn-floors-extra .demand-notice-table-section td {
+
+    font-size: 7px !important;
+    padding: 0.4mm 0.35mm !important;
+}
+
+html.dn-print-measure .dn-floors-extra .demand-notice-print-legal .demand-notice-hi {
+
+    font-size: 7.5px !important;
 }

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 
-import { ulbInitials } from "./shared";
+import { DEMAND_NOTICE_GOVT_LOGO } from "./shared";
 
 export function NoticeWatermark({ ulbName }: { ulbName: string }) {
   return (
@@ -12,24 +12,17 @@ export function NoticeWatermark({ ulbName }: { ulbName: string }) {
   );
 }
 
-export function NoticeLogo({ ulbName, logoUrl }: { ulbName: string; logoUrl?: string | null }) {
-  if (logoUrl) {
-    return (
+export function NoticeLogo({ logoUrl }: { ulbName: string; logoUrl?: string | null }) {
+  return (
+    <div className="demand-notice-header-logo-mark h-14 w-14 shrink-0 overflow-hidden rounded-full print:h-8 print:w-8">
       <Image
-        src={logoUrl}
-        alt=""
+        src={logoUrl ?? DEMAND_NOTICE_GOVT_LOGO}
+        alt="Government of Uttar Pradesh emblem"
         width={56}
         height={56}
         unoptimized
-        className="h-14 w-14 object-contain print:h-8 print:w-8"
+        className="h-full w-full object-cover"
       />
-    );
-  }
-
-  return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--dn-accent)] bg-[var(--dn-surface)] print:h-8 print:w-8 print:border">
-      <Image src="/municipal-emblem.svg" alt="" width={40} height={40} className="h-10 w-10 print:h-6 print:w-6" />
-      <span className="sr-only">{ulbInitials(ulbName)}</span>
     </div>
   );
 }

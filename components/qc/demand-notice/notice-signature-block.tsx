@@ -2,16 +2,14 @@
 
 export function NoticeSignatureBlock() {
   return (
-    <section className="dn-section demand-notice-print-only">
-      <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-none border border-black">
-        <div className="p-3 print:p-2">
-          <div className="mb-1 text-right font-serif text-sm text-slate-700" aria-hidden>
-            Sd/-
-          </div>
-          <div className="demand-notice-signature-pad min-h-10.5 border-b border-black/20" aria-hidden />
-          <p className="mt-2 text-[9px] font-bold uppercase tracking-wide text-(--dn-secondary)">Executive Officer</p>
-          <p className="demand-notice-hi text-[10px] font-semibold">अधिशासी अधिकारी</p>
-        </div>
+    <section className="dn-section demand-notice-print-only demand-notice-signature-block">
+      <div className="demand-notice-signature-inner">
+        <p className="demand-notice-signature-sd" aria-hidden>
+          Sd/-
+        </p>
+        <div className="demand-notice-signature-pad" aria-hidden />
+        <p className="demand-notice-signature-title">Executive Officer</p>
+        <p className="demand-notice-hi demand-notice-signature-title-hi">अधिशासी अधिकारी</p>
       </div>
     </section>
   );

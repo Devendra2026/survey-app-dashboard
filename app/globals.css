@@ -1,8 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "./demand-notice-a4-measure.css";
-@import "./demand-notice-a4-print.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -240,8 +238,8 @@
     --dn-zebra: #f8fafc;
     --dn-page-w: 210mm;
     --dn-page-h: 297mm;
-    --dn-content-w: 194mm;
-    --dn-print-h: 281mm;
+    --dn-content-w: 198mm;
+    --dn-print-h: 285mm;
     --dn-space-1: 4px;
     --dn-space-2: 8px;
     --dn-space-3: 12px;
@@ -497,8 +495,8 @@ html.dn-print-measure .demand-notice-canvas {
 }
 
 html.dn-print-measure .demand-notice-document {
-  width: var(--dn-content-w, 194mm) !important;
-  max-width: var(--dn-content-w, 194mm) !important;
+  width: var(--dn-content-w, 198mm) !important;
+  max-width: var(--dn-content-w, 198mm) !important;
 }
 
 html.dn-print-measure main:has(.demand-notice-document),
@@ -511,7 +509,7 @@ html.dn-print-measure main:has(.demand-notice-document)>div {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 6mm;
   }
 
   aside,
@@ -677,7 +675,7 @@ html.dn-print-measure main:has(.demand-notice-document)>div {
   }
 
   .demand-notice-document {
-    --dn-content-w: 194mm;
+    --dn-content-w: 198mm;
     width: var(--dn-content-w) !important;
     max-width: var(--dn-content-w) !important;
     margin: 0 auto !important;
@@ -692,8 +690,8 @@ html.dn-print-measure main:has(.demand-notice-document)>div {
 
   .demand-notice-print-viewport {
     width: var(--dn-content-w) !important;
-    height: 281mm !important;
-    max-height: 281mm !important;
+    height: 285mm !important;
+    max-height: 285mm !important;
     overflow: hidden !important;
     margin: 0 auto !important;
   }

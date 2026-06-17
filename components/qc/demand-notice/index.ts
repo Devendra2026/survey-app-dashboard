@@ -1,2 +1,5 @@
+export { BilingualLabel } from "./bilingual-label";
 export { DemandNoticeDocument, type DemandNoticeDocumentProps } from "./document";
-export { BilingualLabel, NoticeDataCard, SectionLabel } from "./shared";
+export { NoticeDataCard } from "./notice-data-card";
+export { SectionLabel } from "./section-label";
+

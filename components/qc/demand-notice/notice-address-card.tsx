@@ -1,7 +1,8 @@
 "use client";
 
 import { MapPin } from "lucide-react";
-import { BilingualLabel, NoticeDataCard } from "./shared";
+import { BilingualLabel } from "./bilingual-label";
+import { NoticeDataCard } from "./notice-data-card";
 
 export function NoticeAddressCard({ address }: { address: string }) {
   return (
