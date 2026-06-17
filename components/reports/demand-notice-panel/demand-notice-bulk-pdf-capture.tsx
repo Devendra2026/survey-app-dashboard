@@ -129,7 +129,7 @@ function DemandNoticeBulkPdfCaptureRun({ job, onProgress, onComplete, onError }:
   return (
     <div
       ref={mountRef}
-      className={`demand-notice demand-notice-bulk-pdf-capture ${demandNoticeFontClassName} pointer-events-none fixed top-0 -left-[12000px] z-[-1] w-[210mm] bg-white`}
+      className={`demand-notice demand-notice-bulk-pdf-capture ${demandNoticeFontClassName} pointer-events-none fixed top-0 -left-3000 z-[-1] w-[210mm] bg-white`}
       aria-hidden
     >
       <DemandNoticeDocument key={payload.propertyId} {...payload} />
