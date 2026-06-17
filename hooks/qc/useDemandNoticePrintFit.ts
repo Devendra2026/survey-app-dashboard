@@ -4,7 +4,7 @@ import { useCallback, useEffect } from "react";
 
 /** Printable A4 height at 96dpi minus 16mm margins (297mm − 16mm). */
 const PRINTABLE_HEIGHT_PX = 1062;
-const MIN_SCALE = 0.48;
+const MIN_SCALE = 0.55;
 
 const SCALER_SELECTOR = ".demand-notice-print-scaler";
 const SCREEN_LAYOUT_SELECTOR = '[data-dn-layout="screen"]';
@@ -78,11 +78,13 @@ async function fitDemandNoticeDocument() {
     if (naturalHeight > PRINTABLE_HEIGHT_PX) {
       scale = Math.max(MIN_SCALE, PRINTABLE_HEIGHT_PX / naturalHeight);
       while (scale > MIN_SCALE && naturalHeight * scale > PRINTABLE_HEIGHT_PX) {
-        scale = Math.max(MIN_SCALE, scale - 0.02);
+        scale = Math.max(MIN_SCALE, Math.round((scale - 0.01) * 100) / 100);
       }
     }
 
-    applyPrintScale(scaler, scale);
+    if (scale < 1) {
+      applyPrintScale(scaler, scale);
+    }
   } finally {
     if (screenLayout) {
       screenLayout.style.display = screenLayout.dataset.dnMeasureRestoreDisplay ?? "";
