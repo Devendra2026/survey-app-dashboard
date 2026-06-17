@@ -372,7 +372,12 @@ export async function collectSurveysForListPaginated(
 ): Promise<Doc<"surveys">[]> {
   let rows: Doc<"surveys">[] = [];
 
-  if (access === "own") {
+  if (args.qcStatus) {
+    rows = await ctx.db
+      .query("surveys")
+      .withIndex("by_qc_status", (q) => q.eq("qcStatus", args.qcStatus!))
+      .collect();
+  } else if (access === "own") {
     rows = await ctx.db
       .query("surveys")
       .withIndex("by_surveyor", (q) => q.eq("surveyorId", me._id))
@@ -409,9 +414,6 @@ export async function collectSurveysForListPaginated(
     }
   } else {
     rows = await collectSurveysInFieldScope(ctx, me);
-    if (rows.length > LIST_PAGINATED_SCOPE_LIMIT) {
-      rows = rows.slice(0, LIST_PAGINATED_SCOPE_LIMIT);
-    }
   }
 
   return applySurveyListFilters(rows, args, me, muniIds, access);
@@ -451,6 +453,10 @@ export const listPaginated = query({
         filtered.map((r) => r.municipalityId),
       );
       filtered = filterSurveysBySearch(filtered, args.searchTerm, searchCodes);
+    }
+
+    if (filtered.length > LIST_PAGINATED_SCOPE_LIMIT) {
+      filtered = filtered.slice(0, LIST_PAGINATED_SCOPE_LIMIT);
     }
 
     const totalCount = filtered.length;

@@ -488,6 +488,15 @@ html.dn-print-measure .demand-notice-print-hide {
   display: none !important;
 }
 
+/* Bulk PDF capture uses dn-print-measure (not @media print) */
+html.dn-print-measure .demand-notice-gis-frame iframe {
+  display: none !important;
+}
+
+html.dn-print-measure .demand-notice-gis-frame img {
+  display: block !important;
+}
+
 html.dn-print-measure .demand-notice-canvas {
   max-width: none !important;
   padding: 0 !important;

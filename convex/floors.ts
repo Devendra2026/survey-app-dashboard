@@ -16,6 +16,9 @@ import {
 } from "./areaMasters";
 import { assertCanReadWard, clientError, requireUser, writeAudit } from "./helpers";
 
+/** Matches max QC table page size (`QC_TABLE_PAGE_SIZE_OPTIONS`). */
+const MAX_SURVEYS_PER_FLOOR_LIST = 5000;
+
 const floorRowValidator = v.object({
   _id: v.id("floors"),
   _creationTime: v.number(),
@@ -56,8 +59,8 @@ export const listForSurveys = query({
     }),
   ),
   handler: async (ctx, args) => {
-    if (args.surveyIds.length > 50) {
-      clientError("VALIDATION", "A maximum of 50 surveys can be requested at once");
+    if (args.surveyIds.length > MAX_SURVEYS_PER_FLOOR_LIST) {
+      clientError("VALIDATION", `A maximum of ${MAX_SURVEYS_PER_FLOOR_LIST} surveys can be requested at once`);
     }
     const me = await requireUser(ctx);
     const uniqueSurveyIds = [...new Set(args.surveyIds)];

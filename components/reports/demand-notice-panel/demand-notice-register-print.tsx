@@ -6,16 +6,19 @@ export function DemandNoticeRegisterPrint({
   rows,
   scopeLabel,
   totalAnnualDemandLabel,
+  reportDateLabel,
 }: {
   rows: DemandRegisterRow[];
   scopeLabel: string;
   totalAnnualDemandLabel: string;
+  reportDateLabel: string;
 }) {
   return (
     <section className="demand-register-print hidden print:block" aria-hidden="true">
       <header className="mb-2 print:mb-3">
         <h1 className="text-base font-bold print:text-lg">Demand Notice Register</h1>
         <p className="text-xs print:text-sm">Scope: {scopeLabel}</p>
+        <p className="text-xs print:text-sm">Notice date: {reportDateLabel}</p>
         <p className="text-xs print:text-sm">Total Annual Demand (page): {totalAnnualDemandLabel}</p>
         <p className="text-xs print:text-sm">{rows.length.toLocaleString()} properties on this page</p>
       </header>

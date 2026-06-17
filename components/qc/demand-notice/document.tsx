@@ -1,8 +1,7 @@
 "use client";
 
-import type { DemandNoticeData, OfficeTitles } from "@/lib/qc/demand-notice";
+import type { DemandNoticeDocumentProps } from "@/lib/qc/demand-notice-document-types";
 import { DEFAULT_TAX_RATES } from "@/lib/qc/tax-rate-defaults";
-import type { SurveyDetail } from "@/schema/surveys/index";
 import { NoticeAssessmentTable } from "./notice-assessment-table";
 import { NoticeDemandSummary } from "./notice-demand-summary";
 import { NoticeHeader } from "./notice-header";
@@ -15,24 +14,7 @@ import { NoticeSignatureBlockScreen } from "./notice-signature-block";
 import { NoticeWatermark } from "./notice-watermark";
 import { pctLabel } from "./shared";
 
-export type DemandNoticeDocumentProps = {
-  survey: SurveyDetail;
-  propertyId: string;
-  ownerName: string;
-  fatherName: string;
-  mobileNo: string;
-  oldHouseNo: string;
-  office: OfficeTitles;
-  taxZone: string;
-  address: string;
-  notice: DemandNoticeData;
-  noticeDate: string;
-  assessmentYear: string;
-  frontPhoto?: string | null;
-  sidePhoto?: string | null;
-  logoUrl?: string | null;
-  rateConfig?: { propertyTaxPct: number; waterTaxPct: number; drainageTaxPct: number } | null;
-};
+export type { DemandNoticeDocumentProps } from "@/lib/qc/demand-notice-document-types";
 
 export function DemandNoticeDocument({
   survey,

@@ -50,12 +50,12 @@ export function DemandNoticeRegisterTable({ rows, onPreview }: DemandNoticeRegis
                       <Eye className="mr-1 h-4 w-4" /> Preview
                     </Button>
                     <Button asChild size="sm" variant="ghost">
-                      <a href={`/qc/${row.surveyId}/demand-notice`} target="_blank" rel="noreferrer">
+                      <a href={`/reports/demand-notices/${row.surveyId}`} target="_blank" rel="noreferrer">
                         <Printer className="mr-1 h-4 w-4" /> Print
                       </a>
                     </Button>
                     <Button asChild size="sm" variant="ghost">
-                      <a href={`/qc/${row.surveyId}/demand-notice`} target="_blank" rel="noreferrer">
+                      <a href={`/reports/demand-notices/${row.surveyId}`} target="_blank" rel="noreferrer">
                         <ExternalLink className="mr-1 h-4 w-4" /> Open
                       </a>
                     </Button>
@@ -83,7 +83,7 @@ export function DemandNoticeRegisterTable({ rows, onPreview }: DemandNoticeRegis
                 <Eye className="mr-1 h-4 w-4" /> Preview
               </Button>
               <Button asChild size="sm" variant="ghost" className="min-h-11">
-                <a href={`/qc/${row.surveyId}/demand-notice`} target="_blank" rel="noreferrer">
+                <a href={`/reports/demand-notices/${row.surveyId}`} target="_blank" rel="noreferrer">
                   <Printer className="mr-1 h-4 w-4" /> Print
                 </a>
               </Button>

@@ -9,7 +9,10 @@
     "skipLibCheck": true,
     "noEmit": true,
     "lib": ["ES2021"],
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "@/*": ["../*"]
+    }
   },
   "include": ["./**/*"],
   "exclude": ["./_generated"]

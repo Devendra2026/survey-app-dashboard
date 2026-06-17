@@ -188,11 +188,11 @@ export default function ReportsPage() {
                 <GlassCardHeader
                   icon={<LayoutTemplate className="h-4 w-4" aria-hidden />}
                   title="QC Final Report"
-                  description="Styled final report with property summary and certification."
+                  description="Ward-wise register of QC-approved properties with printable final reports."
                 />
-                <p className="text-sm text-muted-foreground">
-                  Open any survey in QC and click &quot;QC Report Generate&quot; to view the report.
-                </p>
+                <Button asChild variant="outline" size="sm" className="cursor-pointer gap-1.5">
+                  <Link href="/reports/qc-final">Open Ward Register</Link>
+                </Button>
               </GlassCard>
 
               <GlassCard padding="md" hover>

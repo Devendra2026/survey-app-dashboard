@@ -193,6 +193,55 @@ export const removeBySurveySlot = mutation({
   },
 });
 
+/** Front + side photo URLs for demand notice export (batch, max 200 ids per call). */
+export const noticePhotoUrls = query({
+  args: { surveyIds: v.array(v.id("surveys")) },
+  returns: v.record(
+    v.string(),
+    v.object({
+      front: v.union(v.string(), v.null()),
+      side: v.union(v.string(), v.null()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    if (me.role === "pending") return {};
+
+    const ids = args.surveyIds.slice(0, 200);
+    const out: Record<string, { front: string | null; side: string | null }> = {};
+
+    for (const surveyId of ids) {
+      const survey = await ctx.db.get(surveyId);
+      if (!survey) {
+        out[surveyId] = { front: null, side: null };
+        continue;
+      }
+      try {
+        assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+      } catch {
+        out[surveyId] = { front: null, side: null };
+        continue;
+      }
+
+      const [front, side] = await Promise.all(
+        (["front", "side"] as const).map((slot) =>
+          ctx.db
+            .query("photos")
+            .withIndex("by_survey_slot", (q) => q.eq("surveyId", surveyId).eq("slot", slot))
+            .unique(),
+        ),
+      );
+
+      out[surveyId] = {
+        front: front ? await ctx.storage.getUrl(front.storageId) : null,
+        side: side ? await ctx.storage.getUrl(side.storageId) : null,
+      };
+    }
+
+    return out;
+  },
+});
+
 /** Front-photo preview URLs for survey list tables (batch, max 50 ids). */
 export const frontThumbnails = query({
   args: { surveyIds: v.array(v.id("surveys")) },

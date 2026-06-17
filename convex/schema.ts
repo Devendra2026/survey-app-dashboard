@@ -389,4 +389,28 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_active", ["userId", "isActive"]),
+
+  /** Bulk demand notice PDF export jobs (parcel-ordered, client captures official A4 layout). */
+  demandNoticeExportJobs: defineTable({
+    requestedBy: v.id("users"),
+    municipalityId: v.id("municipalities"),
+    districtId: v.optional(v.id("districts")),
+    wardNo: v.optional(v.string()),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("rendering"),
+      v.literal("uploading"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    surveyIds: v.array(v.id("surveys")),
+    processedCount: v.number(),
+    totalCount: v.number(),
+    storageId: v.optional(v.id("_storage")),
+    filename: v.string(),
+    reportDateMs: v.number(),
+    errorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  }).index("by_user_created", ["requestedBy", "createdAt"]),
 });

@@ -9,6 +9,7 @@ import { useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
 import { estimateDemandAssessment, formatInr } from "@/lib/qc/demand-estimate";
 import { computeDemandNotice } from "@/lib/qc/demand-notice";
 import { resolveAssessableSqft } from "@/lib/qc/qc-report-demand";
+import { formatReportDocumentDate, reportDocumentTimestamp } from "@/lib/qc/report-dates";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import { QC_TABLE_PAGE_SIZE_OPTIONS } from "@/lib/table-pagination";
 import type { FloorRow, SurveyListItem } from "@/schema/surveys/index";
@@ -27,19 +28,13 @@ export type DemandRegisterRow = {
   survey: SurveyListItem;
 };
 
-function dateToEpoch(fromDate: string | undefined, toDate: string | undefined) {
-  return {
-    fromMs: fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : undefined,
-    toMs: toDate ? new Date(`${toDate}T23:59:59.999`).getTime() : undefined,
-  };
-}
-
 export function useDemandNoticePanel() {
   const [filters, setFilters] = useState<FilterState>({});
   const [pageSize, setPageSize] = useState<number>(QC_TABLE_PAGE_SIZE_OPTIONS[1] ?? 20);
   const { masters } = useMasters();
   const ulbCodes = useMemo(() => buildUlbCodeMap(masters?.ulbs), [masters?.ulbs]);
-  const { fromMs, toMs } = dateToEpoch(filters.fromDate, filters.toDate);
+  const reportDateMs = reportDocumentTimestamp();
+  const reportDateLabel = formatReportDocumentDate(reportDateMs);
   const selectedMunicipalityId = filters.municipalityId as Id<"municipalities"> | undefined;
 
   const paginated = useSurveyListPaginated(
@@ -48,8 +43,6 @@ export function useDemandNoticePanel() {
       districtId: filters.districtId,
       municipalityId: filters.municipalityId,
       wardNo: filters.wardNo,
-      fromMs,
-      toMs,
     },
     pageSize,
   );
@@ -127,5 +120,7 @@ export function useDemandNoticePanel() {
     requiresMunicipality: !filters.municipalityId,
     ratesLoading,
     selectedMunicipalityId,
+    reportDateLabel,
+    reportDateMs,
   };
 }

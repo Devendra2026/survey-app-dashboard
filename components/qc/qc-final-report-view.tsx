@@ -12,6 +12,7 @@ import { generateQcFinalReportPdf } from "@/components/reports/queries/pdf";
 import { Button } from "@/components/ui/button";
 import { useMasters } from "@/hooks/masters/useMasters";
 import { getQcReportDemand } from "@/lib/qc/qc-report-demand";
+import { reportDocumentTimestamp } from "@/lib/qc/report-dates";
 import { surveyAreaMetrics } from "@/lib/survey/area";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
@@ -55,7 +56,7 @@ export function QcFinalReportView({ survey, surveyId, backHref = `/qc/${surveyId
   const ownershipType = labelFromOptions(masters?.ownershipTypes, survey.ownershipType);
   const demand = getQcReportDemand(survey, survey.floors, masters ?? undefined);
   const displayAssessableSqft = demand.assessableSqft > 0 ? demand.assessableSqft : areas.builtUpSqft;
-  const certifiedAt = survey.submittedAt ?? Date.now();
+  const certifiedAt = reportDocumentTimestamp();
   const assessmentYear = survey.assessmentYear || "—";
   const frontPhoto = survey.photos?.find((p) => p.slot === "front")?.url;
   const sidePhoto = survey.photos?.find((p) => p.slot === "side")?.url;

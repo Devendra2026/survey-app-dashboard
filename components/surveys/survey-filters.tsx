@@ -29,7 +29,7 @@ export type ScopeFilterState = Pick<FilterState, "districtId" | "municipalityId"
 export type SurveyorOption = { _id: string; name: string; role: string };
 
 /** Named layouts replace stacked show/hide booleans — each variant is one explicit shape. */
-export type SurveyFiltersVariant = "survey-registry" | "scope-and-dates";
+export type SurveyFiltersVariant = "survey-registry" | "scope-and-dates" | "scope-only";
 
 type SurveyFiltersBaseProps = {
   value: FilterState;
@@ -46,7 +46,11 @@ type ScopeAndDatesFiltersProps = SurveyFiltersBaseProps & {
   variant: "scope-and-dates";
 };
 
-export type SurveyFiltersProps = SurveyRegistryFiltersProps | ScopeAndDatesFiltersProps;
+type ScopeOnlyFiltersProps = SurveyFiltersBaseProps & {
+  variant: "scope-only";
+};
+
+export type SurveyFiltersProps = SurveyRegistryFiltersProps | ScopeAndDatesFiltersProps | ScopeOnlyFiltersProps;
 
 const ALL = "__all__";
 
@@ -62,7 +66,21 @@ function resolveFieldVisibility(variant: SurveyFiltersVariant, hasSurveyorOption
       showQcStatus: false,
       showSurveyorFilter: false,
       showMonthPicker: true,
+      showDateRange: true,
       showTwoMonthsBack: true,
+      showMonthShortcuts: true,
+    };
+  }
+  if (variant === "scope-only") {
+    return {
+      showSearch: false,
+      showStatus: false,
+      showQcStatus: false,
+      showSurveyorFilter: false,
+      showMonthPicker: false,
+      showDateRange: false,
+      showTwoMonthsBack: false,
+      showMonthShortcuts: false,
     };
   }
   return {
@@ -71,16 +89,26 @@ function resolveFieldVisibility(variant: SurveyFiltersVariant, hasSurveyorOption
     showQcStatus: true,
     showSurveyorFilter: hasSurveyorOptions,
     showMonthPicker: false,
+    showDateRange: false,
     showTwoMonthsBack: false,
+    showMonthShortcuts: false,
   };
 }
 
 export function SurveyFilters(props: SurveyFiltersProps) {
   const { value, onChange } = props;
   const variant = props.variant ?? "survey-registry";
-  const surveyorOptions = props.variant === "scope-and-dates" ? undefined : props.surveyorOptions;
-  const { showSearch, showStatus, showQcStatus, showSurveyorFilter, showMonthPicker, showTwoMonthsBack } =
-    resolveFieldVisibility(variant, surveyorOptions !== undefined);
+  const surveyorOptions = props.variant === "survey-registry" ? props.surveyorOptions : undefined;
+  const {
+    showSearch,
+    showStatus,
+    showQcStatus,
+    showSurveyorFilter,
+    showMonthPicker,
+    showDateRange,
+    showTwoMonthsBack,
+    showMonthShortcuts,
+  } = resolveFieldVisibility(variant, surveyorOptions !== undefined);
 
   const { masters } = useMasters();
   const wardsForMuni = useWardsForMunicipality(value.municipalityId);
@@ -136,7 +164,7 @@ export function SurveyFilters(props: SurveyFiltersProps) {
   };
 
   const clearAll = () => {
-    onChange(variant === "survey-registry" ? {} : { search: "" });
+    onChange(variant === "survey-registry" ? {} : variant === "scope-only" ? {} : { search: "" });
   };
 
   return (
@@ -148,17 +176,21 @@ export function SurveyFilters(props: SurveyFiltersProps) {
           <Badge variant="secondary">{activeFilterCount} active</Badge>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={() => applyMonthOffset(0)}>
-            This month
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => applyMonthOffset(-1)}>
-            Last month
-          </Button>
-          {showTwoMonthsBack && (
-            <Button type="button" size="sm" variant="outline" onClick={() => applyMonthOffset(-2)}>
-              2 months back
-            </Button>
-          )}
+          {showMonthShortcuts ? (
+            <>
+              <Button type="button" size="sm" variant="outline" onClick={() => applyMonthOffset(0)}>
+                This month
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => applyMonthOffset(-1)}>
+                Last month
+              </Button>
+              {showTwoMonthsBack ? (
+                <Button type="button" size="sm" variant="outline" onClick={() => applyMonthOffset(-2)}>
+                  2 months back
+                </Button>
+              ) : null}
+            </>
+          ) : null}
           <Button type="button" size="sm" variant="ghost" onClick={clearAll} disabled={!hasActiveFilters}>
             <RotateCcw className="mr-1 h-3.5 w-3.5" />
             Reset
@@ -312,24 +344,28 @@ export function SurveyFilters(props: SurveyFiltersProps) {
             />
           </div>
         )}
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">From date</Label>
-          <Input
-            type="date"
-            className="h-10 w-full rounded-lg border-primary/20"
-            value={value.fromDate ?? ""}
-            onChange={(e) => set({ month: undefined, fromDate: e.target.value || undefined })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">To date</Label>
-          <Input
-            type="date"
-            className="h-10 w-full rounded-lg border-primary/20"
-            value={value.toDate ?? ""}
-            onChange={(e) => set({ month: undefined, toDate: e.target.value || undefined })}
-          />
-        </div>
+        {showDateRange ? (
+          <>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">From date</Label>
+              <Input
+                type="date"
+                className="h-10 w-full rounded-lg border-primary/20"
+                value={value.fromDate ?? ""}
+                onChange={(e) => set({ month: undefined, fromDate: e.target.value || undefined })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">To date</Label>
+              <Input
+                type="date"
+                className="h-10 w-full rounded-lg border-primary/20"
+                value={value.toDate ?? ""}
+                onChange={(e) => set({ month: undefined, toDate: e.target.value || undefined })}
+              />
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );

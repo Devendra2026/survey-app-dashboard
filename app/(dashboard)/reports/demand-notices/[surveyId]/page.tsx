@@ -8,9 +8,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { use } from "react";
 
-export default function DemandNoticePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const survey = useSurvey(id);
+export default function ReportsDemandNoticePage({ params }: { params: Promise<{ surveyId: string }> }) {
+  const { surveyId } = use(params);
+  const survey = useSurvey(surveyId);
 
   if (survey === undefined) {
     return (
@@ -25,13 +25,22 @@ export default function DemandNoticePage({ params }: { params: Promise<{ id: str
 
   if (survey === null) return <EmptyState title="Survey not found" />;
 
+  if (survey.qcStatus !== "approved") {
+    return (
+      <EmptyState
+        title="Demand notice unavailable"
+        description="This property has not been QC-approved yet. Only approved survey assessments can generate demand notices."
+      />
+    );
+  }
+
   return (
     <RoleGate
       mode="page"
       anyOf={["reports.export", "qc.review"]}
       deniedDescription="Demand notices are available to supervisors and administrators with report access."
     >
-      <DemandNoticeView survey={survey} surveyId={id} />
+      <DemandNoticeView survey={survey} surveyId={surveyId} backHref="/reports/demand-notices" />
     </RoleGate>
   );
 }

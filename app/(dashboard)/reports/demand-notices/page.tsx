@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  DemandNoticeBulkPdfCapture,
   DemandNoticePanelFilters,
   DemandNoticePanelHero,
   DemandNoticePanelKpis,
@@ -12,10 +13,11 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { Button } from "@/components/ui/button";
 import { useDemandNoticePanel, type DemandRegisterRow } from "@/hooks/qc/useDemandNoticePanel";
+import { useDemandNoticeBulkPdf } from "@/hooks/reports/useDemandNoticeBulkPdf";
 import { useDemandRegisterPrint } from "@/hooks/reports/useDemandRegisterPrint";
 import { formatInr } from "@/lib/qc/demand-estimate";
 import { QC_TABLE_PAGE_SIZE_OPTIONS } from "@/lib/table-pagination";
-import { Printer } from "lucide-react";
+import { FileDown, Loader2, Printer } from "lucide-react";
 import { useMemo, useState } from "react";
 
 function buildScopeLabel(filters: { districtId?: string; municipalityId?: string; wardNo?: string }) {
@@ -43,8 +45,11 @@ function DemandNoticeReportContent() {
     isLoading,
     totalCount,
     requiresMunicipality,
+    reportDateLabel,
   } = useDemandNoticePanel();
   const { printRegister } = useDemandRegisterPrint();
+  const { job, preparing, progress, startBulkPdf, onProgress, onComplete, onError, isExporting } =
+    useDemandNoticeBulkPdf();
   const scopeLabel = useMemo(
     () =>
       buildScopeLabel({
@@ -60,6 +65,10 @@ function DemandNoticeReportContent() {
       <div className="space-y-6 demand-notice-panel-screen">
         <DemandNoticePanelHero />
         <DemandNoticePanelFilters value={filters} onChange={setFilters} requiresMunicipality={requiresMunicipality} />
+        <p className="text-xs text-muted-foreground print:hidden">
+          Register lists QC-approved property surveys with owner, parcel, floor, and tax assessment data — not QC
+          decision records alone.
+        </p>
         <DemandNoticePanelKpis
           propertyCount={totals.propertyCount}
           totalAnnualDemand={totals.totalAnnualDemand}
@@ -72,9 +81,27 @@ function DemandNoticeReportContent() {
               <p className="text-sm font-semibold">Demand Register</p>
               <p className="text-xs text-muted-foreground">Scope: {scopeLabel}</p>
             </div>
-            <Button variant="outline" onClick={printRegister} disabled={rows.length === 0}>
-              <Printer className="mr-2 h-4 w-4" /> Print Register
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="default"
+                onClick={() => void startBulkPdf(filters)}
+                disabled={isExporting || requiresMunicipality || totalCount === 0}
+              >
+                {isExporting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="mr-2 h-4 w-4" />
+                )}
+                {progress
+                  ? `Generating PDF ${progress.completed}/${progress.total}`
+                  : preparing
+                    ? "Preparing…"
+                    : "Download Bulk PDF (A4)"}
+              </Button>
+              <Button variant="outline" onClick={printRegister} disabled={rows.length === 0 || isExporting}>
+                <Printer className="mr-2 h-4 w-4" /> Print Register
+              </Button>
+            </div>
           </div>
 
           {isLoading ? (
@@ -95,15 +122,21 @@ function DemandNoticeReportContent() {
             className="print:hidden"
           />
           <p className="mt-2 text-xs text-muted-foreground print:hidden">
-            {totalCount.toLocaleString()} matching properties in scope.
+            {totalCount.toLocaleString()} matching properties in scope. Bulk PDF exports all properties in scope, sorted
+            ward-wise then parcel number.
           </p>
         </section>
       </div>
+
+      {job ? (
+        <DemandNoticeBulkPdfCapture job={job} onProgress={onProgress} onComplete={onComplete} onError={onError} />
+      ) : null}
 
       <DemandNoticeRegisterPrint
         rows={rows}
         scopeLabel={scopeLabel}
         totalAnnualDemandLabel={formatInr(totals.totalAnnualDemand)}
+        reportDateLabel={reportDateLabel}
       />
 
       <DemandNoticePreviewSheet

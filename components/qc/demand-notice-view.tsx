@@ -8,6 +8,7 @@ import { useMasters } from "@/hooks/masters/useMasters";
 import { useDemandNoticePrintFit } from "@/hooks/qc/useDemandNoticePrintFit";
 import { useTaxRatesForMunicipality } from "@/hooks/qc/useTaxRatesForMunicipality";
 import { buildOfficeTitles, buildSurveyAddress, computeDemandNotice, formatNoticeDate } from "@/lib/qc/demand-notice";
+import { reportDocumentTimestamp } from "@/lib/qc/report-dates";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import type { SurveyDetail } from "@/schema/surveys/index";
@@ -65,7 +66,7 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
     rateConfig !== undefined
       ? computeDemandNotice(survey, survey.floors ?? [], masters ?? undefined, rateConfig)
       : null;
-  const noticeDate = formatNoticeDate(survey.submittedAt ?? Date.now());
+  const noticeDate = formatNoticeDate(reportDocumentTimestamp());
   const assessmentYear = survey.assessmentYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
   const frontPhoto = survey.photos?.find((p) => p.slot === "front")?.url;
   const sidePhoto = survey.photos?.find((p) => p.slot === "side")?.url;
