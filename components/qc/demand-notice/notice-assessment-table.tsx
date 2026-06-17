@@ -19,14 +19,17 @@ export function NoticeAssessmentTable({
 
   return (
     <section className="dn-section demand-notice-table-section rounded-md border border-slate-200 bg-white p-4 print:p-2">
-      <div className="mb-4 border-b border-slate-200 pb-3">
+      <div className="mb-4 border-b border-slate-200 pb-3 print:mb-0 print:border-0 print:pb-0">
         <SectionLabel>
           <BilingualLabel en="Assessment & ALV Calculation Details" hi="मूल्यांकन एवं वार्षिक मूल्यांकन विवरण" />
         </SectionLabel>
+        <p className="demand-notice-print-section-label">
+          <BilingualLabel en="Assessment & ALV Calculation Details" hi="मूल्यांकन एवं वार्षिक मूल्यांकन विवरण" />
+        </p>
       </div>
       <div className="overflow-hidden rounded-md border border-slate-200 print:rounded-none">
-        <div className="overflow-x-auto">
-          <Table className="dn-zebra-table min-w-180 print:text-[6px]">
+        <div className="overflow-x-auto print:overflow-visible">
+          <Table className="dn-zebra-table min-w-180 w-full print:min-w-0 print:text-[6px]">
             <TableHeader>
               <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
                 <TableHead className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-700 print:px-1 print:py-0.5 print:text-[6px]">

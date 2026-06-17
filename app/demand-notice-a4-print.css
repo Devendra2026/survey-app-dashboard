@@ -1,0 +1,489 @@
+/* Demand notice A4 print — full-height government layout */
+@media print {
+  .demand-notice-print-root {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: 281mm !important;
+    min-height: 281mm !important;
+    max-height: 281mm !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .demand-notice-print-body,
+  .demand-notice-print-root .demand-notice-sheet-body {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    padding: 1.5mm 2.5mm 1mm !important;
+    gap: 1.2mm !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+  }
+
+  .demand-notice-print-section-label {
+    display: block !important;
+    margin: 0 0 0.8mm !important;
+    font-size: 6.5px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    color: #334155 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    padding-bottom: 0.5mm !important;
+  }
+
+  .demand-notice-print-subhead {
+    display: block !important;
+    font-size: 6px !important;
+    margin-bottom: 0.8mm !important;
+  }
+
+  /* Header — compact government masthead */
+  .demand-notice-header {
+    flex: 0 0 20mm !important;
+    max-height: 20mm !important;
+    overflow: hidden !important;
+    padding: 1.2mm 2.5mm !important;
+    border-bottom: 1.5px solid #000 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .demand-notice-header-details {
+    display: none !important;
+  }
+
+  .demand-notice-header-meta {
+    display: grid !important;
+    flex: 0 0 34mm !important;
+    border: 1px solid #000 !important;
+    padding: 1mm !important;
+    font-size: 5.5px !important;
+    background: #f8fafc !important;
+  }
+
+  .demand-notice-header-meta dl {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.4mm !important;
+  }
+
+  .demand-notice-header-meta dt {
+    font-size: 4.5px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    color: #64748b !important;
+  }
+
+  .demand-notice-header-meta dd {
+    font-size: 6px !important;
+    font-family: var(--font-jetbrains-mono, ui-monospace, monospace) !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+  }
+
+  .demand-notice-header-title .dn-title,
+  .demand-notice-header-title h1 {
+    font-size: 8px !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+    font-weight: 700 !important;
+  }
+
+  .demand-notice-header-title p:nth-child(2) {
+    font-size: 7px !important;
+    margin-top: 0.4mm !important;
+    color: #0369a1 !important;
+  }
+
+  .demand-notice-header-title p:nth-child(3) {
+    font-size: 6px !important;
+    margin-top: 0.3mm !important;
+  }
+
+  /* Property + Owner — two compact cards */
+  .demand-notice-property-row {
+    flex: 0 0 38mm !important;
+    min-height: 38mm !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1.5mm !important;
+    overflow: hidden !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .demand-notice-property-row .dn-section {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 1mm 1.2mm !important;
+    margin: 0 !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+  }
+
+  .demand-notice-property-row .dn-section>div:first-child {
+    margin-bottom: 0.6mm !important;
+    padding-bottom: 0.5mm !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  .demand-notice-property-row .dn-section>div:first-child p {
+    font-size: 6.5px !important;
+    margin: 0 !important;
+  }
+
+  .demand-notice-property-row svg {
+    display: none !important;
+  }
+
+  .demand-notice-property-row dl {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.8mm !important;
+    flex: 1 1 auto !important;
+    align-content: start !important;
+  }
+
+  .demand-notice-property-row dl>div {
+    padding: 0.6mm 0.8mm !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #f8fafc !important;
+    border-radius: 0 !important;
+  }
+
+  .demand-notice-property-row dt {
+    font-size: 4.5px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    color: #64748b !important;
+  }
+
+  .demand-notice-property-row dd {
+    font-size: 7px !important;
+    font-weight: 700 !important;
+    margin-top: 0.2mm !important;
+    line-height: 1.15 !important;
+  }
+
+  .demand-notice-property-row .sm\:col-span-2,
+  .demand-notice-property-row dl>div:last-child:nth-child(odd) {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* Site imagery + GIS — side by side */
+  .demand-notice-imagery-row {
+    flex: 0 0 44mm !important;
+    min-height: 44mm !important;
+    overflow: hidden !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .demand-notice-gallery-print,
+  .demand-notice-imagery-row .demand-notice-gallery {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 1mm !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+  }
+
+  .demand-notice-imagery-grid {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+
+  .demand-notice-site-photos,
+  .demand-notice-gis-panel {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+  }
+
+  .demand-notice-photo-frame,
+  .demand-notice-gis-frame {
+    flex: 1 1 auto !important;
+    height: 34mm !important;
+    min-height: 34mm !important;
+    max-height: 34mm !important;
+    aspect-ratio: auto !important;
+  }
+
+  .demand-notice-site-photos .grid {
+    height: 100% !important;
+    flex: 1 1 auto !important;
+  }
+
+  .demand-notice-photo-cell {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Tax demand — highlighted band */
+  .demand-notice-tax-row {
+    flex: 0 0 16mm !important;
+    min-height: 16mm !important;
+    overflow: hidden !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .demand-notice-tax-row .demand-notice-summary-panel {
+    height: 100% !important;
+    padding: 1mm 1.5mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .demand-notice-summary-box {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+  }
+
+  .demand-notice-summary-grid {
+    height: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 1mm !important;
+    align-items: stretch !important;
+  }
+
+  .demand-notice-summary-item {
+    border: 1px solid #0369a1 !important;
+    background: #fff !important;
+  }
+
+  .demand-notice-summary-total {
+    border: 2px solid #047857 !important;
+    background: #d1fae5 !important;
+  }
+
+  /* Assessment table — grows to fill */
+  .demand-notice-table-section {
+    flex: 1 1 48mm !important;
+    min-height: 48mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    padding: 1mm !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+  }
+
+  .demand-notice-table-section>div:first-child {
+    margin-bottom: 0.5mm !important;
+    padding-bottom: 0.4mm !important;
+    flex-shrink: 0 !important;
+  }
+
+  .demand-notice-table-section>div:first-child h2,
+  .demand-notice-table-section .demand-notice-print-section-label {
+    font-size: 6.5px !important;
+    margin: 0 !important;
+  }
+
+  .demand-notice-table-section>div:nth-child(2) {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .demand-notice-table-section [data-slot="table-container"] {
+    flex: 1 1 auto !important;
+    overflow: visible !important;
+    height: 100% !important;
+  }
+
+  .demand-notice-table-section table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    height: 100% !important;
+  }
+
+  .demand-notice-table-section th:nth-child(1) {
+    width: 5% !important;
+  }
+
+  .demand-notice-table-section th:nth-child(2) {
+    width: 9% !important;
+  }
+
+  .demand-notice-table-section th:nth-child(3) {
+    width: 14% !important;
+  }
+
+  .demand-notice-table-section th:nth-child(4) {
+    width: 14% !important;
+  }
+
+  .demand-notice-table-section th:nth-child(5) {
+    width: 12% !important;
+  }
+
+  .demand-notice-table-section th:nth-child(6) {
+    width: 14% !important;
+  }
+
+  .demand-notice-table-section th:nth-child(7) {
+    width: 14% !important;
+  }
+
+  .demand-notice-table-section th:nth-child(8) {
+    width: 18% !important;
+  }
+
+  .demand-notice-table-section th,
+  .demand-notice-table-section td {
+    padding: 1.2mm 0.8mm !important;
+    font-size: 7.5px !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    vertical-align: middle !important;
+    border: 1px solid #000 !important;
+  }
+
+  .demand-notice-table-section thead tr {
+    background: #f1f5f9 !important;
+  }
+
+  .demand-notice-table-section tbody tr {
+    min-height: 7mm !important;
+    height: auto !important;
+  }
+
+  /* Important notice — expands before footer */
+  .demand-notice-legal-section {
+    flex: 1 1 36mm !important;
+    min-height: 32mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .demand-notice-legal-section>h2 {
+    display: none !important;
+  }
+
+  .demand-notice-print-legal {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+
+  .demand-notice-legal-box {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    border: 1px solid #000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .demand-notice-legal-text {
+    flex: 1 1 auto !important;
+    padding: 2mm 2.5mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    height: 100% !important;
+  }
+
+  .demand-notice-print-legal .demand-notice-hi {
+    font-size: 7.5px !important;
+    line-height: 1.35 !important;
+    text-align: justify !important;
+  }
+
+  /* Footer — pinned at bottom */
+  .demand-notice-print-footer {
+    flex: 0 0 24mm !important;
+    margin-top: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    gap: 0.8mm !important;
+    overflow: hidden !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    border-top: 1px solid #000 !important;
+    padding-top: 1mm !important;
+  }
+
+  .demand-notice-print-footer .demand-notice-print-only>div {
+    border: none !important;
+  }
+
+  .demand-notice-print-footer .demand-notice-print-only>div>div {
+    padding: 0.5mm 1mm !important;
+    text-align: right !important;
+  }
+
+  .demand-notice-signature-pad {
+    min-height: 10mm !important;
+    border-bottom: 1px solid #000 !important;
+  }
+
+  .demand-notice-print-caption {
+    font-size: 6px !important;
+    line-height: 1.25 !important;
+    margin: 0 !important;
+  }
+
+  .demand-notice-codes {
+    border-top: none !important;
+    padding: 0 !important;
+  }
+
+  /* Scaler fills viewport — no JS shrink unless overflow */
+  .demand-notice-print-scaler {
+    height: 281mm !important;
+    min-height: 281mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    transform: none !important;
+    zoom: 1 !important;
+  }
+
+  .dn-floors-many .demand-notice-table-section th,
+  .dn-floors-many .demand-notice-table-section td {
+    font-size: 6.5px !important;
+    padding: 0.8mm 0.6mm !important;
+  }
+
+  .dn-floors-extra .demand-notice-property-row {
+    flex-basis: 34mm !important;
+    min-height: 34mm !important;
+  }
+
+  .dn-floors-extra .demand-notice-imagery-row {
+    flex-basis: 38mm !important;
+    min-height: 38mm !important;
+  }
+
+  .dn-floors-extra .demand-notice-table-section th,
+  .dn-floors-extra .demand-notice-table-section td {
+    font-size: 6px !important;
+    padding: 0.6mm 0.5mm !important;
+  }
+
+  .dn-floors-extra .demand-notice-print-legal .demand-notice-hi {
+    font-size: 6.5px !important;
+  }
+}

@@ -8,10 +8,10 @@ import { NoticeDemandSummary } from "./notice-demand-summary";
 import { NoticeHeader } from "./notice-header";
 import { NoticeLegalBlock } from "./notice-legal-block";
 import { NoticePhotoGallery } from "./notice-photo-gallery";
-import { NoticePropertyCodes } from "./notice-property-codes";
+import { NoticePrintLayout } from "./notice-print-layout";
 import { NoticeOwnerProfile, NoticePropertySpecs } from "./notice-property-grid";
 import { DemandNoticeBody, DemandNoticeSheet } from "./notice-sheet";
-import { NoticeSignatureBlock, NoticeSignatureBlockScreen } from "./notice-signature-block";
+import { NoticeSignatureBlockScreen } from "./notice-signature-block";
 import { NoticeWatermark } from "./notice-watermark";
 import { pctLabel } from "./shared";
 
@@ -105,72 +105,28 @@ export function DemandNoticeDocument({
               <NoticeLegalBlock />
             </div>
             <NoticeSignatureBlockScreen />
-            <div className="demand-notice-print-footer">
-              <NoticeSignatureBlock />
-              <NoticePropertyCodes propertyId={propertyId} />
-              <p className="demand-notice-print-only demand-notice-print-caption text-center text-(--dn-secondary)">
-                Computer-generated demand notice issued by the Municipal Board. Property ID:{" "}
-                <span className="font-mono font-semibold text-(--dn-primary)">{propertyId}</span>
-              </p>
-            </div>
           </div>
         </DemandNoticeBody>
       </div>
 
-      <div className="hidden print:block" data-dn-layout="print">
-        <NoticeHeader
-          office={office}
-          propertyId={propertyId}
-          assessmentYear={assessmentYear}
-          noticeDate={noticeDate}
-          logoUrl={logoUrl}
-        />
-        <DemandNoticeBody className="print:p-2!">
-          <div className="demand-notice-property-row">
-            <NoticePropertySpecs
-              survey={survey}
-              propertyId={propertyId}
-              ownerName={ownerName}
-              fatherName={fatherName}
-              mobileNo={mobileNo}
-              oldHouseNo={oldHouseNo}
-              taxZone={taxZone}
-              address={address}
-              notice={notice}
-            />
-            <NoticeOwnerProfile
-              survey={survey}
-              propertyId={propertyId}
-              ownerName={ownerName}
-              fatherName={fatherName}
-              mobileNo={mobileNo}
-              oldHouseNo={oldHouseNo}
-              taxZone={taxZone}
-              address={address}
-              notice={notice}
-            />
-          </div>
-          <div className="demand-notice-media-row">
-            <NoticePhotoGallery survey={survey} frontPhoto={frontPhoto} sidePhoto={sidePhoto} />
-            <NoticeDemandSummary notice={notice} propPct={propPct} waterPct={waterPct} drainPct={drainPct} />
-          </div>
-          <NoticeAssessmentTable
-            notice={notice}
-            propertyTaxPct={rateConfig?.propertyTaxPct ?? DEFAULT_TAX_RATES.propertyTaxPct}
-            waterTaxPct={rateConfig?.waterTaxPct ?? DEFAULT_TAX_RATES.waterTaxPct}
-            drainageTaxPct={rateConfig?.drainageTaxPct ?? DEFAULT_TAX_RATES.drainageTaxPct}
-          />
-          <NoticeLegalBlock />
-          <div className="demand-notice-print-footer">
-            <NoticeSignatureBlock />
-            <NoticePropertyCodes propertyId={propertyId} />
-            <p className="demand-notice-print-only demand-notice-print-caption text-center text-(--dn-secondary)">
-              Computer-generated demand notice issued by the Municipal Board. Property ID:{" "}
-              <span className="font-mono font-semibold text-(--dn-primary)">{propertyId}</span>
-            </p>
-          </div>
-        </DemandNoticeBody>
-      </div>
+      <NoticePrintLayout
+        survey={survey}
+        propertyId={propertyId}
+        ownerName={ownerName}
+        fatherName={fatherName}
+        mobileNo={mobileNo}
+        oldHouseNo={oldHouseNo}
+        office={office}
+        taxZone={taxZone}
+        address={address}
+        notice={notice}
+        noticeDate={noticeDate}
+        assessmentYear={assessmentYear}
+        frontPhoto={frontPhoto}
+        sidePhoto={sidePhoto}
+        logoUrl={logoUrl}
+        rateConfig={rateConfig}
+      />
       <footer className="demand-notice-print-hide relative z-1 border-t border-(--dn-border) bg-(--dn-surface) px-6 py-3 text-center">
         <p className="text-[11px] leading-relaxed text-(--dn-secondary)">
           Computer-generated demand notice issued by the Municipal Board. Property ID:{" "}

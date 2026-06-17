@@ -9,6 +9,9 @@ export function NoticeLegalBlock() {
       <SectionLabel>
         <BilingualLabel en="Important Notice" hi="महत्वपूर्ण सूचना" />
       </SectionLabel>
+      <p className="demand-notice-print-section-label">
+        <BilingualLabel en="Important Notice" hi="महत्वपूर्ण सूचना" />
+      </p>
       <div className="demand-notice-screen-legal rounded-lg border-2 border-(--dn-accent)/30 bg-(--dn-surface) p-(--dn-space-4) text-sm leading-relaxed text-(--dn-primary)">
         <p className="demand-notice-hi text-(--dn-primary)">{DEMAND_NOTICE_LEGAL_COPY.hindi}</p>
         <p className="demand-notice-hi mt-2 font-semibold text-(--dn-secondary)">

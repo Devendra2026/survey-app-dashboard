@@ -2,8 +2,15 @@
 
 import type { ReactNode } from "react";
 
+function densityClassForFloors(floorCount?: number): string | undefined {
+  if (floorCount === undefined) return undefined;
+  if (floorCount >= 6) return "dn-floors-extra";
+  if (floorCount >= 4) return "dn-floors-many";
+  return undefined;
+}
+
 export function DemandNoticeSheet({ children, floorCount }: { children: ReactNode; floorCount?: number }) {
-  const densityClass = floorCount !== undefined && floorCount >= 4 ? "dn-floors-many" : undefined;
+  const densityClass = densityClassForFloors(floorCount);
 
   return (
     <article

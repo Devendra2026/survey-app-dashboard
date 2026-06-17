@@ -111,14 +111,19 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
           <p className="truncate text-sm font-semibold text-zinc-900">Property Tax Demand Notice</p>
           <p className="truncate font-mono text-xs text-zinc-500">{propertyId}</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-fit cursor-pointer rounded-xl sm:ml-auto"
-          onClick={printNotice}
-        >
-          <Printer className="h-4 w-4" aria-hidden /> Print Notice
-        </Button>
+        <div className="flex flex-col items-end gap-1 sm:ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit cursor-pointer rounded-xl"
+            onClick={() => void printNotice()}
+          >
+            <Printer className="h-4 w-4" aria-hidden /> Print Notice
+          </Button>
+          <p className="max-w-56 text-right text-[10px] leading-snug text-zinc-500">
+            Use A4, scale 100%, minimum margins, headers off.
+          </p>
+        </div>
       </div>
 
       <div className="demand-notice-canvas demand-notice-fullpage mx-auto w-full max-w-480 px-6 pb-8 print:max-w-none print:px-0">
