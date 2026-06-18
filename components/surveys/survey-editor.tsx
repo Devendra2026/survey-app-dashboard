@@ -6,11 +6,12 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { FloorsEditor } from "@/components/surveys/floors-editor";
 import { GpsCapturePanel } from "@/components/surveys/gps-capture";
 import { PhotoUploader } from "@/components/surveys/photo-uploader";
-import { SurveyForm } from "@/components/surveys/survey-form";
+import { SurveyForm, type SurveyFormHandle } from "@/components/surveys/survey-form";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFloors } from "@/hooks/surveys/useFloors";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
+import type { ConflictSurveyLinkVariant } from "@/lib/errors";
 import { firstAreaSubmitError, surveyAreaSubmitErrors } from "@/lib/survey/progress";
 import { cn } from "@/lib/utils";
 import type { SurveyListItem } from "@/schema/surveys/index";
@@ -64,6 +65,7 @@ export function SurveyEditor({
   saveBarSecondaryAction,
   saveCorrectionsRef,
   onDirty,
+  conflictLinkVariant = "surveys",
 }: {
   localId: string;
   surveyId?: string;
@@ -83,6 +85,7 @@ export function SurveyEditor({
   saveCorrectionsRef?: MutableRefObject<(() => Promise<boolean>) | null>;
   /** QC edit: notify parent when unsaved edits are made */
   onDirty?: () => void;
+  conflictLinkVariant?: ConflictSurveyLinkVariant;
 }) {
   const [activeTab, setActiveTab] = useState("details");
   const [saving, setSaving] = useState(false);
@@ -91,7 +94,7 @@ export function SurveyEditor({
   const floors = useFloors(surveyId);
   const canEditSections = !!surveyId && !locked;
 
-  const saveDetailsFn = useRef<(() => Promise<boolean>) | null>(null);
+  const saveDetailsRef = useRef<SurveyFormHandle>(null);
   const saveAreaFn = useRef<(() => Promise<boolean>) | null>(null);
   const plotSqftDraftRef = useRef(0);
   const onPlotSqftChange = useCallback((value: number) => {
@@ -99,7 +102,7 @@ export function SurveyEditor({
   }, []);
 
   async function persistDetailsAndArea(opts?: { validateForSubmit?: boolean }): Promise<boolean> {
-    const detailsSaved = await (saveDetailsFn.current?.() ?? Promise.resolve(true));
+    const detailsSaved = await (saveDetailsRef.current?.save() ?? Promise.resolve(true));
     if (!detailsSaved) return false;
 
     const areaSaved = await (saveAreaFn.current?.() ?? Promise.resolve(true));
@@ -270,14 +273,13 @@ export function SurveyEditor({
             </GlassCard>
           ) : (
             <SurveyForm
+              ref={saveDetailsRef}
               localId={localId}
               surveyId={surveyId ?? survey?._id}
               existing={survey as SurveyListItem | null | undefined}
               onSaved={onSaved}
               onDirty={onDirty}
-              onRegisterSave={(fn) => {
-                saveDetailsFn.current = fn;
-              }}
+              conflictLinkVariant={conflictLinkVariant}
             />
           )}
         </TabsContent>
@@ -290,6 +292,7 @@ export function SurveyEditor({
               plotSqft={survey?.plotSqft}
               plinthSqft={survey?.plinthSqft}
               onDirty={onDirty}
+              conflictLinkVariant={conflictLinkVariant}
               onRegisterSave={(fn) => {
                 saveAreaFn.current = fn;
               }}

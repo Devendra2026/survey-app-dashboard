@@ -34,3 +34,8 @@ export function useParcelSiblings(surveyId: string | undefined) {
   const ready = useConvexAuthReady();
   return useQuery(api.qc.listParcelSiblings, ready && surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip");
 }
+
+export function usePropertyIdConflicts(surveyId: string | undefined) {
+  const ready = useConvexAuthReady();
+  return useQuery(api.qc.listPropertyIdConflicts, ready && surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip");
+}

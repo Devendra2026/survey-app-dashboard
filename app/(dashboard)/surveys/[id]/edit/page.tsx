@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useSubmitSurvey, useSurvey } from "@/hooks/surveys/useSurveys";
 import { canSubmitSurvey, canUserEditSurvey, isSurveyAwaitingQc, isSurveyResubmit } from "@/lib/domain";
-import { convexValidationSummary } from "@/lib/errors";
+import { convexValidationSummary, toastSurveyConflict } from "@/lib/errors";
 import { useCurrentUser } from "@/lib/session";
 import { ArrowLeft, Eye, PencilLine } from "lucide-react";
 import Link from "next/link";
@@ -60,7 +60,9 @@ function SurveyEditPageContent({ params }: { params: Promise<{ id: string }> }) 
       toast.success("Survey submitted for QC");
       router.push(`/surveys/${id}`);
     } catch (e) {
-      toast.error(convexValidationSummary(e));
+      if (!toastSurveyConflict(e, { onNavigate: (href) => router.push(href) })) {
+        toast.error(convexValidationSummary(e));
+      }
     } finally {
       setSubmitting(false);
     }

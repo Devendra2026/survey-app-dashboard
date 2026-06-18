@@ -4,6 +4,7 @@ import { ExecutiveHero } from "@/components/design-system/executive-hero";
 import { PageTransition } from "@/components/design-system/motion";
 import { QcActionBar } from "@/components/qc/qc-action-bar";
 import { QcCorrectionBanner } from "@/components/qc/qc-correction-banner";
+import { QcPropertyIdConflictPanel } from "@/components/qc/qc-property-id-conflict-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { QcStatusBadge, SurveyStatusBadge } from "@/components/shared/status-badge";
@@ -106,6 +107,7 @@ function QcEditBody({ id }: { id: string }) {
           />
         ) : (
           <>
+            <QcPropertyIdConflictPanel surveyId={id} propertyId={survey.propertyId} />
             {isResubmit && <QcCorrectionBanner remarks={remarks} />}
             {awaitingQc && !readyToApprove && (
               <output className="block rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100">
@@ -125,6 +127,7 @@ function QcEditBody({ id }: { id: string }) {
               existing={survey}
               showSaveBar={false}
               showSubmitBar={false}
+              conflictLinkVariant="qc"
               saveCorrectionsRef={saveCorrectionsRef}
               onDirty={() => setCorrectionsSaved(false)}
             />

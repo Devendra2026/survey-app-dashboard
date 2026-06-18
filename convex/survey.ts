@@ -23,7 +23,7 @@ import { GPS_ACCEPT_MAX_ACCURACY_METERS, GPS_TARGET_ACCURACY_METERS } from "./gp
 import { assertCanReadWard, canReadWard, clientError, requireUser, writeAudit } from "./helpers";
 import { refreshSurveyCompletionPct } from "./lib/surveyProgress";
 import { filterSurveysBySearch } from "./lib/surveySearch";
-import { assertUniqueSurveySlot } from "./lib/surveyUniqueness";
+import { assertUniqueSurveySlot, surveyIdentifyingSlotChanged } from "./lib/surveyUniqueness";
 import { computeSurveyWardAggregates } from "./lib/surveyWardStats";
 import { isValidIndianOwnerMobile, normalizeOwners, primaryOwnerMobile, validateOwnerSection } from "./ownerRules";
 import { comparePropertyIds, compareWardThenParcel, resolvePropertyId } from "./propertyId";
@@ -740,7 +740,7 @@ export const saveDraft = mutation({
 
     if (existing && existing.status === "submitted") {
       const isQcEditor = await hasCapability(ctx, me, "qc.review");
-      if (isQcEditor) {
+      if (isQcEditor && surveyIdentifyingSlotChanged(existing, normalized, muni.code)) {
         await assertUniqueSurveySlot(ctx, {
           municipalityId: args.municipalityId,
           wardNo: (normalized.wardNo as string) ?? existing.wardNo,

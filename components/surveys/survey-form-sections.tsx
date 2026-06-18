@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { MAX_SURVEY_OWNERS } from "@/lib/domain";
 import { Building2, Droplets, MapPinHouse, Plus, Receipt, Trash2, Users } from "lucide-react";
+import Link from "next/link";
 import { Controller, useFieldArray } from "react-hook-form";
 
 type WardOption = { wardNo: string };
@@ -23,9 +24,11 @@ export function TenantPropertySection({
   masters,
   wards,
   previewPropertyId,
+  conflictingSurveyHref,
 }: SurveyFormSectionProps & {
   wards?: WardOption[];
   previewPropertyId?: string;
+  conflictingSurveyHref?: string;
 }) {
   return (
     <SurveyFormSection title="Tenant & Property" icon={<Building2 className="h-4 w-4" aria-hidden />}>
@@ -61,6 +64,15 @@ export function TenantPropertySection({
           Format: ULB (6 digits) – Ward (3 digits) – Parcel (5 digits) – Unit (3 digits) – Use letter, e.g.
           801262-001-00004-001-R
         </p>
+        <FieldErr msg={errors.propertyId?.message?.replace(/\s*— conflicts with survey [^-]+$/, "")} />
+        {conflictingSurveyHref ? (
+          <Link
+            href={conflictingSurveyHref}
+            className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+          >
+            View conflicting survey
+          </Link>
+        ) : null}
       </div>
       <div className="space-y-1.5">
         <Label>Parcel No</Label>

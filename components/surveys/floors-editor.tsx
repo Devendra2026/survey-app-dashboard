@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useMasters } from "@/hooks/masters/useMasters";
 import { useFloors, useRemoveFloor, useUpsertFloor } from "@/hooks/surveys/useFloors";
 import { useSaveDraft, useSurvey } from "@/hooks/surveys/useSurveys";
-import { parseConvexError } from "@/lib/errors";
+import { parseConvexError, toastSurveyConflict, type ConflictSurveyLinkVariant } from "@/lib/errors";
 import {
   builtUpSqftFromFloors,
   formatAreaSqft,
@@ -20,6 +20,7 @@ import {
 } from "@/lib/survey/area";
 import type { FloorRow } from "@/schema/surveys/index";
 import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -32,6 +33,7 @@ export function FloorsEditor({
   onRegisterSave,
   onPlotSqftChange,
   onDirty,
+  conflictLinkVariant = "surveys",
 }: {
   surveyId: string;
   plotSqft?: number;
@@ -39,7 +41,9 @@ export function FloorsEditor({
   onRegisterSave?: (fn: () => Promise<boolean>) => void;
   onPlotSqftChange?: (plotSqft: number) => void;
   onDirty?: () => void;
+  conflictLinkVariant?: ConflictSurveyLinkVariant;
 }) {
+  const router = useRouter();
   const floors = useFloors(surveyId) as FloorRow[] | undefined;
   const survey = useSurvey(surveyId);
   const upsert = useUpsertFloor();
@@ -68,6 +72,10 @@ export function FloorsEditor({
   plinthRef.current = plinthFromFloors;
   const floorsRef = useRef(floors);
   floorsRef.current = floors;
+  const conflictLinkVariantRef = useRef(conflictLinkVariant);
+  conflictLinkVariantRef.current = conflictLinkVariant;
+  const routerRef = useRef(router);
+  routerRef.current = router;
 
   const opts = {
     floors: masters?.floors ?? [],
@@ -107,7 +115,14 @@ export function FloorsEditor({
         } as any);
         return true;
       } catch (e) {
-        toast.error(parseConvexError(e).message);
+        if (
+          !toastSurveyConflict(e, {
+            variant: conflictLinkVariantRef.current,
+            onNavigate: (href) => routerRef.current.push(href),
+          })
+        ) {
+          toast.error(parseConvexError(e).message);
+        }
         return false;
       }
     },

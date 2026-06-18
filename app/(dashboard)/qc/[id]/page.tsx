@@ -3,6 +3,7 @@
 import { PageTransition } from "@/components/design-system/motion";
 import { QcActionBar } from "@/components/qc/qc-action-bar";
 import { QcParcelSiblingsPanel } from "@/components/qc/qc-parcel-siblings-panel";
+import { QcPropertyIdConflictPanel } from "@/components/qc/qc-property-id-conflict-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { QcPageSkeleton } from "@/components/shared/qc-route-skeleton";
 import { RoleGate } from "@/components/shared/role-gate";
@@ -77,6 +78,8 @@ function QcReviewBody({ id }: { id: string }) {
             </span>
           )}
         </div>
+
+        <QcPropertyIdConflictPanel surveyId={id} propertyId={survey.propertyId} />
 
         <QcParcelSiblingsPanel
           surveyId={id}

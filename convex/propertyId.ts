@@ -126,11 +126,6 @@ export function resolvePropertyId(
   },
   ulbCode: string,
 ): string | undefined {
-  const manual = input.propertyId?.trim();
-  if (manual && isNewPropertyIdFormat(manual)) {
-    return manual.toUpperCase();
-  }
-
   const generated = formatPropertyId({
     ulbCode,
     wardNo: input.wardNo ?? "",
@@ -138,7 +133,13 @@ export function resolvePropertyId(
     unitNo: input.unitNo ?? "",
     propertyUse: input.propertyUse ?? "",
   });
+  // Prefer slot-derived IDs so parcel / ward / unit / use corrections renumber Property ID.
   if (generated) return generated;
+
+  const manual = input.propertyId?.trim();
+  if (manual && isNewPropertyIdFormat(manual)) {
+    return manual.toUpperCase();
+  }
 
   return manual ? manual.toUpperCase() : undefined;
 }

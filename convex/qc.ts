@@ -14,7 +14,7 @@ import { requireCapability } from "./capabilities";
 import { fieldSurveyAccess } from "./fieldAccess";
 import { assertCanReadWard, clientError, mapTruthyById, requireUser, writeAudit } from "./helpers";
 import { computeQcWardAggregates } from "./lib/qcWardStats";
-import { normalizeParcelKey } from "./propertyId";
+import { normalizeParcelKey, resolvePropertyId } from "./propertyId";
 import { qcStatus, surveyStatus } from "./schema";
 import { collectSurveysForListPaginated } from "./survey";
 import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
@@ -184,6 +184,51 @@ export const listParcelSiblings = query({
     const surveyorById = mapTruthyById(surveyors);
 
     return siblings.map((row) => ({
+      _id: row._id,
+      propertyId: row.propertyId,
+      propertyUse: row.propertyUse,
+      unitNo: row.unitNo,
+      wardNo: row.wardNo,
+      parcelNo: row.parcelNo,
+      respondentName: row.respondentName,
+      qcStatus: row.qcStatus,
+      status: row.status,
+      surveyorName: surveyorById.get(row.surveyorId)?.name,
+    }));
+  },
+});
+
+/** Other surveys sharing the same resolved Property ID (blocks QC save until resolved). */
+export const listPropertyIdConflicts = query({
+  args: { surveyId: v.id("surveys") },
+  returns: v.array(parcelSiblingEntry),
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    await requireCapability(ctx, me, "qc.review");
+
+    const survey = await ctx.db.get(args.surveyId);
+    if (!survey) return [];
+
+    await assertMunicipalityInScope(ctx, me, survey.municipalityId);
+    assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+
+    const muni = await ctx.db.get(survey.municipalityId);
+    const resolvedId = resolvePropertyId(survey, muni?.code ?? "");
+    if (!resolvedId) return [];
+
+    const matches = await ctx.db
+      .query("surveys")
+      .withIndex("by_property_id", (q) => q.eq("propertyId", resolvedId))
+      .collect();
+
+    const conflicts = matches.filter((row) => row._id !== args.surveyId);
+    if (conflicts.length === 0) return [];
+
+    const surveyorIds = Array.from(new Set(conflicts.map((s) => s.surveyorId)));
+    const surveyors = await Promise.all(surveyorIds.map((id) => ctx.db.get(id)));
+    const surveyorById = mapTruthyById(surveyors);
+
+    return conflicts.map((row) => ({
       _id: row._id,
       propertyId: row.propertyId,
       propertyUse: row.propertyUse,

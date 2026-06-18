@@ -9,14 +9,37 @@ import {
 } from "@/components/surveys/survey-form-sections";
 import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters";
 import { useSaveDraft } from "@/hooks/surveys/useSurveys";
-import { applyServerFieldErrors } from "@/lib/errors";
+import {
+  applyServerFieldErrors,
+  conflictSurveyHref,
+  getConflictingSurveyId,
+  toastSurveyConflict,
+  type ConflictSurveyLinkVariant,
+} from "@/lib/errors";
 import { formatPropertyId } from "@/lib/survey/area";
 import type { SurveyListItem } from "@/schema/surveys/index";
 import { surveyDraftSchema, type SurveyDraftValues } from "@/schema/surveys/surveySchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+
+export type SurveyFormHandle = {
+  save: () => Promise<boolean>;
+};
+
+type SurveyFormProps = {
+  ref?: Ref<SurveyFormHandle>;
+  localId: string;
+  /** Server row id — required for supervisor QC corrections on web. */
+  surveyId?: string;
+  municipalityId?: string;
+  existing?: SurveyListItem | null;
+  onSaved?: (surveyId: string) => void;
+  onDirty?: () => void;
+  conflictLinkVariant?: ConflictSurveyLinkVariant;
+};
 
 function buildDefaultValues(
   localId: string,
@@ -72,25 +95,19 @@ function buildDefaultValues(
 }
 
 export function SurveyForm({
+  ref,
   localId,
   surveyId,
   municipalityId,
   existing,
   onSaved,
-  onRegisterSave,
   onDirty,
-}: {
-  localId: string;
-  /** Server row id — required for supervisor QC corrections on web. */
-  surveyId?: string;
-  municipalityId?: string;
-  existing?: SurveyListItem | null;
-  onSaved?: (surveyId: string) => void;
-  onRegisterSave?: (fn: () => Promise<boolean>) => void;
-  onDirty?: () => void;
-}) {
+  conflictLinkVariant = "surveys",
+}: SurveyFormProps) {
+  const router = useRouter();
   const { masters } = useMasters();
   const saveDraft = useSaveDraft();
+  const [conflictingSurveyId, setConflictingSurveyId] = useState<string | undefined>();
 
   const {
     register,
@@ -114,10 +131,49 @@ export function SurveyForm({
   onSavedRef.current = onSaved;
   const onDirtyRef = useRef(onDirty);
   onDirtyRef.current = onDirty;
+  const conflictLinkVariantRef = useRef(conflictLinkVariant);
+  conflictLinkVariantRef.current = conflictLinkVariant;
+  const routerRef = useRef(router);
+  routerRef.current = router;
   const skipDirtyRef = useRef(true);
 
+  const saveDetails = useCallback((): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      handleSubmit(
+        async (values) => {
+          try {
+            const id = await saveDraftRef.current({
+              ...values,
+              ...(rowIdRef.current ? { id: rowIdRef.current as any } : {}),
+              clientUpdatedAt: Date.now(),
+            } as any);
+            toast.success("Details saved");
+            setConflictingSurveyId(undefined);
+            onSavedRef.current?.(id as unknown as string);
+            resolve(true);
+          } catch (e) {
+            const parsed = applyServerFieldErrors(e, setErrorRef.current as any);
+            const conflictId = getConflictingSurveyId(e);
+            setConflictingSurveyId(conflictId);
+            if (
+              !toastSurveyConflict(e, {
+                variant: conflictLinkVariantRef.current,
+                onNavigate: (href) => routerRef.current.push(href),
+              })
+            ) {
+              toast.error(parsed.message);
+            }
+            resolve(false);
+          }
+        },
+        () => resolve(false),
+      )();
+    });
+  }, [handleSubmit]);
+
+  useImperativeHandle(ref, () => ({ save: saveDetails }), [saveDetails]);
+
   useEffect(() => {
-    if (!onDirtyRef.current) return;
     const subscription = watch(() => {
       if (skipDirtyRef.current) {
         skipDirtyRef.current = false;
@@ -127,35 +183,6 @@ export function SurveyForm({
     });
     return () => subscription.unsubscribe();
   }, [watch]);
-
-  useEffect(() => {
-    if (!onRegisterSave) return;
-    // react-doctor-disable-next-line react-doctor/no-pass-data-to-parent, react-doctor/no-prop-callback-in-effect -- parent registers save handler once on mount
-    onRegisterSave(
-      () =>
-        new Promise<boolean>((resolve) => {
-          handleSubmit(
-            async (values) => {
-              try {
-                const id = await saveDraftRef.current({
-                  ...values,
-                  ...(rowIdRef.current ? { id: rowIdRef.current as any } : {}),
-                  clientUpdatedAt: Date.now(),
-                } as any);
-                toast.success("Details saved");
-                onSavedRef.current?.(id as unknown as string);
-                resolve(true);
-              } catch (e) {
-                const parsed = applyServerFieldErrors(e, setErrorRef.current as any);
-                toast.error(parsed.message);
-                resolve(false);
-              }
-            },
-            () => resolve(false),
-          )();
-        }),
-    );
-  }, [onRegisterSave, handleSubmit, surveyId, existing?._id]);
 
   const muniId = watch("municipalityId");
   const wards = useWardsForMunicipality(muniId);
@@ -178,7 +205,14 @@ export function SurveyForm({
 
   return (
     <div className="space-y-4">
-      <TenantPropertySection {...sectionProps} wards={wards} previewPropertyId={previewPropertyId} />
+      <TenantPropertySection
+        {...sectionProps}
+        wards={wards}
+        previewPropertyId={previewPropertyId}
+        conflictingSurveyHref={
+          conflictingSurveyId ? conflictSurveyHref(conflictingSurveyId, conflictLinkVariant) : undefined
+        }
+      />
       <OwnerSection {...sectionProps} />
       <AddressSection {...sectionProps} />
       <TaxationSection {...sectionProps} subcats={subcats} />
