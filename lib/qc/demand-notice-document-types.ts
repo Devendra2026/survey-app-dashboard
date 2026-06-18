@@ -16,6 +16,7 @@ export type DemandNoticeMastersBundle = {
   usageTypes?: Array<{ value: string; label: string }>;
   usageFactors?: Array<{ value: string; label: string }>;
   constructionTypes?: Array<{ value: string; label: string }>;
+  propertyUses?: Array<{ value: string; label: string }>;
 };
 
 export type DemandNoticeDocumentProps = {
@@ -28,11 +29,13 @@ export type DemandNoticeDocumentProps = {
   office: OfficeTitles;
   taxZone: string;
   address: string;
+  propertyUseLabel: string;
   notice: DemandNoticeData;
   noticeDate: string;
   assessmentYear: string;
   frontPhoto?: string | null;
   sidePhoto?: string | null;
   logoUrl?: string | null;
+  signatureUrl?: string | null;
   rateConfig?: { propertyTaxPct: number; waterTaxPct: number; drainageTaxPct: number } | null;
 };

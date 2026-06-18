@@ -144,10 +144,11 @@ html.dn-print-measure .demand-notice-header-main {
 }
 
 html.dn-print-measure .demand-notice-header-logo img,
-html.dn-print-measure .demand-notice-header-logo > div {
+html.dn-print-measure .demand-notice-header-logo>div,
+html.dn-print-measure .demand-notice-header-logo-mark {
 
-    width: 12mm !important;
-    height: 12mm !important;
+    width: 18mm !important;
+    height: 18mm !important;
 }
 
 html.dn-print-measure .demand-notice-header-title {
@@ -272,7 +273,7 @@ html.dn-print-measure .demand-notice-property-row .dn-section {
     height: auto !important;
 }
 
-html.dn-print-measure .demand-notice-property-row .dn-section > div:first-child {
+html.dn-print-measure .demand-notice-property-row .dn-section>div:first-child {
 
     margin: 0 0 0.6mm !important;
     padding: 0 0 0.5mm !important;
@@ -385,6 +386,13 @@ html.dn-print-measure .demand-notice-gis-frame img {
     height: 100% !important;
 }
 
+html.dn-print-measure .demand-notice-gis-frame img {
+
+    object-fit: contain !important;
+    object-position: center center !important;
+    background: #e2e8f0 !important;
+}
+
 html.dn-print-measure .demand-notice-site-photos .grid {
 
     display: grid !important;
@@ -413,7 +421,7 @@ html.dn-print-measure .demand-notice-table-section {
     page-break-inside: avoid !important;
 }
 
-html.dn-print-measure .demand-notice-table-section > div:first-child {
+html.dn-print-measure .demand-notice-table-section>div:first-child {
 
     margin: 0 0 0.5mm !important;
     padding: 0 !important;
@@ -597,7 +605,7 @@ html.dn-print-measure .demand-notice-legal-section {
     page-break-inside: avoid !important;
 }
 
-html.dn-print-measure .demand-notice-legal-section > h2 {
+html.dn-print-measure .demand-notice-legal-section>h2 {
 
     display: none !important;
 }
@@ -622,7 +630,7 @@ html.dn-print-measure .demand-notice-print-legal .demand-notice-hi {
     margin: 0 !important;
 }
 
-html.dn-print-measure .demand-notice-legal-text .demand-notice-hi + .demand-notice-hi {
+html.dn-print-measure .demand-notice-legal-text .demand-notice-hi+.demand-notice-hi {
 
     margin-top: 0.8mm !important;
 }
@@ -659,20 +667,34 @@ html.dn-print-measure .demand-notice-signature-inner {
 
 html.dn-print-measure .demand-notice-signature-sd {
 
-    margin: 0 0 0.3mm !important;
+    margin: 0 0 0.6mm !important;
     font-family: ui-serif, Georgia, serif !important;
     font-size: 9px !important;
     color: #334155 !important;
 }
 
+html.dn-print-measure .demand-notice-signature-image {
+
+    display: block !important;
+    margin: 0 0 0.6mm auto !important;
+    max-height: 14mm !important;
+    width: auto !important;
+    max-width: 45mm !important;
+    object-fit: contain !important;
+    object-position: right center !important;
+}
+
 html.dn-print-measure .demand-notice-signature-pad {
 
-    width: 45mm !important;
-    min-height: 6mm !important;
-    height: auto !important;
-    max-height: none !important;
-    border-bottom: 1px solid #000 !important;
-    margin: 0 0 0.6mm !important;
+    display: none !important;
+}
+
+html.dn-print-measure .demand-notice-signature-office,
+html.dn-print-measure .demand-notice-signature-office-line {
+
+    margin: 0.2mm 0 0 !important;
+    line-height: 1.2 !important;
+    text-align: right !important;
 }
 
 html.dn-print-measure .demand-notice-signature-title {

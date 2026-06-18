@@ -117,10 +117,23 @@ const BODY_TYPE_LABELS: Record<string, { hindi: string; english: string }> = {
 export type OfficeTitles = {
   hindi: string;
   english: string;
+  /** Primary header line, e.g. "Office of Town Panchayat Aminagar Sarai". */
+  headerLine1: string;
+  /** Secondary header line, e.g. "Baghpat, Uttar Pradesh". */
+  headerLine2: string;
   ulbName: string;
   districtName: string;
   stateName: string;
 };
+
+/** Avoid "Office of Town Panchayat Town Panchayat …" when the ULB name already includes the body type. */
+function officeSubjectName(cityName: string, bodyLabel: string): string {
+  const city = cityName.trim();
+  const body = bodyLabel.trim();
+  if (!body) return city;
+  if (city.toLowerCase().startsWith(body.toLowerCase())) return city;
+  return `${body} ${city}`;
+}
 
 export function buildOfficeTitles(
   cityName: string,
@@ -129,11 +142,17 @@ export function buildOfficeTitles(
   districtName?: string,
 ): OfficeTitles {
   const body = BODY_TYPE_LABELS[bodyType ?? "municipal_council"] ?? BODY_TYPE_LABELS.municipal_council!;
+  const district = districtName?.trim() || "—";
+  const subject = officeSubjectName(cityName, body.english);
+  const headerLine1 = `Office of ${subject}`;
+  const headerLine2 = district !== "—" ? `${district}, ${stateName}` : stateName;
   return {
-    hindi: `कार्यालय ${body.hindi}, ${cityName}, ${stateName}`,
-    english: `Office of ${body.english}, ${cityName}, ${stateName}`,
+    hindi: `कार्यालय ${officeSubjectName(cityName, body.hindi)}`,
+    english: headerLine1,
+    headerLine1,
+    headerLine2,
     ulbName: cityName,
-    districtName: districtName?.trim() || "—",
+    districtName: district,
     stateName,
   };
 }

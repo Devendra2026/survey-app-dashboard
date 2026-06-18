@@ -131,6 +131,28 @@ export const getExportJob = query({
   },
 });
 
+export const getNoticeForSurvey = query({
+  args: {
+    surveyId: v.id("surveys"),
+    reportDateMs: v.optional(v.number()),
+  },
+  returns: v.union(v.any(), v.null()),
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    const survey = await ctx.db.get(args.surveyId);
+    if (!survey || survey.qcStatus !== "approved") return null;
+    await assertMunicipalityInScope(ctx, me, survey.municipalityId);
+
+    const payloads = await buildNoticePayloadsForSurveys(ctx, me, {
+      surveyIds: [args.surveyId],
+      municipalityId: survey.municipalityId,
+      reportDateMs: args.reportDateMs ?? Date.now(),
+    });
+
+    return payloads[0] ?? null;
+  },
+});
+
 export const getNoticePayloads = query({
   args: { jobId: v.id("demandNoticeExportJobs") },
   returns: v.array(v.any()),

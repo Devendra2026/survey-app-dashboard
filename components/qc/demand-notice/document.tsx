@@ -26,12 +26,14 @@ export function DemandNoticeDocument({
   office,
   taxZone,
   address,
+  propertyUseLabel,
   notice,
   noticeDate,
   assessmentYear,
   frontPhoto,
   sidePhoto,
   logoUrl,
+  signatureUrl,
   rateConfig,
 }: DemandNoticeDocumentProps) {
   const propPct = rateConfig ? pctLabel(rateConfig.propertyTaxPct) : pctLabel(DEFAULT_TAX_RATES.propertyTaxPct);
@@ -61,6 +63,7 @@ export function DemandNoticeDocument({
                 oldHouseNo={oldHouseNo}
                 taxZone={taxZone}
                 address={address}
+                propertyUseLabel={propertyUseLabel}
                 notice={notice}
               />
               <NoticeOwnerProfile
@@ -72,6 +75,7 @@ export function DemandNoticeDocument({
                 oldHouseNo={oldHouseNo}
                 taxZone={taxZone}
                 address={address}
+                propertyUseLabel={propertyUseLabel}
                 notice={notice}
               />
             </div>
@@ -86,7 +90,7 @@ export function DemandNoticeDocument({
               <NoticeDemandSummary notice={notice} propPct={propPct} waterPct={waterPct} drainPct={drainPct} />
               <NoticeLegalBlock />
             </div>
-            <NoticeSignatureBlockScreen />
+            <NoticeSignatureBlockScreen signatureUrl={signatureUrl} office={office} />
           </div>
         </DemandNoticeBody>
       </div>
@@ -101,12 +105,14 @@ export function DemandNoticeDocument({
         office={office}
         taxZone={taxZone}
         address={address}
+        propertyUseLabel={propertyUseLabel}
         notice={notice}
         noticeDate={noticeDate}
         assessmentYear={assessmentYear}
         frontPhoto={frontPhoto}
         sidePhoto={sidePhoto}
         logoUrl={logoUrl}
+        signatureUrl={signatureUrl}
         rateConfig={rateConfig}
       />
       <footer className="demand-notice-print-hide relative z-1 border-t border-(--dn-border) bg-(--dn-surface) px-6 py-3 text-center">

@@ -106,6 +106,8 @@ export default defineSchema({
     districtId: v.id("districts"),
     /** Admin-assigned postal code for surveys in this ULB (6 digits). */
     postalCode: v.optional(v.string()),
+    /** Digital signature image for demand notices (Executive Officer). */
+    executiveSignatureStorageId: v.optional(v.id("_storage")),
     isActive: v.boolean(),
   })
     .index("by_code", ["code"])

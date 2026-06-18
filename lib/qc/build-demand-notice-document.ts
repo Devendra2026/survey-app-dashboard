@@ -37,6 +37,7 @@ export function buildDemandNoticeDocumentProps(
   rateConfig: TaxRateConfig,
   reportDateMs: number = reportDocumentTimestamp(),
   photoUrls?: DemandNoticePhotoUrls,
+  signatureUrl?: string | null,
 ): DemandNoticeDocumentProps {
   const detail = toSurveyDetail(survey, floors);
   const ulbCodes = buildUlbCodeMap(masters.ulbs);
@@ -54,6 +55,11 @@ export function buildDemandNoticeDocumentProps(
   const office = buildOfficeTitles(cityName, stateName, ulb?.bodyType, districtName);
   const taxZone = labelFromOptions(masters.taxRateZones, detail.taxRateZone) || detail.taxRateZone || "—";
   const address = buildSurveyAddress(detail);
+  const propertyUseLabel =
+    labelFromOptions(masters.propertyUses, detail.propertyUse) ||
+    labelFromOptions(masters.usageTypes, detail.floors?.[0]?.usageType) ||
+    detail.propertyUse ||
+    "—";
   const notice = computeDemandNotice(detail, floors, masters, rateConfig);
   const noticeDate = formatNoticeDate(reportDateMs);
   const assessmentYear = detail.assessmentYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
@@ -68,11 +74,13 @@ export function buildDemandNoticeDocumentProps(
     office,
     taxZone,
     address,
+    propertyUseLabel,
     notice,
     noticeDate,
     assessmentYear,
     frontPhoto: photoUrls?.front ?? null,
     sidePhoto: photoUrls?.side ?? null,
+    signatureUrl: signatureUrl ?? null,
     rateConfig,
   };
 }

@@ -130,8 +130,8 @@
   .demand-notice-header-logo img,
   .demand-notice-header-logo>div,
   .demand-notice-header-logo-mark {
-    width: 12mm !important;
-    height: 12mm !important;
+    width: 18mm !important;
+    height: 18mm !important;
   }
 
   .demand-notice-header-title {
@@ -332,6 +332,12 @@
     object-fit: cover !important;
     width: 100% !important;
     height: 100% !important;
+  }
+
+  .demand-notice-gis-frame img {
+    object-fit: contain !important;
+    object-position: center center !important;
+    background: #e2e8f0 !important;
   }
 
   .demand-notice-site-photos .grid {
@@ -559,19 +565,31 @@
   }
 
   .demand-notice-signature-sd {
-    margin: 0 0 0.3mm !important;
+    margin: 0 0 0.6mm !important;
     font-family: ui-serif, Georgia, serif !important;
     font-size: 9px !important;
     color: #334155 !important;
   }
 
+  .demand-notice-signature-image {
+    display: block !important;
+    margin: 0 0 0.6mm auto !important;
+    max-height: 14mm !important;
+    width: auto !important;
+    max-width: 45mm !important;
+    object-fit: contain !important;
+    object-position: right center !important;
+  }
+
   .demand-notice-signature-pad {
-    width: 45mm !important;
-    min-height: 6mm !important;
-    height: auto !important;
-    max-height: none !important;
-    border-bottom: 1px solid #000 !important;
-    margin: 0 0 0.6mm !important;
+    display: none !important;
+  }
+
+  .demand-notice-signature-office,
+  .demand-notice-signature-office-line {
+    margin: 0.2mm 0 0 !important;
+    line-height: 1.2 !important;
+    text-align: right !important;
   }
 
   .demand-notice-signature-title {

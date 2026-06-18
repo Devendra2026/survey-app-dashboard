@@ -145,10 +145,15 @@ export async function buildNoticePayloadsForSurveys(
     reportDateMs: number;
   },
 ): Promise<DemandNoticeDocumentProps[]> {
-  const [masters, rateConfig] = await Promise.all([
+  const [masters, rateConfig, muni] = await Promise.all([
     loadMastersBundle(ctx, args.municipalityId),
     loadTaxRates(ctx, args.municipalityId),
+    ctx.db.get(args.municipalityId),
   ]);
+
+  const signatureUrl = muni?.executiveSignatureStorageId
+    ? await ctx.storage.getUrl(muni.executiveSignatureStorageId)
+    : null;
 
   const payloads: DemandNoticeDocumentProps[] = [];
 
@@ -159,7 +164,9 @@ export async function buildNoticePayloadsForSurveys(
 
     const [floors, photoUrls] = await Promise.all([loadFloors(ctx, surveyId), loadPhotoUrls(ctx, surveyId)]);
 
-    payloads.push(buildDemandNoticeDocumentProps(survey, floors, masters, rateConfig, args.reportDateMs, photoUrls));
+    payloads.push(
+      buildDemandNoticeDocumentProps(survey, floors, masters, rateConfig, args.reportDateMs, photoUrls, signatureUrl),
+    );
   }
 
   return payloads;

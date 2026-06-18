@@ -1,8 +1,8 @@
 "use client";
 
-import { formatAmountPlain, type DemandNoticeData } from "@/lib/qc/demand-notice";
+import type { DemandNoticeData } from "@/lib/qc/demand-notice";
 import type { SurveyDetail } from "@/schema/surveys/index";
-import { Building2, Hash, Home, IndianRupee, MapPin, Phone, User } from "lucide-react";
+import { Building2, Hash, Home, MapPin, Phone, User } from "lucide-react";
 import { BilingualLabel } from "./bilingual-label";
 
 function maskMobileNo(mobileNo: string): string {
@@ -21,6 +21,7 @@ type SharedProps = {
   oldHouseNo: string;
   taxZone: string;
   address: string;
+  propertyUseLabel: string;
   notice: DemandNoticeData;
 };
 
@@ -54,10 +55,7 @@ function DataCell({
   );
 }
 
-export function NoticePropertySpecs({ survey, propertyId, oldHouseNo, taxZone, notice }: SharedProps) {
-  const annualRate = notice.masterBaseRate ? `₹${formatAmountPlain(notice.masterBaseRate.annualRate)}/sqft/yr` : "—";
-  const propertyUse = survey.floors?.[0]?.usageType || "Residential";
-
+export function NoticePropertySpecs({ survey, oldHouseNo, taxZone, propertyUseLabel }: SharedProps) {
   return (
     <section className="dn-section demand-notice-property-section rounded-md border border-slate-200 bg-white p-4 print:p-2">
       <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
@@ -69,10 +67,9 @@ export function NoticePropertySpecs({ survey, propertyId, oldHouseNo, taxZone, n
       <dl className="dn-field-grid grid grid-cols-1 gap-3 sm:grid-cols-2">
         <DataCell label="Road Width Zone" value={taxZone || "—"} icon={Home} />
         <DataCell label="Ward No" value={survey.wardNo ? `Ward No. ${survey.wardNo}` : "—"} icon={Hash} />
-        <DataCell label="Annual Base Rate" value={annualRate} icon={IndianRupee} />
         <DataCell label="Old House No" value={oldHouseNo || "—"} icon={Building2} mono />
         <DataCell label="GIS Parcel" value={survey.parcelNo || "—"} icon={MapPin} mono />
-        <DataCell label="Property Use" value={propertyUse} icon={Home} />
+        <DataCell label="Property Use" value={propertyUseLabel || "—"} icon={Home} />
       </dl>
     </section>
   );

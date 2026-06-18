@@ -25,9 +25,6 @@ export function NoticeHeader({
   noticeDate: string;
   logoUrl?: string | null;
 }) {
-  const districtLine = office.districtName && office.districtName !== "—" ? office.districtName : "—";
-  const municipalityLine = [office.ulbName, districtLine, office.stateName].filter(Boolean).join(", ");
-
   return (
     <header className="demand-notice-header dn-section relative z-1 rounded-md border border-slate-200 bg-white px-6 py-5 print:rounded-none print:border-black print:px-2 print:py-1.5">
       <div className="demand-notice-header-main grid grid-cols-12 items-start gap-4 print:flex print:items-center print:gap-2">
@@ -36,10 +33,8 @@ export function NoticeHeader({
         </div>
 
         <div className="demand-notice-header-title col-span-12 text-center md:col-span-10 print:min-w-0 print:flex-1">
-          <p className="dn-print-office-name mt-1 text-sm font-bold text-slate-900 print:mt-0">
-            Office of Town Panchayat
-          </p>
-          <p className="dn-print-municipality mt-0.5 text-xs font-semibold text-slate-700">{municipalityLine}</p>
+          <p className="dn-print-office-name mt-1 text-sm font-bold text-slate-900 print:mt-0">{office.headerLine1}</p>
+          <p className="dn-print-municipality mt-0.5 text-xs font-semibold text-slate-700">{office.headerLine2}</p>
           <h1 className="dn-print-notice-title mt-2 text-2xl font-extrabold tracking-wide text-[#0369a1] print:mt-1">
             Property Tax Demand Notice
           </h1>

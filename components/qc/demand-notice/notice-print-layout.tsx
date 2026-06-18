@@ -23,12 +23,14 @@ export type NoticePrintLayoutProps = {
   office: OfficeTitles;
   taxZone: string;
   address: string;
+  propertyUseLabel: string;
   notice: DemandNoticeData;
   noticeDate: string;
   assessmentYear: string;
   frontPhoto?: string | null;
   sidePhoto?: string | null;
   logoUrl?: string | null;
+  signatureUrl?: string | null;
   rateConfig?: { propertyTaxPct: number; waterTaxPct: number; drainageTaxPct: number } | null;
 };
 
@@ -43,12 +45,14 @@ export function NoticePrintLayout({
   office,
   taxZone,
   address,
+  propertyUseLabel,
   notice,
   noticeDate,
   assessmentYear,
   frontPhoto,
   sidePhoto,
   logoUrl,
+  signatureUrl,
   rateConfig,
 }: NoticePrintLayoutProps) {
   const propPct = rateConfig ? pctLabel(rateConfig.propertyTaxPct) : pctLabel(DEFAULT_TAX_RATES.propertyTaxPct);
@@ -75,6 +79,7 @@ export function NoticePrintLayout({
             oldHouseNo={oldHouseNo}
             taxZone={taxZone}
             address={address}
+            propertyUseLabel={propertyUseLabel}
             notice={notice}
           />
           <NoticeOwnerProfile
@@ -86,6 +91,7 @@ export function NoticePrintLayout({
             oldHouseNo={oldHouseNo}
             taxZone={taxZone}
             address={address}
+            propertyUseLabel={propertyUseLabel}
             notice={notice}
           />
         </div>
@@ -108,7 +114,7 @@ export function NoticePrintLayout({
         <NoticeLegalBlock />
 
         <div className="demand-notice-signature-section">
-          <NoticeSignatureBlock />
+          <NoticeSignatureBlock signatureUrl={signatureUrl} office={office} />
         </div>
 
         <div className="demand-notice-print-footer">

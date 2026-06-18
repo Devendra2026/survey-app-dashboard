@@ -14,12 +14,12 @@ export function NoticeWatermark({ ulbName }: { ulbName: string }) {
 
 export function NoticeLogo({ logoUrl }: { ulbName: string; logoUrl?: string | null }) {
   return (
-    <div className="demand-notice-header-logo-mark h-14 w-14 shrink-0 overflow-hidden rounded-full print:h-8 print:w-8">
+    <div className="demand-notice-header-logo-mark h-20 w-20 shrink-0 overflow-hidden rounded-full print:h-[18mm] print:w-[18mm]">
       <Image
         src={logoUrl ?? DEMAND_NOTICE_GOVT_LOGO}
         alt="Government of Uttar Pradesh emblem"
-        width={56}
-        height={56}
+        width={80}
+        height={80}
         unoptimized
         className="h-full w-full object-cover"
       />

@@ -4,14 +4,13 @@ import { PageTransition } from "@/components/design-system/motion";
 import { DemandNoticeDocument } from "@/components/qc/demand-notice";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMasters } from "@/hooks/masters/useMasters";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useDemandNoticePrintFit } from "@/hooks/qc/useDemandNoticePrintFit";
-import { useTaxRatesForMunicipality } from "@/hooks/qc/useTaxRatesForMunicipality";
-import { buildOfficeTitles, buildSurveyAddress, computeDemandNotice, formatNoticeDate } from "@/lib/qc/demand-notice";
-import { reportDocumentTimestamp } from "@/lib/qc/report-dates";
-import { labelFromOptions } from "@/lib/survey/detail-labels";
-import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
+import type { DemandNoticeDocumentProps } from "@/lib/qc/demand-notice-document-types";
 import type { SurveyDetail } from "@/schema/surveys/index";
+import { useQuery as useConvexQuery } from "convex/react";
 import { ArrowLeft, Printer } from "lucide-react";
 import { Geist, JetBrains_Mono, Noto_Sans_Devanagari } from "next/font/google";
 import Link from "next/link";
@@ -43,35 +42,16 @@ type DemandNoticeViewProps = {
 };
 
 export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}/report` }: DemandNoticeViewProps) {
-  const { masters } = useMasters();
-  const { rateConfig, ratesLoading } = useTaxRatesForMunicipality(survey.municipalityId);
+  const ready = useConvexAuthReady();
   const { printNotice } = useDemandNoticePrintFit();
+  const noticeProps = useConvexQuery(
+    api.demandNotices.getNoticeForSurvey,
+    ready ? { surveyId: surveyId as Id<"surveys"> } : "skip",
+  ) as DemandNoticeDocumentProps | null | undefined;
 
-  const ulbCodes = buildUlbCodeMap(masters?.ulbs);
-  const propertyId = resolveDisplayPropertyId(survey, ulbCodes) ?? survey.propertyId ?? survey.parcelNo;
-  const primaryOwner = survey.owners?.[0];
-  const ownerName = survey.respondentName || primaryOwner?.name || "—";
-  const fatherName = primaryOwner?.fatherOrHusbandName?.trim() || "—";
-  const mobileNo = primaryOwner?.mobileNo?.trim() || survey.mobileNo?.trim() || "—";
-  const oldHouseNo = survey.oldPropertyNo?.trim() || "—";
-  const ulb = masters?.ulbs?.find((m) => m._id === survey.municipalityId);
-  const district = masters?.districts?.find((d) => d._id === survey.districtId);
-  const cityName = ulb?.name ?? survey.city ?? "—";
-  const districtName = district?.name ?? "—";
-  const stateName = district?.stateName ?? ulb?.stateName ?? "Uttar Pradesh";
-  const office = buildOfficeTitles(cityName, stateName, ulb?.bodyType, districtName);
-  const taxZone = labelFromOptions(masters?.taxRateZones, survey.taxRateZone) || survey.taxRateZone || "—";
-  const address = buildSurveyAddress(survey);
-  const notice =
-    rateConfig !== undefined
-      ? computeDemandNotice(survey, survey.floors ?? [], masters ?? undefined, rateConfig)
-      : null;
-  const noticeDate = formatNoticeDate(reportDocumentTimestamp());
-  const assessmentYear = survey.assessmentYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
-  const frontPhoto = survey.photos?.find((p) => p.slot === "front")?.url;
-  const sidePhoto = survey.photos?.find((p) => p.slot === "side")?.url;
+  const propertyId = noticeProps?.propertyId ?? survey.propertyId ?? survey.parcelNo;
 
-  if (ratesLoading || !notice) {
+  if (noticeProps === undefined) {
     return (
       <PageTransition
         className={`demand-notice ${notoDevanagari.variable} ${geist.variable} bg-slate-50 ${jetbrainsMono.variable}`}
@@ -92,7 +72,22 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
             <Skeleton className="h-16 rounded-xl" />
           </div>
           <Skeleton className="h-48 w-full rounded-xl" />
-          <p className="text-center text-sm text-muted-foreground">Loading ward rates from master data…</p>
+          <p className="text-center text-sm text-muted-foreground">Loading demand notice from server…</p>
+        </div>
+      </PageTransition>
+    );
+  }
+
+  if (!noticeProps) {
+    return (
+      <PageTransition
+        className={`demand-notice ${notoDevanagari.variable} ${geist.variable} bg-slate-50 ${jetbrainsMono.variable}`}
+      >
+        <div className="mx-auto w-full max-w-480 rounded-2xl border border-zinc-200 bg-white p-8 text-center">
+          <p className="text-sm text-muted-foreground">Demand notice data could not be loaded for this property.</p>
+          <Button asChild variant="outline" size="sm" className="mt-4">
+            <Link href={backHref}>Back</Link>
+          </Button>
         </div>
       </PageTransition>
     );
@@ -128,23 +123,7 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
       </div>
 
       <div className="demand-notice-canvas demand-notice-fullpage mx-auto w-full max-w-480 px-6 pb-8 print:max-w-none print:px-0">
-        <DemandNoticeDocument
-          survey={survey}
-          propertyId={propertyId}
-          ownerName={ownerName}
-          fatherName={fatherName}
-          mobileNo={mobileNo}
-          oldHouseNo={oldHouseNo}
-          office={office}
-          taxZone={taxZone}
-          address={address}
-          notice={notice}
-          noticeDate={noticeDate}
-          assessmentYear={assessmentYear}
-          frontPhoto={frontPhoto}
-          sidePhoto={sidePhoto}
-          rateConfig={rateConfig}
-        />
+        <DemandNoticeDocument {...noticeProps} />
       </div>
     </PageTransition>
   );

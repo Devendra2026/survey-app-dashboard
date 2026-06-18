@@ -27,6 +27,78 @@ function GalleryPhoto({ url, label }: { url?: string | null; label: string }) {
   );
 }
 
+function GisMapPanel({ survey, isPrint }: { survey: SurveyDetail; isPrint: boolean }) {
+  const gps = survey.gps;
+  const staticMapUrl = gps ? googleMapsStaticUrl(gps.latitude, gps.longitude, 640, 360) : null;
+  const embedUrl = gps ? googleMapsEmbedUrl(gps.latitude, gps.longitude) : null;
+
+  return (
+    <figure className="demand-notice-gis-panel flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-slate-900 text-slate-100 print:rounded-none print:border-black">
+      <p className="demand-notice-print-subhead shrink-0 border-b border-slate-700 px-2 py-1 text-center text-[7px] font-bold uppercase tracking-wide text-slate-200 print:border-black print:text-slate-700">
+        <BilingualLabel en="GIS Map View" hi="जीआईएस मानचित्र" />
+      </p>
+      {gps ? (
+        <>
+          <div className="demand-notice-gis-frame relative min-h-0 flex-1 overflow-hidden bg-slate-800 print:aspect-auto">
+            {!isPrint && (
+              <>
+                <div
+                  className="absolute inset-0 opacity-40"
+                  style={{
+                    backgroundImage:
+                      "linear-gradient(to right, rgba(148,163,184,0.25) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.25) 1px, transparent 1px)",
+                    backgroundSize: "28px 28px",
+                  }}
+                />
+                {embedUrl ? (
+                  <iframe
+                    title={`GIS Map — ${gps.latitude.toFixed(4)}, ${gps.longitude.toFixed(4)}`}
+                    src={embedUrl}
+                    className="absolute inset-0 h-full w-full border-0 opacity-95"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    sandbox="allow-scripts allow-popups allow-forms"
+                  />
+                ) : null}
+                <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded border border-emerald-300 bg-emerald-400/20 px-1.5 py-0.5">
+                  <MapPin className="h-3 w-3 text-emerald-200" aria-hidden />
+                  <span className="font-mono text-[8px] font-semibold text-emerald-100">Parcel</span>
+                </div>
+              </>
+            )}
+            {staticMapUrl ? (
+              <Image
+                src={staticMapUrl}
+                alt={`GIS Map — ${gps.latitude.toFixed(4)}, ${gps.longitude.toFixed(4)}`}
+                fill
+                unoptimized
+                sizes="640px"
+                className={isPrint ? "object-contain" : "hidden object-contain print:block"}
+              />
+            ) : isPrint ? (
+              <div className="flex h-full flex-col items-center justify-center gap-2 bg-slate-200 text-slate-600">
+                <MapPin className="h-5 w-5 opacity-50" aria-hidden />
+                <p className="text-[7px] font-medium">Map preview unavailable</p>
+              </div>
+            ) : null}
+          </div>
+          <figcaption className="shrink-0 border-t border-slate-700 px-2 py-1 text-[6px] print:border-black">
+            <p className="font-semibold uppercase tracking-wide text-slate-300 print:text-slate-600">Lat / Long</p>
+            <p className="font-mono text-[7px] text-emerald-200 print:text-slate-800">
+              LAT: {gps.latitude.toFixed(6)} LONG: {gps.longitude.toFixed(6)}
+            </p>
+          </figcaption>
+        </>
+      ) : (
+        <div className="demand-notice-gis-frame flex aspect-video flex-col items-center justify-center gap-2 text-slate-300 print:aspect-auto">
+          <MapPin className="h-7 w-7 opacity-40 print:h-4 print:w-4" aria-hidden />
+          <p className="text-xs font-medium opacity-60 print:text-[6px]">No GPS data</p>
+        </div>
+      )}
+    </figure>
+  );
+}
+
 export function NoticePhotoGallery({
   survey,
   frontPhoto,
@@ -38,9 +110,6 @@ export function NoticePhotoGallery({
   sidePhoto?: string | null;
   variant?: "screen" | "print";
 }) {
-  const gps = survey.gps;
-  const staticMapUrl = gps ? googleMapsStaticUrl(gps.latitude, gps.longitude, 640, 360) : null;
-  const embedUrl = gps ? googleMapsEmbedUrl(gps.latitude, gps.longitude) : null;
   const isPrint = variant === "print";
 
   return (
@@ -71,64 +140,7 @@ export function NoticePhotoGallery({
           </div>
         </div>
 
-        <figure className="demand-notice-gis-panel overflow-hidden rounded-lg border border-slate-200 bg-slate-900 text-slate-100 print:rounded-none print:border-black">
-          <p className="demand-notice-print-subhead border-b border-slate-700 px-2 py-1 text-center text-[7px] font-bold uppercase tracking-wide text-slate-200 print:border-black print:text-slate-700">
-            <BilingualLabel en="GIS Map View" hi="जीआईएस मानचित्र" />
-          </p>
-          {gps ? (
-            <>
-              <div className="demand-notice-gis-frame relative aspect-video overflow-hidden bg-slate-800 print:aspect-auto">
-                <div
-                  className="absolute inset-0 opacity-40 print:hidden"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(to right, rgba(148,163,184,0.25) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.25) 1px, transparent 1px)",
-                    backgroundSize: "28px 28px",
-                  }}
-                />
-                {embedUrl && (
-                  <iframe
-                    title={`GIS Map — ${gps.latitude.toFixed(4)}, ${gps.longitude.toFixed(4)}`}
-                    src={embedUrl}
-                    className="absolute inset-0 h-full w-full border-0 opacity-95 print:hidden"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    sandbox="allow-scripts allow-popups allow-forms"
-                  />
-                )}
-                {staticMapUrl ? (
-                  <div className="absolute inset-0 print:opacity-100">
-                    <Image
-                      src={staticMapUrl}
-                      alt={`GIS Map — ${gps.latitude.toFixed(4)}, ${gps.longitude.toFixed(4)}`}
-                      fill
-                      unoptimized
-                      sizes="640px"
-                      className="hidden h-full w-full object-cover print:block"
-                    />
-                  </div>
-                ) : (
-                  <div className="absolute inset-0 bg-linear-to-br from-slate-900 to-slate-700 print:from-slate-200 print:to-slate-100" />
-                )}
-                <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded border border-emerald-300 bg-emerald-400/20 px-1.5 py-0.5 print:hidden">
-                  <MapPin className="h-3 w-3 text-emerald-200" aria-hidden />
-                  <span className="font-mono text-[8px] font-semibold text-emerald-100">Parcel</span>
-                </div>
-              </div>
-              <figcaption className="border-t border-slate-700 px-2 py-1 text-[6px] print:border-black">
-                <p className="font-semibold uppercase tracking-wide text-slate-300 print:text-slate-600">Lat / Long</p>
-                <p className="font-mono text-[7px] text-emerald-200 print:text-slate-800">
-                  {gps.latitude.toFixed(6)}, {gps.longitude.toFixed(6)}
-                </p>
-              </figcaption>
-            </>
-          ) : (
-            <div className="demand-notice-gis-frame flex aspect-video flex-col items-center justify-center gap-2 text-slate-300 print:aspect-auto">
-              <MapPin className="h-7 w-7 opacity-40 print:h-4 print:w-4" aria-hidden />
-              <p className="text-xs font-medium opacity-60 print:text-[6px]">No GPS data</p>
-            </div>
-          )}
-        </figure>
+        <GisMapPanel survey={survey} isPrint={isPrint} />
       </div>
     </section>
   );
