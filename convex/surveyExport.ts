@@ -94,6 +94,7 @@ const exportBundleValidator = v.object({
   serverVersion: v.number(),
   clientUpdatedAt: v.number(),
   submittedAt: v.optional(v.number()),
+  completionPct: v.optional(v.number()),
   sectorNo: v.optional(v.string()),
   oldPropertyNo: v.optional(v.string()),
   propertyId: v.optional(v.string()),
