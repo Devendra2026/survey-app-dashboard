@@ -26,8 +26,10 @@ function formatRegistryParcelNo(parcelNo?: string): string {
   return padParcelNo(raw) || raw;
 }
 
-/** Text match for registry / survey list search (property ID, owner, parcel, ward, mobile). */
-export function matchesSurveySearch(row: SearchableSurvey, term: string, muniCode: string): boolean {
+type SearchableWithSurveyor = SearchableSurvey & { surveyorName?: string };
+
+/** Text match for registry / survey list search (property ID, owner, parcel, ward, mobile, surveyor). */
+export function matchesSurveySearch(row: SearchableWithSurveyor, term: string, muniCode: string): boolean {
   const q = term.trim().toLowerCase();
   if (!q) return true;
 
@@ -48,6 +50,7 @@ export function matchesSurveySearch(row: SearchableSurvey, term: string, muniCod
     formatRegistryParcelNo(row.parcelNo),
     ...wardVariants,
     ...(row.owners?.map((o) => o.name) ?? []),
+    row.surveyorName,
   ]
     .filter(Boolean)
     .map((v) => String(v).toLowerCase());
@@ -55,7 +58,7 @@ export function matchesSurveySearch(row: SearchableSurvey, term: string, muniCod
   return values.some((v) => v.includes(q));
 }
 
-export function filterSurveysBySearch<T extends SearchableSurvey>(
+export function filterSurveysBySearch<T extends SearchableWithSurveyor>(
   rows: T[],
   term: string | undefined,
   codes: Map<Id<"municipalities">, string>,

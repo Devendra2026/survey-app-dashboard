@@ -144,7 +144,10 @@ export function navKeysForUser(serverCapabilities: string[] | undefined, role: R
     if (serverCapabilities.some((c) => c.startsWith("analytics.")) || hasSurveysNav || hasQc) {
       keys.add("dashboard");
     }
-    if (hasSurveysNav) keys.add("surveys");
+    if (hasSurveysNav) {
+      keys.add("surveys");
+      keys.add("surveys_registry");
+    }
     if (hasQc) {
       keys.add("qc");
       keys.add("qc_registry");
@@ -163,8 +166,20 @@ export function navKeysForUser(serverCapabilities: string[] | undefined, role: R
 /** Which nav sections a role may see. Keep in sync with components/layout/sidebar. */
 export const NAV_VISIBILITY: Record<Role, string[]> = {
   pending: [],
-  surveyor: ["dashboard", "surveys", "settings"],
-  supervisor: ["dashboard", "surveys", "users", "reports", "settings"],
+  surveyor: ["dashboard", "surveys_registry", "settings"],
+  supervisor: ["dashboard", "surveys", "surveys_registry", "users", "reports", "settings"],
   qc_supervisor: ["dashboard", "qc", "qc_registry", "reports", "settings"],
-  admin: ["dashboard", "surveys", "qc", "qc_registry", "users", "roles", "masters", "reports", "audit", "settings"],
+  admin: [
+    "dashboard",
+    "surveys",
+    "surveys_registry",
+    "qc",
+    "qc_registry",
+    "users",
+    "roles",
+    "masters",
+    "reports",
+    "audit",
+    "settings",
+  ],
 };

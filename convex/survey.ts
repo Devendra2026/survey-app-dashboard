@@ -21,8 +21,10 @@ import {
 } from "./fieldAccess";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS, GPS_TARGET_ACCURACY_METERS } from "./gpsAccuracy";
 import { assertCanReadWard, canReadWard, clientError, requireUser, writeAudit } from "./helpers";
+import { refreshSurveyCompletionPct } from "./lib/surveyProgress";
 import { filterSurveysBySearch } from "./lib/surveySearch";
 import { assertUniqueSurveySlot } from "./lib/surveyUniqueness";
+import { computeSurveyWardAggregates } from "./lib/surveyWardStats";
 import { isValidIndianOwnerMobile, normalizeOwners, primaryOwnerMobile, validateOwnerSection } from "./ownerRules";
 import { comparePropertyIds, compareWardThenParcel, resolvePropertyId } from "./propertyId";
 import { gpsCapture, qcStatus, sanitationType, surveyOwnerEntry, surveyStatus, waterSource } from "./schema";
@@ -448,11 +450,12 @@ export const listPaginated = query({
     let filtered = await collectSurveysForListPaginated(ctx, me, args, scope, muniIds, access);
 
     if (args.searchTerm?.trim()) {
+      const withNames = await enrichSurveyorNames(ctx, filtered);
       const searchCodes = await loadMunicipalityCodes(
         ctx,
-        filtered.map((r) => r.municipalityId),
+        withNames.map((r) => r.municipalityId),
       );
-      filtered = filterSurveysBySearch(filtered, args.searchTerm, searchCodes);
+      filtered = filterSurveysBySearch(withNames, args.searchTerm, searchCodes);
     }
 
     if (filtered.length > LIST_PAGINATED_SCOPE_LIMIT) {
@@ -477,6 +480,128 @@ export const listPaginated = query({
       continueCursor: nextOffset < filtered.length ? String(nextOffset) : null,
       isDone: nextOffset >= filtered.length,
       totalCount,
+    };
+  },
+});
+
+const surveyWardStatsEntryShape = {
+  wardNo: v.string(),
+  municipalityId: v.id("municipalities"),
+  city: v.string(),
+  total: v.number(),
+  drafts: v.number(),
+  submitted: v.number(),
+  qcApproved: v.number(),
+  activeSurveyorCount: v.number(),
+  activeSurveyorNames: v.array(v.string()),
+};
+
+const surveyCommandCenterStatsShape = {
+  total: v.number(),
+  drafts: v.number(),
+  submitted: v.number(),
+  submittedToday: v.number(),
+  qcApproved: v.number(),
+  qcPending: v.number(),
+  qcRejected: v.number(),
+  surveyCompletionPct: v.number(),
+  wardStats: v.array(v.object(surveyWardStatsEntryShape)),
+};
+
+/** Scoped KPI counts for the Survey Command Center — full dataset, not client-capped. */
+export const commandCenterStats = query({
+  args: {
+    districtId: v.optional(v.id("districts")),
+    municipalityId: v.optional(v.id("municipalities")),
+    wardNo: v.optional(v.string()),
+    status: v.optional(surveyStatus),
+    qcStatus: v.optional(qcStatus),
+    fromMs: v.optional(v.number()),
+    toMs: v.optional(v.number()),
+  },
+  returns: v.object(surveyCommandCenterStatsShape),
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx);
+    const scope = await resolveTenantScope(ctx, me);
+    const districtIds = tenantDistrictIds(scope);
+    const muniIds = tenantMunicipalityIds(scope);
+    const access = await fieldSurveyAccess(ctx, me);
+
+    if (args.municipalityId) {
+      await assertMunicipalityInScope(ctx, me, args.municipalityId);
+    }
+    if (args.districtId && access !== "admin" && !districtIds.has(args.districtId)) {
+      clientError("FORBIDDEN", "This district is outside your assigned scope");
+    }
+
+    const rows = await collectSurveysForListPaginated(
+      ctx,
+      me,
+      {
+        districtId: args.districtId,
+        municipalityId: args.municipalityId,
+        wardNo: args.wardNo,
+        status: args.status,
+        qcStatus: args.qcStatus,
+      },
+      scope,
+      muniIds,
+      access,
+    );
+
+    const inDateRange = (submittedAt: number | undefined, creationTime: number) => {
+      const ts = submittedAt ?? creationTime;
+      if (args.fromMs !== undefined && ts < args.fromMs) return false;
+      if (args.toMs !== undefined && ts > args.toMs) return false;
+      return true;
+    };
+
+    const filtered = rows.filter((r) => inDateRange(r.submittedAt, r._creationTime));
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+
+    const completionSum = filtered.reduce((sum, r) => sum + (r.completionPct ?? 0), 0);
+    const surveyCompletionPct = filtered.length > 0 ? Math.round(completionSum / filtered.length) : 0;
+
+    const wardAggregates = computeSurveyWardAggregates(filtered);
+    const allSurveyorIds = [...new Set(wardAggregates.flatMap((w) => w.activeSurveyorIds))];
+    const surveyors = await Promise.all(allSurveyorIds.map((id) => ctx.db.get(id)));
+    const nameById = new Map<Id<"users">, string>();
+    for (const s of surveyors) {
+      if (s) nameById.set(s._id, s.name);
+    }
+
+    const wardStats = wardAggregates.map((w) => {
+      const names = w.activeSurveyorIds.map((id) => nameById.get(id)).filter((n): n is string => Boolean(n));
+      return {
+        wardNo: w.wardNo,
+        municipalityId: w.municipalityId,
+        city: w.city,
+        total: w.total,
+        drafts: w.drafts,
+        submitted: w.submitted,
+        qcApproved: w.qcApproved,
+        activeSurveyorCount: w.activeSurveyorIds.length,
+        activeSurveyorNames: names.slice(0, 5),
+      };
+    });
+
+    return {
+      total: filtered.length,
+      drafts: filtered.filter((r) => r.status === "draft").length,
+      submitted: filtered.filter((r) => r.status === "submitted").length,
+      submittedToday: filtered.filter(
+        (r) =>
+          r.status === "submitted" &&
+          (r.submittedAt !== undefined ? r.submittedAt >= todayMs : r._creationTime >= todayMs),
+      ).length,
+      qcApproved: filtered.filter((r) => r.qcStatus === "approved").length,
+      qcPending: filtered.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length,
+      qcRejected: filtered.filter((r) => r.qcStatus === "rejected").length,
+      surveyCompletionPct,
+      wardStats,
     };
   },
 });
@@ -640,6 +765,7 @@ export const saveDraft = mutation({
         serverVersion: existing.serverVersion + 1,
         clientUpdatedAt: args.clientUpdatedAt,
       });
+      await refreshSurveyCompletionPct(ctx, existing._id);
       await writeAudit(ctx, {
         actorId: me._id,
         action: auditActionForSave(existing, ownScope, false),
@@ -658,6 +784,7 @@ export const saveDraft = mutation({
       serverVersion: 1,
       clientUpdatedAt: args.clientUpdatedAt,
     });
+    await refreshSurveyCompletionPct(ctx, newId);
     await writeAudit(ctx, {
       actorId: me._id,
       action: auditActionForSave(null, ownScope, true),
@@ -735,6 +862,7 @@ export const upsert = mutation({
         serverVersion: existing.serverVersion + 1,
         clientUpdatedAt: args.clientUpdatedAt,
       });
+      await refreshSurveyCompletionPct(ctx, existing._id);
       await writeAudit(ctx, {
         actorId: me._id,
         action: auditActionForSave(existing, ownScope, false),
@@ -752,6 +880,7 @@ export const upsert = mutation({
       qcStatus: "pending",
       serverVersion: 1,
     });
+    await refreshSurveyCompletionPct(ctx, newId);
     await writeAudit(ctx, {
       actorId: me._id,
       action: "survey.created",

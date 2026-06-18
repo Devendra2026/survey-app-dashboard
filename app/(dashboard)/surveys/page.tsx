@@ -2,113 +2,44 @@
 
 import { PageTransition } from "@/components/design-system/motion";
 import { RoleGate } from "@/components/shared/role-gate";
-import { TablePagination } from "@/components/shared/table-pagination";
-import { SurveyReassignDialog } from "@/components/surveys/survey-reassign-dialog";
-import { SurveyTable } from "@/components/surveys/survey-tables";
 import {
-  SurveysFiltersSection,
-  SurveysMetricsSection,
-  SurveysPageHero,
-  SurveysRegistrySection,
-} from "@/components/surveys/surveys-page-sections";
-import { useSurveysPage } from "@/hooks/surveys/useSurveysPage";
-import { QC_TABLE_PAGE_SIZE_OPTIONS } from "@/lib/table-pagination";
+  SurveyCommandHero,
+  SurveyFiltersSection,
+  SurveyMetricsSection,
+  SurveyWardSection,
+} from "@/components/surveys/survey-queue-sections";
+import { useSurveyQueue } from "@/hooks/surveys/useSurveyQueue";
 
-export default function SurveysPage() {
-  const {
-    canViewAll,
-    canReassign,
-    reassignOpen,
-    setReassignOpen,
-    listFilters,
-    filters,
-    dispatchListUi,
-    surveyorOptions,
-    registrySearch,
-    setRegistrySearch,
-    isLoading,
-    pagedRows,
-    pageNumber,
-    pageStart,
-    canGoPrev,
-    canGoNext,
-    goNext,
-    goPrev,
-    pageSize,
-    activeTab,
-    stats,
-    draftCount,
-    submittedCount,
-    metricsReady,
-    showAnalytics,
-  } = useSurveysPage();
+function SurveyCommandCenterContent() {
+  const { isLoading, stats, wardStats, scope, dateFilters, handleScopeChange, handleDateFiltersChange } =
+    useSurveyQueue({
+      mode: "command",
+    });
 
+  return (
+    <PageTransition className="space-y-6 lg:space-y-8">
+      <SurveyCommandHero />
+      <SurveyFiltersSection
+        scope={scope}
+        dateFilters={dateFilters}
+        onScopeChange={handleScopeChange}
+        onDateFiltersChange={handleDateFiltersChange}
+      />
+      <SurveyMetricsSection stats={stats} isLoading={isLoading} />
+      <SurveyWardSection wardStats={wardStats} isLoading={isLoading} />
+    </PageTransition>
+  );
+}
+
+export default function SurveyCommandCenterPage() {
   return (
     <RoleGate
       mode="page"
-      anyOf={["surveys.viewOwn", "surveys.viewAssigned", "surveys.viewAll"]}
-      deniedDescription="The Surveys module is for field surveyors and supervisors. QC staff should use the QC Portal."
-      redirectTo="/qc"
+      anyOf={["surveys.viewAssigned", "surveys.viewAll"]}
+      deniedDescription="The Survey Command Center is available to supervisors and administrators."
+      redirectTo="/surveys/registry"
     >
-      <PageTransition className="space-y-6 lg:space-y-8">
-        <SurveysPageHero
-          canReassign={canReassign}
-          listFilters={listFilters}
-          isLoading={isLoading}
-          onReassignOpen={() => setReassignOpen(true)}
-        />
-
-        <SurveysMetricsSection
-          stats={stats}
-          draftCount={draftCount}
-          metricsReady={metricsReady}
-          showAnalytics={showAnalytics}
-        />
-
-        <SurveysFiltersSection
-          filters={filters}
-          onFiltersChange={(next) => dispatchListUi({ type: "setFilters", value: next })}
-          surveyorOptions={canViewAll ? surveyorOptions : undefined}
-        />
-
-        <SurveysRegistrySection
-          activeTab={activeTab}
-          onActiveTabChange={(tab) => dispatchListUi({ type: "setActiveTab", value: tab })}
-          stats={stats}
-          draftCount={draftCount}
-          submittedCount={submittedCount}
-          pageNumber={pageNumber}
-          pageStart={pageStart}
-          canGoNext={canGoNext}
-          isLoading={isLoading}
-          pagedRows={pagedRows as Parameters<typeof SurveyTable>[0]["rows"]}
-          showSurveyor={canViewAll}
-          registrySearch={registrySearch}
-          onRegistrySearchChange={setRegistrySearch}
-        />
-
-        <TablePagination
-          pageNumber={pageNumber}
-          pageSize={pageSize}
-          itemCount={pagedRows?.length ?? 0}
-          canGoPrev={canGoPrev}
-          canGoNext={canGoNext}
-          onPrev={goPrev}
-          onNext={goNext}
-          pageSizeOptions={[...QC_TABLE_PAGE_SIZE_OPTIONS]}
-          onPageSizeChange={(size) => dispatchListUi({ type: "setPageSize", value: size })}
-        />
-
-        <SurveyReassignDialog
-          open={reassignOpen}
-          onOpenChange={setReassignOpen}
-          scope={{
-            districtId: filters.districtId,
-            municipalityId: filters.municipalityId,
-            wardNo: filters.wardNo,
-          }}
-        />
-      </PageTransition>
+      <SurveyCommandCenterContent />
     </RoleGate>
   );
 }

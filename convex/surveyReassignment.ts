@@ -297,6 +297,11 @@ export const reassignDrafts = mutation({
       if (adjusted) localIdAdjusted += 1;
 
       const fromSurveyorId = survey.surveyorId;
+      const [fromSurveyor, toSurveyor] = await Promise.all([
+        ctx.db.get("users", fromSurveyorId),
+        ctx.db.get("users", args.toSurveyorId),
+      ]);
+
       await ctx.db.patch(survey._id, {
         surveyorId: args.toSurveyorId,
         localId,
@@ -320,7 +325,9 @@ export const reassignDrafts = mutation({
         entityId: survey._id,
         metadata: {
           fromSurveyorId,
+          fromSurveyorName: fromSurveyor?.name,
           toSurveyorId: args.toSurveyorId,
+          toSurveyorName: toSurveyor?.name,
           mode: args.mode,
           localIdAdjusted: adjusted,
           wardNo: survey.wardNo,

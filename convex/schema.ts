@@ -150,6 +150,8 @@ export default defineSchema({
     serverVersion: v.number(),
     clientUpdatedAt: v.number(),
     submittedAt: v.optional(v.number()),
+    /** Denormalized field-completion % — updated on draft save. */
+    completionPct: v.optional(v.number()),
 
     // Section 1 — Property
     sectorNo: v.optional(v.string()),

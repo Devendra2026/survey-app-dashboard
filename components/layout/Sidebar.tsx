@@ -39,7 +39,10 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   },
   {
     title: "Field Surveys",
-    items: [{ key: "surveys", href: "/surveys", label: "Surveys", icon: ClipboardList }],
+    items: [
+      { key: "surveys", href: "/surveys", label: "Command Center", icon: ClipboardList, exact: true },
+      { key: "surveys_registry", href: "/surveys/registry", label: "Survey Registry", icon: Table2 },
+    ],
   },
   {
     title: "QC Portal",

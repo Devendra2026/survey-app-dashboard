@@ -1,3 +1,77 @@
+import { paginationOptsValidator } from "convex/server";
+import { v } from "convex/values";
+import type { Doc, Id } from "./_generated/dataModel";
+import { internalMutation, query, type QueryCtx } from "./_generated/server";
+import { mapTruthyById, requireRole, requireUser } from "./helpers";
+import {
+  mergeActorSnapshotIntoMetadata,
+  readActorSnapshotFromMetadata,
+  readReassignmentFromMetadata,
+  resolveAuditActor,
+} from "./lib/auditActor";
+
+async function hydrateAuditRows(ctx: QueryCtx, rows: Doc<"auditLogs">[]) {
+  const actorIdSet = new Set<Id<"users">>();
+  for (const row of rows) {
+    if (row.actorId) actorIdSet.add(row.actorId);
+    const reassign = readReassignmentFromMetadata(row.metadata);
+    if (reassign.fromSurveyorId) actorIdSet.add(reassign.fromSurveyorId);
+  }
+
+  const actors = await Promise.all([...actorIdSet].map((id) => ctx.db.get("users", id)));
+  const byId = mapTruthyById(actors);
+
+  /** When creator user was deleted, infer from a later draft reassignment on the same survey. */
+  const priorSurveyorBySurvey = new Map<string, string>();
+  for (const row of rows) {
+    if (row.action !== "survey.draft_reassigned" || row.entity !== "survey" || !row.entityId) continue;
+    const reassign = readReassignmentFromMetadata(row.metadata);
+    if (reassign.fromSurveyorName) {
+      priorSurveyorBySurvey.set(row.entityId, reassign.fromSurveyorName);
+      continue;
+    }
+    if (reassign.fromSurveyorId) {
+      const fromUser = byId.get(reassign.fromSurveyorId);
+      if (fromUser) priorSurveyorBySurvey.set(row.entityId, fromUser.name);
+    }
+  }
+
+  return rows.map((r) => {
+    let actor = resolveAuditActor(r.actorId, r.actorId ? byId.get(r.actorId) : undefined, r.metadata);
+
+    if (actor?.name === "Unknown" && r.action === "survey.created" && r.entity === "survey" && r.entityId) {
+      const inferred = priorSurveyorBySurvey.get(r.entityId);
+      if (inferred && actor) {
+        actor = { ...actor, name: inferred };
+      }
+    }
+
+    return {
+      _id: r._id,
+      _creationTime: r._creationTime,
+      action: r.action,
+      entity: r.entity,
+      entityId: r.entityId ?? null,
+      metadata: r.metadata ?? null,
+      actor,
+    };
+  });
+}
+
+function auditQuery(ctx: QueryCtx, args: { entity?: string; entityId?: string; actorId?: Id<"users"> }) {
+  if (args.entity) {
+    return ctx.db
+      .query("auditLogs")
+      .withIndex("by_entity", (q) =>
+        args.entityId ? q.eq("entity", args.entity!).eq("entityId", args.entityId) : q.eq("entity", args.entity!),
+      );
+  }
+  if (args.actorId) {
+    return ctx.db.query("auditLogs").withIndex("by_actor", (q) => q.eq("actorId", args.actorId!));
+  }
+  return ctx.db.query("auditLogs");
+}
+
 /**
  * audit.ts — READ surface over the existing `auditLogs` table.
  *
@@ -20,49 +94,6 @@
  *
  * It is therefore an interface-only addition over the source-of-truth schema.
  */
-import { paginationOptsValidator } from "convex/server";
-import { v } from "convex/values";
-import type { Doc, Id } from "./_generated/dataModel";
-import type { QueryCtx } from "./_generated/server";
-import { query } from "./_generated/server";
-import { mapTruthyById, requireRole, requireUser } from "./helpers";
-
-async function hydrateAuditRows(ctx: QueryCtx, rows: Doc<"auditLogs">[]) {
-  const actorIdSet = new Set<Id<"users">>();
-  for (const row of rows) {
-    if (row.actorId) actorIdSet.add(row.actorId);
-  }
-  const actors = await Promise.all([...actorIdSet].map((id) => ctx.db.get(id)));
-  const byId = mapTruthyById(actors);
-
-  return rows.map((r) => ({
-    _id: r._id,
-    _creationTime: r._creationTime,
-    action: r.action,
-    entity: r.entity,
-    entityId: r.entityId ?? null,
-    metadata: r.metadata ?? null,
-    actor: r.actorId
-      ? byId.get(r.actorId)
-        ? { _id: r.actorId, name: byId.get(r.actorId)!.name, email: byId.get(r.actorId)!.email }
-        : { _id: r.actorId, name: "Unknown", email: "" }
-      : null,
-  }));
-}
-
-function auditQuery(ctx: QueryCtx, args: { entity?: string; entityId?: string; actorId?: Id<"users"> }) {
-  if (args.entity) {
-    return ctx.db
-      .query("auditLogs")
-      .withIndex("by_entity", (q) =>
-        args.entityId ? q.eq("entity", args.entity!).eq("entityId", args.entityId) : q.eq("entity", args.entity!),
-      );
-  }
-  if (args.actorId) {
-    return ctx.db.query("auditLogs").withIndex("by_actor", (q) => q.eq("actorId", args.actorId!));
-  }
-  return ctx.db.query("auditLogs");
-}
 
 /**
  * Paginated, filterable audit feed. Admin-only — matches the role matrix
@@ -156,5 +187,67 @@ export const actionFacets = query({
       actions: Array.from(new Set(rows.map((r) => r.action))).sort(),
       entities: Array.from(new Set(rows.map((r) => r.entity))).sort(),
     };
+  },
+});
+
+/** One-time backfill: snapshot actor names on legacy rows where the user still exists. */
+export const backfillActorSnapshots = internalMutation({
+  args: { batchSize: v.optional(v.number()) },
+  returns: v.object({ patched: v.number(), scanned: v.number() }),
+  handler: async (ctx, args) => {
+    const batchSize = Math.min(args.batchSize ?? 200, 500);
+    const rows = await ctx.db.query("auditLogs").order("desc").take(batchSize);
+
+    let patched = 0;
+    for (const row of rows) {
+      let metadata = row.metadata;
+      let changed = false;
+
+      if (row.actorId && !readActorSnapshotFromMetadata(metadata).actorName) {
+        const actor = await ctx.db.get("users", row.actorId);
+        if (actor) {
+          metadata = mergeActorSnapshotIntoMetadata(metadata, {
+            actorName: actor.name,
+            actorEmail: actor.email,
+          });
+          changed = true;
+        }
+      }
+
+      if (row.action === "survey.draft_reassigned") {
+        const reassign = readReassignmentFromMetadata(metadata);
+        const updates: Record<string, string> = {};
+        if (reassign.fromSurveyorId && !reassign.fromSurveyorName) {
+          const from = await ctx.db.get("users", reassign.fromSurveyorId);
+          if (from) updates.fromSurveyorName = from.name;
+        }
+        const toId =
+          metadata && typeof metadata === "object" && !Array.isArray(metadata)
+            ? (metadata as Record<string, unknown>).toSurveyorId
+            : undefined;
+        const toName =
+          metadata && typeof metadata === "object" && !Array.isArray(metadata)
+            ? (metadata as Record<string, unknown>).toSurveyorName
+            : undefined;
+        if (typeof toId === "string" && typeof toName !== "string") {
+          const to = await ctx.db.get("users", toId as Id<"users">);
+          if (to) updates.toSurveyorName = to.name;
+        }
+        if (Object.keys(updates).length > 0) {
+          metadata = {
+            ...(metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {}),
+            ...updates,
+          };
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        await ctx.db.patch(row._id, { metadata });
+        patched += 1;
+      }
+    }
+
+    return { patched, scanned: rows.length };
   },
 });

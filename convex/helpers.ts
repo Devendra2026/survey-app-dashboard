@@ -13,6 +13,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
+import { mergeActorSnapshotIntoMetadata } from "./lib/auditActor";
 
 export type { QueryCtx };
 
@@ -138,12 +139,24 @@ interface AuditWriteInput {
 }
 
 export async function writeAudit(ctx: MutationCtx, input: AuditWriteInput): Promise<void> {
+  let metadata: unknown = input.metadata;
+
+  if (input.actorId) {
+    const actor = await ctx.db.get("users", input.actorId);
+    if (actor) {
+      metadata = mergeActorSnapshotIntoMetadata(metadata, {
+        actorName: actor.name,
+        actorEmail: actor.email,
+      });
+    }
+  }
+
   await ctx.db.insert("auditLogs", {
     actorId: input.actorId,
     action: input.action,
     entity: input.entity,
     entityId: input.entityId,
-    metadata: input.metadata,
+    metadata,
   });
 }
 

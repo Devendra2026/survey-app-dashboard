@@ -101,6 +101,43 @@ export const QC_MODULE = {
   } as const,
 } as const;
 
+/** Survey Command Center module — indigo workflow accent with emerald CTA. */
+export const SURVEY_MODULE = {
+  accent: "#6366F1",
+  approved: "#10B981",
+  structure: "#002366",
+  canvas: "#F5F3FF",
+  heroGradient: "brand" as const,
+  tabActive: "data-[state=active]:bg-indigo-600 data-[state=active]:text-white",
+  tableHeader:
+    "border-indigo-500/15 bg-linear-to-r from-indigo-500/12 via-indigo-500/6 to-transparent dark:from-indigo-500/18",
+  cardBorder: "border-indigo-500/15",
+  scopeBanner: "border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/15",
+  metricTones: {
+    total: "info",
+    drafts: "default",
+    submitted: "info",
+    approved: "success",
+  } as const,
+} as const;
+
+/** Survey registry / ward data tables — typography + surface tokens. */
+export const SURVEY_TABLE = {
+  wrapper:
+    "premium-card overflow-hidden rounded-xl border border-indigo-500/20 bg-card/90 shadow-premium-sm backdrop-blur-sm",
+  scroll: "overflow-x-auto",
+  table: "min-w-[1100px] w-full",
+  headerRow:
+    "border-b border-indigo-500/20 bg-linear-to-r from-brand-navy/8 via-indigo-500/10 to-transparent hover:from-brand-navy/8 dark:from-brand-navy/20 dark:via-indigo-500/12",
+  headerCell:
+    "h-10 bg-inherit font-display text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-navy/70 dark:text-indigo-100/80",
+  bodyRow:
+    "h-12 cursor-pointer border-b border-border/40 text-sm transition-colors duration-200 last:border-b-0 even:bg-muted/15 hover:bg-muted/25",
+  monoCell: "font-mono text-xs font-medium tabular-nums text-foreground",
+  bodyCell: "py-2.5",
+  sectionLabel: "text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70",
+} as const;
+
 /** QC registry / ward data tables — typography + surface tokens. */
 export const QC_TABLE = {
   wrapper:

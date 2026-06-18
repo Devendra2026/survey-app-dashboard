@@ -29,7 +29,7 @@ export type ScopeFilterState = Pick<FilterState, "districtId" | "municipalityId"
 export type SurveyorOption = { _id: string; name: string; role: string };
 
 /** Named layouts replace stacked show/hide booleans — each variant is one explicit shape. */
-export type SurveyFiltersVariant = "survey-registry" | "scope-and-dates" | "scope-only";
+export type SurveyFiltersVariant = "survey-registry" | "scope-and-dates" | "scope-only" | "command-center";
 
 type SurveyFiltersBaseProps = {
   value: FilterState;
@@ -50,7 +50,15 @@ type ScopeOnlyFiltersProps = SurveyFiltersBaseProps & {
   variant: "scope-only";
 };
 
-export type SurveyFiltersProps = SurveyRegistryFiltersProps | ScopeAndDatesFiltersProps | ScopeOnlyFiltersProps;
+type CommandCenterFiltersProps = SurveyFiltersBaseProps & {
+  variant: "command-center";
+};
+
+export type SurveyFiltersProps =
+  | SurveyRegistryFiltersProps
+  | ScopeAndDatesFiltersProps
+  | ScopeOnlyFiltersProps
+  | CommandCenterFiltersProps;
 
 const ALL = "__all__";
 
@@ -59,6 +67,18 @@ function pickFilterValue(v: string) {
 }
 
 function resolveFieldVisibility(variant: SurveyFiltersVariant, hasSurveyorOptions: boolean) {
+  if (variant === "command-center") {
+    return {
+      showSearch: false,
+      showStatus: true,
+      showQcStatus: true,
+      showSurveyorFilter: false,
+      showMonthPicker: true,
+      showDateRange: true,
+      showTwoMonthsBack: true,
+      showMonthShortcuts: true,
+    };
+  }
   if (variant === "scope-and-dates") {
     return {
       showSearch: false,
