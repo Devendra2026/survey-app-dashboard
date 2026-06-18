@@ -6,6 +6,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { normalizeAddressFields } from "./addressRules";
 import { normalizeFloorFields, presentFloorRow, usageTypeToOccupied, validateFloorRow } from "./areaMasters";
+import { hasCapability } from "./capabilities";
 import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
 import { assertCanReadWard, clientError, mapTruthyById, requireRole, requireUser, writeAudit } from "./helpers";
 import { lookupSurveyByPropertyId } from "./lib/propertyIdLookup";
@@ -221,13 +222,18 @@ export const listForExport = query({
   }),
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "supervisor", "admin", "surveyor");
+    const [access, canExport] = await Promise.all([
+      fieldSurveyAccess(ctx, me),
+      hasCapability(ctx, me, "reports.export"),
+    ]);
+    if (access === "none" || (!canExport && access !== "own")) {
+      clientError("FORBIDDEN", "You don't have permission for this action.");
+    }
     const offset = Math.max(args.offset ?? 0, 0);
     const pageSize = Math.min(Math.max(args.pageSize ?? DEFAULT_EXPORT_PAGE_SIZE, 1), MAX_EXPORT_PAGE_SIZE);
 
     const scope = await resolveTenantScope(ctx, me);
     const districtIds = tenantDistrictIds(scope);
-    const access = await fieldSurveyAccess(ctx, me);
 
     if (args.municipalityId) {
       await assertMunicipalityInScope(ctx, me, args.municipalityId);
