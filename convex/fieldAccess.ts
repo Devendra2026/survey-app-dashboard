@@ -103,8 +103,7 @@ export async function querySurveysInFieldScope(
   me: Doc<"users">,
   args: SurveyListQueryArgs,
 ): Promise<Doc<"surveys">[]> {
-  const access = await fieldSurveyAccess(ctx, me);
-  const scope = await resolveTenantScope(ctx, me);
+  const [access, scope] = await Promise.all([fieldSurveyAccess(ctx, me), resolveTenantScope(ctx, me)]);
   const muniIds = tenantMunicipalityIds(scope);
   const districtIds = tenantDistrictIds(scope);
   const take = args.limit * 2;
@@ -188,8 +187,7 @@ export async function querySurveysInFieldScope(
 
 /** Collect all surveys in assigned/admin scope (analytics dashboards). */
 export async function collectSurveysInFieldScope(ctx: QueryCtx, me: Doc<"users">): Promise<Doc<"surveys">[]> {
-  const access = await fieldSurveyAccess(ctx, me);
-  const scope = await resolveTenantScope(ctx, me);
+  const [access, scope] = await Promise.all([fieldSurveyAccess(ctx, me), resolveTenantScope(ctx, me)]);
   const muniIds = tenantMunicipalityIds(scope);
 
   if (access === "none") return [];

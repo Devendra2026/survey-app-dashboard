@@ -1,63 +1,5 @@
-"use client";
-
-import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SurveyDraftValues } from "@/schema/surveys/surveySchema";
-import { Controller, type Control, type FieldErrors, type Path, type UseFormRegister } from "react-hook-form";
-
-export function SurveyFormSection({
-  title,
-  children,
-  icon,
-}: {
-  title: string;
-  children: React.ReactNode;
-  icon: React.ReactNode;
-}) {
-  return (
-    <GlassCard padding="md">
-      <GlassCardHeader title={title} icon={icon} />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
-    </GlassCard>
-  );
-}
-
-export function FieldErr({ msg }: { msg?: string }) {
-  return msg ? <p className="text-xs text-destructive">{msg}</p> : null;
-}
-
-export function SurveySelect({
-  control,
-  name,
-  options,
-  placeholder,
-}: {
-  control: Control<SurveyDraftValues>;
-  name: Path<SurveyDraftValues>;
-  options: { value: string; label: string }[];
-  placeholder: string;
-}) {
-  return (
-    <Controller
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <Select value={(field.value as string) ?? ""} onValueChange={field.onChange}>
-          <SelectTrigger>
-            <SelectValue placeholder={placeholder} />
-          </SelectTrigger>
-          <SelectContent>
-            {options.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-    />
-  );
-}
+import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 
 export type SurveyFormSectionProps = {
   control: Control<SurveyDraftValues>;
@@ -80,3 +22,7 @@ export type SurveyFormSectionProps = {
     | null
     | undefined;
 };
+
+export { FieldErr } from "@/components/surveys/field-err";
+export { SurveyFormSection } from "@/components/surveys/survey-form-section";
+export { SurveySelect } from "@/components/surveys/survey-form-select";

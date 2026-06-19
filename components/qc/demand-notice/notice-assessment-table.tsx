@@ -86,7 +86,7 @@ export function NoticeAssessmentTable({
                       {formatAmountPlain(row.areaSqft)}
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums print:px-1 print:py-0.5">
-                      {formatAmountPlain(row.baseRate)}
+                      {formatAmountPlain(row.monthlyRate)}
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums print:px-1 print:py-0.5">
                       {formatAmountPlain(row.alv)}

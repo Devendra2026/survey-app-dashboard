@@ -179,8 +179,10 @@ export async function resolveTenantScope(
     return mergeScopeWithProfile(fromAllotments, me, districtsAll, municipalitiesAll);
   }
 
-  const districtId = await effectiveDistrictId(ctx, me);
-  const needsTenancy = await roleRequiresTenancy(ctx, me.role);
+  const [districtId, needsTenancy] = await Promise.all([
+    effectiveDistrictId(ctx, me),
+    roleRequiresTenancy(ctx, me.role),
+  ]);
 
   // Profile-only assignment (no userAllotments rows): single ULB or whole district.
   if (needsTenancy && me.municipalityId) {

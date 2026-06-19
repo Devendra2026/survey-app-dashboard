@@ -1,25 +1,16 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useSetGps } from "@/hooks/surveys/useSurveys";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
+import { gpsCoordinateInputsKey } from "@/lib/surveys/gps-coordinates";
 import { fmtDate } from "@/lib/utils";
 import type { GpsCapture } from "@/schema/surveys/index";
-import { Crosshair, ExternalLink, Loader2, MapPin, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Crosshair, ExternalLink, MapPin } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-
-function parseCoordinate(value: string, min: number, max: number): number | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const n = Number(trimmed);
-  if (!Number.isFinite(n) || n < min || n > max) return null;
-  return n;
-}
+import { GpsCoordinateInputs } from "./gps-coordinate-inputs";
 
 function GisPreview({ gps }: { gps: GpsCapture }) {
   const lat = gps.latitude;
@@ -73,15 +64,6 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
   const setGps = useSetGps();
   const [capturing, setCapturing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [latInput, setLatInput] = useState(gps ? String(gps.latitude) : "");
-  const [lngInput, setLngInput] = useState(gps ? String(gps.longitude) : "");
-
-  useEffect(() => {
-    if (gps) {
-      setLatInput(String(gps.latitude));
-      setLngInput(String(gps.longitude));
-    }
-  }, [gps]);
 
   async function capture() {
     if (!("geolocation" in navigator)) {
@@ -118,9 +100,7 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
     );
   }
 
-  async function saveManual() {
-    const lat = parseCoordinate(latInput, -90, 90);
-    const lng = parseCoordinate(lngInput, -180, 180);
+  async function saveManual(lat: number | null, lng: number | null) {
     if (lat === null) {
       toast.error("Latitude must be between -90 and 90");
       return;
@@ -185,74 +165,16 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
         </div>
       )}
 
-      <div className="rounded-xl border border-border/60 bg-card/80 p-4 shadow-premium-sm">
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-          Edit coordinates
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="gps-latitude" className="text-xs font-semibold">
-              Latitude
-            </Label>
-            <Input
-              id="gps-latitude"
-              type="number"
-              step="0.000001"
-              min={-90}
-              max={90}
-              value={latInput}
-              onChange={(e) => setLatInput(e.target.value)}
-              className="font-mono tabular-nums"
-              placeholder="-90 to 90"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="gps-longitude" className="text-xs font-semibold">
-              Longitude
-            </Label>
-            <Input
-              id="gps-longitude"
-              type="number"
-              step="0.000001"
-              min={-180}
-              max={180}
-              value={lngInput}
-              onChange={(e) => setLngInput(e.target.value)}
-              className="font-mono tabular-nums"
-              placeholder="-180 to 180"
-            />
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={capturing}
-            onClick={() => void capture()}
-            className="cursor-pointer rounded-xl border-brand-navy/25 transition-colors duration-200 hover:bg-brand-navy/5 dark:border-primary/30"
-          >
-            {capturing ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <Crosshair className="h-4 w-4" aria-hidden />
-            )}
-            {gps ? "Recapture" : "Capture"} GPS
-          </Button>
-          <Button
-            size="sm"
-            disabled={saving}
-            onClick={() => void saveManual()}
-            className="cursor-pointer rounded-xl bg-brand-navy text-white transition-colors duration-200 hover:bg-brand-navy/90 dark:bg-primary dark:hover:bg-primary/90"
-          >
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <Save className="h-4 w-4" aria-hidden />
-            )}
-            Save coordinates
-          </Button>
-        </div>
-      </div>
+      <GpsCoordinateInputs
+        key={gpsCoordinateInputsKey(gps)}
+        initialLatitude={gps ? String(gps.latitude) : ""}
+        initialLongitude={gps ? String(gps.longitude) : ""}
+        gps={gps}
+        capturing={capturing}
+        saving={saving}
+        onCapture={() => void capture()}
+        onSave={(lat, lng) => void saveManual(lat, lng)}
+      />
     </div>
   );
 }

@@ -99,9 +99,9 @@ export const DEFAULT_USAGE_MULTIPLIERS: Record<string, number> = {
 export const DEFAULT_TAX_RATES = {
   /** Property tax is levied on this share of gross ALV (Baghpat: 80%). */
   assessableValuePct: 0.8,
-  /** Effective rate on gross ALV (e.g. 0.10 = 10%). Applied via assessable × (pct / assessableValuePct). */
+  /** Rate on assessable ALV (e.g. 0.10 = 10%). */
   propertyTaxPct: 0.1,
-  waterTaxPct: 0.07,
+  waterTaxPct: 0.075,
   drainageTaxPct: 0.025,
 };
 

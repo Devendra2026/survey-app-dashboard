@@ -3,7 +3,6 @@ import {
   annualRateToMonthly,
   DEFAULT_RATE_MATRIX,
   DEFAULT_TAX_RATES,
-  DEFAULT_USAGE_MULTIPLIERS,
   TAX_RATE_ZONE_ROWS,
 } from "@/lib/qc/tax-rate-defaults";
 import {
@@ -12,6 +11,7 @@ import {
   resolveConstructionTypeKey,
   resolveTaxRateZoneKey,
 } from "@/lib/qc/tax-rate-matrix";
+import { isOpenLandOnlyProperty } from "@/lib/survey/area";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import type { FloorRow, SurveyDetail } from "@/schema/surveys/index";
 import { formatInr } from "./demand-estimate";
@@ -69,18 +69,11 @@ export type TaxRateConfig = {
   usageMultipliers: Record<string, number>;
 } | null;
 
-function resolveUsageMult(
-  usageFactor: string,
-  usageType: string,
-  multipliers: Record<string, number>,
-  propertyUse?: string,
-): number {
-  const key = usageFactor || usageType?.toLowerCase() || propertyUse || "residential";
-  if (key.includes("commercial") || key.includes("shop")) return multipliers.commercial ?? 1.45;
-  if (key.includes("mix")) return multipliers.mix ?? multipliers.mix_property ?? 1.2;
-  if (key.includes("open_land") || key.includes("agriculture")) return multipliers.open_land ?? 0.6;
-  if (key.includes("godown")) return multipliers.godown ?? 1.1;
-  return multipliers[key] ?? multipliers.residential ?? 1.0;
+/** Residential ×1; commercial/shop doubles the panel rate (×2). */
+function resolveUsageRateMult(usageFactor: string, usageType: string, propertyUse?: string): number {
+  const key = (usageFactor || usageType || propertyUse || "").toLowerCase();
+  if (key.includes("commercial") || key.includes("shop")) return 2;
+  return 1;
 }
 
 export function buildSurveyAddress(survey: SurveyDetail): string {
@@ -173,7 +166,6 @@ export function computeDemandNotice(
   const usesWardRates = hasWardCustomRates(survey.wardNo, rateConfig?.wardRates);
   const rateSource: DemandNoticeData["rateSource"] = usesWardRates ? "ward" : rateConfig ? "ulb" : "system";
 
-  const multipliers = rateConfig?.usageMultipliers ?? DEFAULT_USAGE_MULTIPLIERS;
   const assessableValuePct = DEFAULT_TAX_RATES.assessableValuePct;
   const propertyTaxRate = rateConfig?.propertyTaxPct ?? DEFAULT_TAX_RATES.propertyTaxPct;
   const waterTaxRate = rateConfig?.waterTaxPct ?? DEFAULT_TAX_RATES.waterTaxPct;
@@ -214,17 +206,18 @@ export function computeDemandNotice(
 
   const floorRows: FloorAssessmentRow[] = floors.map((floor) => {
     const area = floor.areaSqft ?? 0;
-    const baseRate = resolveAnnualRate(
+    const annualBaseRate = resolveAnnualRate(
       survey.wardNo,
       survey.taxRateZone,
       floor.constructionType,
       rateConfig?.wardRates,
       fallbackMatrix,
     );
-    const usageMult = resolveUsageMult(floor.usageFactor ?? "", floor.usageType, multipliers, survey.propertyUse);
+    const panelRate = annualRateToMonthly(annualBaseRate);
+    const usageMult = resolveUsageRateMult(floor.usageFactor ?? "", floor.usageType, survey.propertyUse);
     const { monthlyRate, alv, assessableAlv, tax } = computeFloorPropertyTax(
       area,
-      baseRate,
+      panelRate,
       propertyTaxRate,
       usageMult,
       assessableValuePct,
@@ -236,7 +229,7 @@ export function computeDemandNotice(
       constructionLabel: labelFromOptions(masters?.constructionTypes, floor.constructionType) || "—",
       areaSqft: area,
       monthlyRate,
-      baseRate,
+      baseRate: annualBaseRate,
       roadFactor: 1,
       usageMult,
       alv,
@@ -250,12 +243,15 @@ export function computeDemandNotice(
   const totalAssessableAlv = floorRows.reduce((s, r) => s + r.assessableAlv, 0);
   const totalTax = floorRows.reduce((s, r) => s + r.tax, 0);
   const propertyTax = totalTax;
+  const openLandOnly = isOpenLandOnlyProperty(survey.propertyUse, floors);
+  const includeServiceTaxes = !openLandOnly;
   const { waterTax, drainageTax, totalAnnualDemand } = computeTotalAnnualDemand(
     totalAssessableAlv,
     propertyTax,
     waterTaxRate,
     drainageTaxRate,
-    Boolean(survey.municipalWaterConnection),
+    includeServiceTaxes && Boolean(survey.municipalWaterConnection),
+    includeServiceTaxes,
   );
 
   return {

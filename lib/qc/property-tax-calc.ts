@@ -1,4 +1,4 @@
-import { annualRateToMonthly, DEFAULT_TAX_RATES } from "./tax-rate-defaults";
+import { DEFAULT_TAX_RATES } from "./tax-rate-defaults";
 
 /** Round to 2 decimal places (paise). */
 export function roundMoney(amount: number): number {
@@ -6,8 +6,15 @@ export function roundMoney(amount: number): number {
 }
 
 /**
- * Gross annual letting value (yearly rate from master data).
- *   Gross ALV = area (sqft) × yearly rate (₹/sqft/year) × usage multiplier
+ * Gross annual letting value from tax-rate panel value.
+ *   Gross ALV = area (sqft) × panel rate × 12 × usage multiplier
+ */
+export function computeGrossAlvFromPanelRate(areaSqft: number, panelRate: number, usageMult = 1): number {
+  return roundMoney(areaSqft * panelRate * 12 * usageMult);
+}
+
+/**
+ * @deprecated Prefer `computeGrossAlvFromPanelRate` with panel rate. Equivalent when yearlyRate = panelRate × 12.
  */
 export function computeGrossAlvYearly(areaSqft: number, yearlyRatePerSqft: number, usageMult = 1): number {
   return roundMoney(areaSqft * yearlyRatePerSqft * usageMult);
@@ -31,24 +38,21 @@ export function computeTaxFromAlv(alv: number, taxPct: number): number {
 }
 
 /**
- * Property tax via 80% assessable value rule (yearly assessable).
- * Master `propertyTaxPct` is effective % on gross ALV (e.g. 10%).
+ * Property tax on assessable ALV (e.g. 10% of the 80% assessable base).
  */
 export function computePropertyTaxFromGrossAlv(
   grossAlv: number,
-  effectiveGrossTaxPct: number,
+  propertyTaxPct: number,
   assessableValuePct = DEFAULT_TAX_RATES.assessableValuePct,
-): { assessableAlv: number; propertyTax: number; taxOnAssessablePct: number } {
+): { assessableAlv: number; propertyTax: number } {
   const assessableAlv = computeAssessableAlv(grossAlv, assessableValuePct);
-  const taxOnAssessablePct = effectiveGrossTaxPct / assessableValuePct;
-  const propertyTax = computeTaxFromAlv(assessableAlv, taxOnAssessablePct);
-  return { assessableAlv, propertyTax, taxOnAssessablePct };
+  const propertyTax = computeTaxFromAlv(assessableAlv, propertyTaxPct);
+  return { assessableAlv, propertyTax };
 }
 
 /**
  * Yearly assessable + Water + Drainage = Total demand (yearly).
- * "Yearly assessable" is property tax on the 80% assessable ALV base.
- * Water and drainage are yearly % of that same assessable ALV.
+ * Water and drainage are yearly % of total assessable ALV.
  */
 export function computeTotalAnnualDemand(
   yearlyAssessableAlv: number,
@@ -56,22 +60,22 @@ export function computeTotalAnnualDemand(
   waterTaxPct: number,
   drainageTaxPct: number,
   includeWater: boolean,
+  includeDrainage = true,
 ): { waterTax: number; drainageTax: number; totalAnnualDemand: number } {
   const waterTax = includeWater ? computeTaxFromAlv(yearlyAssessableAlv, waterTaxPct) : 0;
-  const drainageTax = computeTaxFromAlv(yearlyAssessableAlv, drainageTaxPct);
+  const drainageTax = includeDrainage ? computeTaxFromAlv(yearlyAssessableAlv, drainageTaxPct) : 0;
   const totalAnnualDemand = roundMoney(yearlyAssessableTax + waterTax + drainageTax);
   return { waterTax, drainageTax, totalAnnualDemand };
 }
 
 export function computeFloorPropertyTax(
   areaSqft: number,
-  yearlyRatePerSqft: number,
+  panelRate: number,
   propertyTaxPct: number,
   usageMult = 1,
   assessableValuePct = DEFAULT_TAX_RATES.assessableValuePct,
 ): { monthlyRate: number; alv: number; assessableAlv: number; tax: number } {
-  const alv = computeGrossAlvYearly(areaSqft, yearlyRatePerSqft, usageMult);
+  const alv = computeGrossAlvFromPanelRate(areaSqft, panelRate, usageMult);
   const { assessableAlv, propertyTax } = computePropertyTaxFromGrossAlv(alv, propertyTaxPct, assessableValuePct);
-  const monthlyRate = annualRateToMonthly(yearlyRatePerSqft);
-  return { monthlyRate, alv, assessableAlv, tax: propertyTax };
+  return { monthlyRate: panelRate, alv, assessableAlv, tax: propertyTax };
 }

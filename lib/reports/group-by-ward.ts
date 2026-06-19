@@ -40,7 +40,7 @@ export function groupSurveysByWard(
     entry.items.sort((a, b) => (a.parcelNo ?? "").localeCompare(b.parcelNo ?? "", undefined, { numeric: true }));
   }
 
-  return [...byKey.values()].sort((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }));
+  return Array.from(byKey.values()).toSorted((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }));
 }
 
 export function formatWardTitle(wardNo: string, wardLabel?: string): string {

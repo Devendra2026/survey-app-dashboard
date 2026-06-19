@@ -345,10 +345,9 @@ export function UlbRateEditorWardMatrixPanel({
       <div className="flex items-start gap-2 border-t border-border/50 bg-muted/15 px-5 py-3">
         <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Monthly rate (₹/sqft/month) stored in master; demand notice uses yearly rate (×12). Gross ALV = area × yearly
-          rate · Yearly assessable = gross ALV × 80% · Yearly assessable tax = yearly assessable ÷ 100 × 12.5 · Water =
-          yearly assessable ÷ 100 × 7 · Drainage = yearly assessable ÷ 100 × 2.5 · Total demand (yearly) = Yearly
-          assessable + Water + Drainage = Total demand (yearly).
+          Panel rate (₹/sqft) from master; Gross ALV = area × rate × 12 · Assessable ALV = gross ALV × 80% · Property
+          tax = assessable × 10% · Water = assessable × 7.5% · Drainage = assessable × 2.5% · Total demand (yearly) =
+          Property tax + Water + Drainage. Open land properties: water and drainage are zero.
         </p>
       </div>
     </GlassCard>
@@ -366,7 +365,7 @@ export function UlbRateEditorTaxSettings({ form, onFormPatch, combinedPctLabel }
     <GlassCard padding="md">
       <GlassCardHeader
         title="Tax Percentages"
-        description="Applied to total ALV"
+        description="Applied to assessable ALV (80%)"
         icon={<Percent className="h-4 w-4" aria-hidden />}
       />
       <div className="space-y-3">

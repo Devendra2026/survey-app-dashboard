@@ -37,7 +37,7 @@ export function DemandNoticeDocument({
   rateConfig,
 }: DemandNoticeDocumentProps) {
   const propPct = rateConfig ? pctLabel(rateConfig.propertyTaxPct) : pctLabel(DEFAULT_TAX_RATES.propertyTaxPct);
-  const waterPct = rateConfig ? pctLabel(rateConfig.waterTaxPct) : "7%";
+  const waterPct = rateConfig ? pctLabel(rateConfig.waterTaxPct) : "7.5%";
   const drainPct = rateConfig ? pctLabel(rateConfig.drainageTaxPct) : "2.5%";
 
   return (

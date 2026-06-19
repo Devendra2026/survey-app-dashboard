@@ -79,5 +79,5 @@ export function computeQcWardAggregates(rows: Doc<"surveys">[]): QcWardAggregate
     }
   }
 
-  return [...byKey.values()].sort((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }));
+  return Array.from(byKey.values()).toSorted((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }));
 }

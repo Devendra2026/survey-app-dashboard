@@ -215,11 +215,13 @@ export const wardsForMunicipality = query({
   args: { municipalityId: v.id("municipalities") },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    const muni = await assertMunicipalityInScope(ctx, me, args.municipalityId);
-    const rows = await ctx.db
-      .query("wards")
-      .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", args.municipalityId))
-      .collect();
+    const [muni, rows] = await Promise.all([
+      assertMunicipalityInScope(ctx, me, args.municipalityId),
+      ctx.db
+        .query("wards")
+        .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", args.municipalityId))
+        .collect(),
+    ]);
     const wards = rows
       .sort((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }))
       .map((w) => ({
@@ -239,11 +241,13 @@ export const myTenantScope = query({
   args: {},
   handler: async (ctx) => {
     const me = await requireUser(ctx);
-    const scope = await resolveTenantScope(ctx, me);
-    const allotments = await ctx.db
-      .query("userAllotments")
-      .withIndex("by_user", (q) => q.eq("userId", me._id))
-      .collect();
+    const [scope, allotments] = await Promise.all([
+      resolveTenantScope(ctx, me),
+      ctx.db
+        .query("userAllotments")
+        .withIndex("by_user", (q) => q.eq("userId", me._id))
+        .collect(),
+    ]);
 
     const activeAllotments: { districtId: Id<"districts"> | null; municipalityId: Id<"municipalities"> | null }[] = [];
     for (const a of allotments) {

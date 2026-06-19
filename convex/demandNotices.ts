@@ -78,7 +78,7 @@ export const startBulkExport = mutation({
       clientError("VALIDATION", `Export is limited to ${MAX_EXPORT_SURVEYS} properties per run`);
     }
 
-    const sorted = [...filtered].sort(compareWardThenParcel);
+    const sorted = filtered.toSorted(compareWardThenParcel);
     const surveyIds = sorted.map((row) => row._id);
 
     const muni = await ctx.db.get(args.municipalityId);
@@ -110,8 +110,7 @@ export const getExportJob = query({
   args: { jobId: v.id("demandNoticeExportJobs") },
   returns: exportJobValidator,
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const job = await ctx.db.get(args.jobId);
+    const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
     await assertJobAccess(ctx, me, job);
 
     let downloadUrl: string | null = null;
@@ -138,8 +137,7 @@ export const getNoticeForSurvey = query({
   },
   returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const survey = await ctx.db.get(args.surveyId);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey || survey.qcStatus !== "approved") return null;
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
 
@@ -157,8 +155,7 @@ export const getNoticePayloads = query({
   args: { jobId: v.id("demandNoticeExportJobs") },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const job = await ctx.db.get(args.jobId);
+    const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
     await assertJobAccess(ctx, me, job);
 
     return await buildNoticePayloadsForSurveys(ctx, me, {
@@ -176,8 +173,7 @@ export const updateExportProgress = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const job = await ctx.db.get(args.jobId);
+    const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
     await assertJobAccess(ctx, me, job);
 
     await ctx.db.patch(args.jobId, {
@@ -192,8 +188,7 @@ export const generateUploadUrl = mutation({
   args: { jobId: v.id("demandNoticeExportJobs") },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const job = await ctx.db.get(args.jobId);
+    const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
     await assertJobAccess(ctx, me, job);
     await ctx.db.patch(args.jobId, { status: "uploading" });
     return await ctx.storage.generateUploadUrl();
@@ -207,8 +202,7 @@ export const completeExport = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const job = await ctx.db.get(args.jobId);
+    const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
     await assertJobAccess(ctx, me, job);
 
     await ctx.db.patch(args.jobId, {
@@ -228,8 +222,7 @@ export const failExport = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    const job = await ctx.db.get(args.jobId);
+    const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
     await assertJobAccess(ctx, me, job);
 
     await ctx.db.patch(args.jobId, {

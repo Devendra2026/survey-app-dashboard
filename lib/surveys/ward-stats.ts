@@ -81,7 +81,7 @@ export function computeSurveyWardStats(rows: SurveyWardSourceRow[], wardLabels?:
     entry.activeSurveyorCount = names.length;
   }
 
-  return [...byKey.values()].sort((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }));
+  return Array.from(byKey.values()).toSorted((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }));
 }
 
 export function enrichServerSurveyWardStats(

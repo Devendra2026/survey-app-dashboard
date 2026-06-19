@@ -1,11 +1,11 @@
 "use client";
 
+import { pct } from "@/components/masters/tax-rates-form-utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { pct } from "@/components/masters/tax-rates-form-utils";
 import { computeFloorPropertyTax } from "@/lib/qc/property-tax-calc";
-import { monthlyRateToAnnual, TAX_RATE_CONSTRUCTION_COLS, TAX_RATE_ZONE_ROWS } from "@/lib/qc/tax-rate-defaults";
+import { TAX_RATE_CONSTRUCTION_COLS, TAX_RATE_ZONE_ROWS } from "@/lib/qc/tax-rate-defaults";
 import { f2, type RateMatrixMonthlyForm } from "@/lib/qc/tax-rate-matrix";
 import { cn } from "@/lib/utils";
 
@@ -31,10 +31,9 @@ export function WardRatePreview({
   const zone = TAX_RATE_ZONE_ROWS.find((z) => z.key === previewZoneKey) ?? TAX_RATE_ZONE_ROWS[0];
   const construction =
     TAX_RATE_CONSTRUCTION_COLS.find((c) => c.key === previewConstrKey) ?? TAX_RATE_CONSTRUCTION_COLS[0];
-  const monthly = parseFloat(matrix[zone.key]?.[construction.key] || "0");
-  const annual = monthlyRateToAnnual(monthly);
+  const panelRate = parseFloat(matrix[zone.key]?.[construction.key] || "0");
   const exampleArea = 594;
-  const { alv, assessableAlv, tax } = computeFloorPropertyTax(exampleArea, annual, propertyTaxPct);
+  const { alv, assessableAlv, tax } = computeFloorPropertyTax(exampleArea, panelRate, propertyTaxPct);
 
   return (
     <div className="space-y-3 border-b border-border/50 bg-emerald-50/50 px-5 py-4 dark:bg-emerald-950/15">
@@ -78,9 +77,8 @@ export function WardRatePreview({
           <p className="text-[10px] text-muted-foreground">{construction.label}</p>
         </div>
         <div className="rounded-lg border border-border/40 bg-card/80 px-3 py-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Monthly rate</p>
-          <p className="mt-1 font-mono text-lg font-bold tabular-nums">₹{f2(monthly)}/sqft</p>
-          <p className="text-[10px] text-muted-foreground">Annual ₹{f2(annual)}/sqft</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Annual rate</p>
+          <p className="mt-1 font-mono text-lg font-bold tabular-nums">₹{f2(panelRate)}/sqft</p>
         </div>
         <div className="rounded-lg border border-border/40 bg-card/80 px-3 py-2.5">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">

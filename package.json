@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "deploy:backend": "node ./scripts/sync-clerk-issuer.mjs && convex deploy --yes",
     "deploy:backend:dev": "node ./scripts/sync-clerk-issuer.mjs && convex dev --once",
     "convex:export:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/export-dev.ps1",
@@ -69,7 +70,8 @@
     "eslint-config-next": "16.2.9",
     "npm-run-all": "^4.1.5",
     "tailwindcss": "^4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.6"
   },
   "ignoreScripts": [
     "sharp",

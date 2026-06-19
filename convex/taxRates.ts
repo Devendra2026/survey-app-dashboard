@@ -1,12 +1,12 @@
 /**
  * Dynamic tax rate configuration per municipality (ULB).
  *
- * Rate model (monthly master rate → annual ALV):
- *   Gross ALV = area × yearlyRate × usageMultipliers[usage]
- *   Assessable = gross ALV × 80%
- *   Assessable (80%) tax = assessable / 100 × (propertyTaxPct / 0.80 × 100)
- *   Water / drainage = assessable / 100 × (pct × 100)
- *   Total demand (yearly) = Yearly assessable + water + drainage
+ * Demand notice rate model:
+ *   Gross ALV = area × panel rate × 12 × usageMult (commercial ×2, residential ×1)
+ *   Assessable ALV = gross ALV × 80%
+ *   Property tax = assessable ALV × propertyTaxPct (e.g. 10%)
+ *   Water / drainage = total assessable ALV × respective %
+ *   Total demand (yearly) = property tax + water + drainage
  */
 import { v } from "convex/values";
 import { normalizeStoredTaxRates } from "../lib/qc/normalize-tax-rates";

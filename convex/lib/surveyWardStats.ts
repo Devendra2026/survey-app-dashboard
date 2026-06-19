@@ -61,5 +61,5 @@ export function computeSurveyWardAggregates(rows: Doc<"surveys">[]): SurveyWardA
     entry.activeSurveyorIds = [...(surveyorsByKey.get(key) ?? [])];
   }
 
-  return [...byKey.values()].sort((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }));
+  return Array.from(byKey.values()).toSorted((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }));
 }

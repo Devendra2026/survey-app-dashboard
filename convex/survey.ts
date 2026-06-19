@@ -702,14 +702,16 @@ export const saveDraft = mutation({
   args: draftSurveyInput,
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    await requireSurveyDraftEdit(ctx, me);
-    const ownScope = await isOwnScopeSurveyor(ctx, me);
-    const muni = await assertMunicipalityInScope(ctx, me, args.municipalityId);
-    const existing = await resolveExistingSurveyForSave(ctx, me, {
-      id: args.id,
-      localId: args.localId,
-      municipalityId: args.municipalityId,
-    });
+    const [, ownScope, muni, existing] = await Promise.all([
+      requireSurveyDraftEdit(ctx, me),
+      isOwnScopeSurveyor(ctx, me),
+      assertMunicipalityInScope(ctx, me, args.municipalityId),
+      resolveExistingSurveyForSave(ctx, me, {
+        id: args.id,
+        localId: args.localId,
+        municipalityId: args.municipalityId,
+      }),
+    ]);
     if (existing) await assertSurveyWritable(ctx, me, existing);
     if (!existing && !ownScope) {
       clientError("BAD_REQUEST", "No survey found to update — open the record from QC review and try saving again");
@@ -807,9 +809,11 @@ export const upsert = mutation({
   args: surveyInput,
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    await requireSurveyDraftEdit(ctx, me);
-    const ownScope = await isOwnScopeSurveyor(ctx, me);
-    const muni = await assertMunicipalityInScope(ctx, me, args.municipalityId);
+    const [, ownScope, muni] = await Promise.all([
+      requireSurveyDraftEdit(ctx, me),
+      isOwnScopeSurveyor(ctx, me),
+      assertMunicipalityInScope(ctx, me, args.municipalityId),
+    ]);
     assertCanReadWard(me, args.municipalityId, args.wardNo);
 
     const district = await ctx.db.get(muni.districtId);
@@ -1072,11 +1076,11 @@ export const submit = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
-    let survey = await ctx.db.get(args.id);
+    const [me, surveyOrNull] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
+    let survey = surveyOrNull;
     if (!survey) clientError("NOT_FOUND", "Survey not found");
-    await requireCapability(ctx, me, "surveys.submit");
-    if (survey.surveyorId !== me._id && (await isOwnScopeSurveyor(ctx, me))) {
+    const [, ownScope] = await Promise.all([requireCapability(ctx, me, "surveys.submit"), isOwnScopeSurveyor(ctx, me)]);
+    if (survey.surveyorId !== me._id && ownScope) {
       clientError("FORBIDDEN", "Not your survey");
     }
     if (survey.status !== "draft" && survey.status !== "rejected") {

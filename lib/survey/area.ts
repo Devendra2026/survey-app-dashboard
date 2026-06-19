@@ -7,6 +7,15 @@ import {
 
 export { builtUpSqftFromFloors, isOpenLandFloor, openLandSqftFromFloors, plinthSqftFromFloors };
 
+export function isOpenLandOnlyProperty(
+  propertyUse: string | undefined,
+  floors: { floorName?: string; constructionType?: string }[],
+): boolean {
+  if (propertyUse === "open_land") return true;
+  if (floors.length === 0) return false;
+  return floors.every((f) => isOpenLandFloor(f.floorName) || f.constructionType === "open_land_plot");
+}
+
 export {
   formatPropertyId,
   isLegacyPropertyIdFormat,

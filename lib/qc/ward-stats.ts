@@ -71,7 +71,7 @@ export function computeQcWardStats(rows: SurveyRow[], wardLabels?: Map<string, s
     entry.qcCompletionPct = decided > 0 ? Math.round((entry.approved / decided) * 100) : 0;
   }
 
-  return [...byKey.values()].sort((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }));
+  return Array.from(byKey.values()).toSorted((a, b) => a.wardNo.localeCompare(b.wardNo, undefined, { numeric: true }));
 }
 
 /** Map server ward aggregates to client rows with master-data labels. */
