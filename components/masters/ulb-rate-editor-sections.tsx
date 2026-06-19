@@ -1,7 +1,6 @@
 "use client";
 
 import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
-import { USAGE_ROWS } from "@/components/masters/tax-rates-form-utils";
 import type { RateForm, WardInfo } from "@/components/masters/tax-rates-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,6 @@ import { hasWardCustomRates } from "@/lib/qc/tax-rate-matrix";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
-  Building2,
   CheckCircle2,
   Copy,
   FileText,
@@ -360,81 +358,47 @@ export function UlbRateEditorWardMatrixPanel({
 type UlbRateEditorTaxSettingsProps = {
   form: RateForm;
   onFormPatch: (patch: Partial<RateForm>) => void;
-  onUsageMultChange: (key: string, val: string) => void;
   combinedPctLabel: string;
 };
 
-export function UlbRateEditorTaxSettings({
-  form,
-  onFormPatch,
-  onUsageMultChange,
-  combinedPctLabel,
-}: UlbRateEditorTaxSettingsProps) {
+export function UlbRateEditorTaxSettings({ form, onFormPatch, combinedPctLabel }: UlbRateEditorTaxSettingsProps) {
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      <GlassCard padding="md">
-        <GlassCardHeader
-          title="Tax Percentages"
-          description="Applied to total ALV"
-          icon={<Percent className="h-4 w-4" aria-hidden />}
-        />
-        <div className="space-y-3">
-          {[
-            { label: "Property Tax", key: "propertyTaxPct" },
-            { label: "Water Tax", key: "waterTaxPct" },
-            { label: "Drainage / Sewer", key: "drainageTaxPct" },
-          ].map(({ label, key }) => (
-            <div key={key} className="flex items-center justify-between gap-3">
-              <Label className="text-sm font-medium">{label}</Label>
-              <div className="relative w-20">
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={form[key as keyof RateForm] as string}
-                  onChange={(e) => onFormPatch({ [key]: e.target.value } as Partial<RateForm>)}
-                  className="pr-6 text-right font-mono text-xs tabular-nums"
-                  aria-label={label}
-                />
-                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
-                  %
-                </span>
-              </div>
-            </div>
-          ))}
-          <Separator />
-          <div className="rounded-lg bg-muted/40 px-3 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Combined</p>
-            <p className="font-mono text-lg font-bold tabular-nums">{combinedPctLabel}</p>
-          </div>
-        </div>
-      </GlassCard>
-
-      <GlassCard padding="md">
-        <GlassCardHeader
-          title="Usage Multipliers"
-          description="Scales ALV by property use"
-          icon={<Building2 className="h-4 w-4" aria-hidden />}
-        />
-        <div className="grid gap-2 sm:grid-cols-2">
-          {USAGE_ROWS.map(({ key, label }) => (
-            <div
-              key={key}
-              className="flex items-center justify-between gap-2 rounded-lg border border-border/40 bg-muted/10 px-3 py-2"
-            >
-              <span className="truncate text-xs font-medium">{label}</span>
+    <GlassCard padding="md">
+      <GlassCardHeader
+        title="Tax Percentages"
+        description="Applied to total ALV"
+        icon={<Percent className="h-4 w-4" aria-hidden />}
+      />
+      <div className="space-y-3">
+        {[
+          { label: "Property Tax", key: "propertyTaxPct" },
+          { label: "Water Tax", key: "waterTaxPct" },
+          { label: "Drainage / Sewer", key: "drainageTaxPct" },
+        ].map(({ label, key }) => (
+          <div key={key} className="flex items-center justify-between gap-3">
+            <Label className="text-sm font-medium">{label}</Label>
+            <div className="relative w-20">
               <Input
                 type="number"
-                step="0.05"
-                value={form.usageMultipliers[key] ?? ""}
-                onChange={(e) => onUsageMultChange(key, e.target.value)}
-                className="h-8 w-16 text-right font-mono text-xs tabular-nums"
-                aria-label={`${label} multiplier`}
+                step="0.1"
+                value={form[key as keyof RateForm] as string}
+                onChange={(e) => onFormPatch({ [key]: e.target.value } as Partial<RateForm>)}
+                className="pr-6 text-right font-mono text-xs tabular-nums"
+                aria-label={label}
               />
+              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                %
+              </span>
             </div>
-          ))}
+          </div>
+        ))}
+        <Separator />
+        <div className="rounded-lg bg-muted/40 px-3 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Combined</p>
+          <p className="font-mono text-lg font-bold tabular-nums">{combinedPctLabel}</p>
         </div>
-      </GlassCard>
-    </div>
+      </div>
+    </GlassCard>
   );
 }
 

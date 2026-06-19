@@ -1,16 +1,6 @@
 "use client";
 
 import {
-  UlbRateEditorEmptyWards,
-  UlbRateEditorErrorBanner,
-  UlbRateEditorHeader,
-  UlbRateEditorTaxSettings,
-  UlbRateEditorWardMatrixPanel,
-  UlbRateEditorWardRail,
-} from "@/components/masters/ulb-rate-editor-sections";
-import { editorUiReducer, initialEditorUiState } from "@/components/masters/ulb-rate-editor-reducer";
-import { RateInput, WardRatePreview } from "@/components/masters/ulb-rate-editor-widgets";
-import {
   buildWardForm,
   formToPayload,
   pct,
@@ -18,19 +8,29 @@ import {
   ulbSettingsFromForm,
 } from "@/components/masters/tax-rates-form-utils";
 import type { RateForm, WardInfo } from "@/components/masters/tax-rates-types";
+import { editorUiReducer, initialEditorUiState } from "@/components/masters/ulb-rate-editor-reducer";
+import {
+  UlbRateEditorEmptyWards,
+  UlbRateEditorErrorBanner,
+  UlbRateEditorHeader,
+  UlbRateEditorTaxSettings,
+  UlbRateEditorWardMatrixPanel,
+  UlbRateEditorWardRail,
+} from "@/components/masters/ulb-rate-editor-sections";
+import { RateInput, WardRatePreview } from "@/components/masters/ulb-rate-editor-widgets";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
-import { hasWardCustomRates } from "@/lib/qc/tax-rate-matrix";
 import {
   buildDefaultMonthlyMatrix,
   cloneMonthlyMatrix,
+  hasWardCustomRates,
   matricesEqual,
   monthlyFormToAnnualMatrix,
 } from "@/lib/qc/tax-rate-matrix";
 import { convexQuery } from "@convex-dev/react-query";
-import { useMutation } from "convex/react";
 import { useQuery } from "@tanstack/react-query";
+import { useMutation } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { useMemo, useReducer, useRef, type Dispatch, type SetStateAction } from "react";
 
@@ -86,10 +86,7 @@ export function UlbRateEditor({
     dispatch({
       type: "patch",
       patch: {
-        draftForm:
-          typeof action === "function"
-            ? action(ui.draftForm ?? serverForm)
-            : action,
+        draftForm: typeof action === "function" ? action(ui.draftForm ?? serverForm) : action,
       },
     });
   };
@@ -129,7 +126,9 @@ export function UlbRateEditor({
       form.propertyTaxPct !== baselineForm.propertyTaxPct ||
       form.waterTaxPct !== baselineForm.waterTaxPct ||
       form.drainageTaxPct !== baselineForm.drainageTaxPct ||
-      Object.keys(form.usageMultipliers).some((key) => form.usageMultipliers[key] !== baselineForm.usageMultipliers[key])
+      Object.keys(form.usageMultipliers).some(
+        (key) => form.usageMultipliers[key] !== baselineForm.usageMultipliers[key],
+      )
     );
   }, [form, baselineForm]);
 
@@ -306,9 +305,6 @@ export function UlbRateEditor({
           <UlbRateEditorTaxSettings
             form={form}
             onFormPatch={(patch) => setForm((f) => (f ? { ...f, ...patch } : f))}
-            onUsageMultChange={(key, val) =>
-              setForm((f) => (f ? { ...f, usageMultipliers: { ...f.usageMultipliers, [key]: val } } : f))
-            }
             combinedPctLabel={combinedPctLabel}
           />
         </div>
