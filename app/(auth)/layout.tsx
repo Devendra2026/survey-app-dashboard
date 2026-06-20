@@ -1,4 +1,3 @@
-import { GlassCard } from "@/components/design-system/glass-card";
 import Image from "next/image";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -8,9 +7,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="mb-8 flex justify-center">
           <Image src="/sdv-logo.png" alt="SDV" width={132} height={40} priority className="drop-shadow-sm" />
         </div>
-        <GlassCard variant="elevated" padding="lg" className="shadow-premium-lg">
-          {children}
-        </GlassCard>
+        {children}
       </div>
     </div>
   );
