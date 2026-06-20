@@ -13,6 +13,7 @@
     "lint:convex": "eslint convex --config eslint.convex.config.mjs",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint:convex",
+    "verify:clerk-keys": "node ./scripts/verify-clerk-keys.mjs",
     "test": "vitest run",
     "deploy:backend": "node ./scripts/sync-clerk-issuer.mjs && convex deploy --yes",
     "deploy:backend:dev": "node ./scripts/sync-clerk-issuer.mjs && convex dev --once",

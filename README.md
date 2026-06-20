@@ -39,6 +39,11 @@ Next.js dashboard for survey QC, analytics, masters, and users. **This repo owns
 - **`Could not find public function for 'surveys:list'`** — Run `npm run dev` (starts **both** Next.js and `convex dev`). If you only ran `next dev`, push functions once: `npx convex dev --once`. Public API is `survey:list` (`convex/survey.ts`); `surveys:list` is a compatibility alias.
 - **Browser: “Clerk has been loaded with development keys”** — Expected while using `pk_test_…` / `organic-halibut-21`. Safe to ignore during development.
 - **`Failed to fetch RSC payload`** — Often a side effect of the Convex error above or a dev-server restart; fix Convex first, then hard-refresh the browser.
+- **Clerk `token-iat-in-the-future` or infinite redirect loop** — Usually stale session cookies or mismatched Clerk keys.
+  1. Enable **Settings → Time & language → Set time automatically** (or run `w32tm /resync /force` in an Admin PowerShell if the Windows Time service is running).
+  2. Clear Clerk cookies for localhost (`__session`, `__client_uat`, `__clerk_db_jwt`) or use an **Incognito** window.
+  3. Re-copy `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` from the **same** Clerk app ([API keys](https://dashboard.clerk.com/last-active?path=api-keys)); verify with `node scripts/verify-clerk-keys.mjs`.
+  4. Sync Convex issuer: `npm run deploy:backend:dev`, then from `../survey-app`: `node scripts/verify-clerk-convex.mjs`.
 
 ## Production
 
