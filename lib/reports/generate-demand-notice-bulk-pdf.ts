@@ -50,12 +50,15 @@ export async function waitForNoticeImages(printRoot: HTMLElement, timeoutMs = 80
 }
 
 export async function findDemandNoticePrintRoot(mount: HTMLElement | null, attempts = 8): Promise<HTMLElement> {
-  for (let i = 0; i < attempts; i += 1) {
+  async function tryFind(remaining: number): Promise<HTMLElement> {
     const printRoot = mount?.querySelector<HTMLElement>(".demand-notice-print-root");
     if (printRoot) return printRoot;
+    if (remaining <= 1) throw new Error("Demand notice print layout was not ready.");
     await waitForLayout(1);
+    return tryFind(remaining - 1);
   }
-  throw new Error("Demand notice print layout was not ready.");
+
+  return tryFind(attempts);
 }
 
 export async function captureDemandNoticePrintRoot(
@@ -112,4 +115,4 @@ export function cleanupDemandNoticeCapture() {
   document.documentElement.classList.remove("dn-print-measure");
 }
 
-export { buildBulkDemandNoticeFilename, slugifyFilenamePart } from "@/lib/reports/demand-notice-filename";
+export { buildBulkDemandNoticeFilename } from "@/lib/reports/demand-notice-filename";

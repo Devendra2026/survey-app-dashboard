@@ -111,7 +111,7 @@ function RoleItem({ role, selected, onClick }: { role: RoleRow; selected: boolea
         type="button"
         onClick={onClick}
         className={cn(
-          "group w-full rounded-lg border border-l-[3px] px-3 py-2.5 text-left transition-all",
+          "group w-full cursor-pointer rounded-lg border border-l-[3px] px-3 py-2.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           accent.border,
           selected
             ? "border-slate-300 bg-slate-100 shadow-sm ring-1 ring-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:ring-slate-600"
@@ -156,7 +156,7 @@ function RoleItem({ role, selected, onClick }: { role: RoleRow; selected: boolea
       type="button"
       onClick={onClick}
       className={cn(
-        "group w-full rounded-lg border px-3 py-2.5 text-left transition-all",
+        "group w-full cursor-pointer rounded-lg border px-3 py-2.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         selected
           ? "border-violet-300 bg-violet-50 shadow-sm ring-1 ring-violet-200 dark:border-violet-700 dark:bg-violet-500/10 dark:ring-violet-700"
           : "border-border bg-card hover:border-violet-200 hover:bg-violet-50/50 dark:hover:border-violet-800 dark:hover:bg-violet-500/5",

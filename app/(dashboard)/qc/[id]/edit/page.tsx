@@ -14,7 +14,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQcRemarks } from "@/hooks/qc/useQc";
 import { useQcPendingQueue } from "@/hooks/qc/useQcPendingQueue";
 import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
-import { useSyncQcScopeFromSurvey } from "@/hooks/qc/useSyncQcScopeFromSurvey";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { canUserEditSurvey, isSurveyAwaitingQc, isSurveyResubmit } from "@/lib/domain";
 import { findNextPendingSurvey } from "@/lib/qc/queue-nav";
@@ -38,13 +37,11 @@ function QcEditBody({ id }: { id: string }) {
   const survey = useSurvey(id);
   const remarks = useQcRemarks(id);
   const { role, capabilities } = useCurrentUser();
-  const { patchScope } = useQcWorkScope();
+  useQcWorkScope(survey);
   const workScope = useMemo(() => (survey ? scopeFromSurveyRow(survey) : {}), [survey]);
   const pendingQueue = useQcPendingQueue(workScope, !!survey);
   const [correctionsSaved, setCorrectionsSaved] = useState(false);
   const saveCorrectionsRef = useRef<(() => Promise<boolean>) | null>(null);
-
-  useSyncQcScopeFromSurvey(survey, patchScope);
 
   const nextSurvey = useMemo(() => findNextPendingSurvey(pendingQueue, id), [pendingQueue, id]);
 

@@ -15,6 +15,6 @@ export function useUpsertFloor() {
 export function useRemoveFloor() {
   return useMutation(api.floors.remove);
 }
-export function useReorderFloors() {
+function useReorderFloors() {
   return useMutation(api.floors.reorder);
 }

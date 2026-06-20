@@ -30,7 +30,7 @@ function scaleMatrixRow(zone: string, flatRate: number): Record<string, number> 
   );
 }
 
-export function legacyZoneRatesToRateMatrix(zoneRates: Record<string, number>): RateMatrixAnnual {
+function legacyZoneRatesToRateMatrix(zoneRates: Record<string, number>): RateMatrixAnnual {
   const matrix: RateMatrixAnnual = {};
 
   for (const [zone, rate] of Object.entries(zoneRates)) {

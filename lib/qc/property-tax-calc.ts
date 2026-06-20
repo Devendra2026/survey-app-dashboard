@@ -1,7 +1,7 @@
 import { DEFAULT_TAX_RATES } from "./tax-rate-defaults";
 
 /** Round to 2 decimal places (paise). */
-export function roundMoney(amount: number): number {
+function roundMoney(amount: number): number {
   return Math.round(amount * 100) / 100;
 }
 
@@ -16,15 +16,12 @@ export function computeGrossAlvFromPanelRate(areaSqft: number, panelRate: number
 /**
  * @deprecated Prefer `computeGrossAlvFromPanelRate` with panel rate. Equivalent when yearlyRate = panelRate × 12.
  */
-export function computeGrossAlvYearly(areaSqft: number, yearlyRatePerSqft: number, usageMult = 1): number {
+function computeGrossAlvYearly(areaSqft: number, yearlyRatePerSqft: number, usageMult = 1): number {
   return roundMoney(areaSqft * yearlyRatePerSqft * usageMult);
 }
 
 /** Assessable value (yearly): 80% of gross annual ALV. */
-export function computeAssessableAlv(
-  grossAlv: number,
-  assessableValuePct = DEFAULT_TAX_RATES.assessableValuePct,
-): number {
+function computeAssessableAlv(grossAlv: number, assessableValuePct = DEFAULT_TAX_RATES.assessableValuePct): number {
   return roundMoney(grossAlv * assessableValuePct);
 }
 
@@ -32,7 +29,7 @@ export function computeAssessableAlv(
  * Tax component from ALV using "per hundred" rate.
  *   Tax = ALV / 100 × taxPerHundred
  */
-export function computeTaxFromAlv(alv: number, taxPct: number): number {
+function computeTaxFromAlv(alv: number, taxPct: number): number {
   const taxPerHundred = taxPct * 100;
   return roundMoney((alv / 100) * taxPerHundred);
 }
@@ -40,7 +37,7 @@ export function computeTaxFromAlv(alv: number, taxPct: number): number {
 /**
  * Property tax on assessable ALV (e.g. 10% of the 80% assessable base).
  */
-export function computePropertyTaxFromGrossAlv(
+function computePropertyTaxFromGrossAlv(
   grossAlv: number,
   propertyTaxPct: number,
   assessableValuePct = DEFAULT_TAX_RATES.assessableValuePct,

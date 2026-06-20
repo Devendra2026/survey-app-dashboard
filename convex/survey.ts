@@ -767,13 +767,15 @@ export const saveDraft = mutation({
         serverVersion: existing.serverVersion + 1,
         clientUpdatedAt: args.clientUpdatedAt,
       });
-      await refreshSurveyCompletionPct(ctx, existing._id);
-      await writeAudit(ctx, {
-        actorId: me._id,
-        action: auditActionForSave(existing, ownScope, false),
-        entity: "survey",
-        entityId: existing._id,
-      });
+      await Promise.all([
+        refreshSurveyCompletionPct(ctx, existing._id),
+        writeAudit(ctx, {
+          actorId: me._id,
+          action: auditActionForSave(existing, ownScope, false),
+          entity: "survey",
+          entityId: existing._id,
+        }),
+      ]);
       return existing._id;
     }
 
@@ -786,14 +788,16 @@ export const saveDraft = mutation({
       serverVersion: 1,
       clientUpdatedAt: args.clientUpdatedAt,
     });
-    await refreshSurveyCompletionPct(ctx, newId);
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: auditActionForSave(null, ownScope, true),
-      entity: "survey",
-      entityId: newId,
-      metadata: { localId: args.localId, draft: true },
-    });
+    await Promise.all([
+      refreshSurveyCompletionPct(ctx, newId),
+      writeAudit(ctx, {
+        actorId: me._id,
+        action: auditActionForSave(null, ownScope, true),
+        entity: "survey",
+        entityId: newId,
+        metadata: { localId: args.localId, draft: true },
+      }),
+    ]);
     return newId;
   },
 });
@@ -866,13 +870,15 @@ export const upsert = mutation({
         serverVersion: existing.serverVersion + 1,
         clientUpdatedAt: args.clientUpdatedAt,
       });
-      await refreshSurveyCompletionPct(ctx, existing._id);
-      await writeAudit(ctx, {
-        actorId: me._id,
-        action: auditActionForSave(existing, ownScope, false),
-        entity: "survey",
-        entityId: existing._id,
-      });
+      await Promise.all([
+        refreshSurveyCompletionPct(ctx, existing._id),
+        writeAudit(ctx, {
+          actorId: me._id,
+          action: auditActionForSave(existing, ownScope, false),
+          entity: "survey",
+          entityId: existing._id,
+        }),
+      ]);
       return existing._id;
     }
 
@@ -884,14 +890,16 @@ export const upsert = mutation({
       qcStatus: "pending",
       serverVersion: 1,
     });
-    await refreshSurveyCompletionPct(ctx, newId);
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: "survey.created",
-      entity: "survey",
-      entityId: newId,
-      metadata: { localId: args.localId },
-    });
+    await Promise.all([
+      refreshSurveyCompletionPct(ctx, newId),
+      writeAudit(ctx, {
+        actorId: me._id,
+        action: "survey.created",
+        entity: "survey",
+        entityId: newId,
+        metadata: { localId: args.localId },
+      }),
+    ]);
     return newId;
   },
 });
@@ -955,47 +963,51 @@ async function syncSubmitArea(
   let serverVersion = survey.serverVersion;
 
   if (input.floors) {
-    for (const fl of input.floors) {
-      const normalized = normalizeFloorFields({
-        usageFactor: fl.usageFactor,
-        usageType: fl.usageType,
-      });
-      const floorErrors = validateFloorRow({
-        floorName: fl.floorName,
-        usageFactor: normalized.usageFactor || undefined,
-        usageType: normalized.usageType,
-        constructionType: fl.constructionType,
-        areaSqft: fl.areaSqft,
-      });
-      if (Object.keys(floorErrors).length > 0) {
-        clientError("VALIDATION", "Invalid floor row", floorErrors);
-      }
-
-      const row = {
-        position: fl.position,
-        floorName: fl.floorName,
-        usageFactor: normalized.usageFactor || undefined,
-        usageType: normalized.usageType,
-        constructionType: fl.constructionType,
-        isOccupied: usageTypeToOccupied(normalized.usageType),
-        areaSqft: fl.areaSqft,
-      };
-
-      const existing = await ctx.db
-        .query("floors")
-        .withIndex("by_survey_clientFloorId", (q) => q.eq("surveyId", survey._id).eq("clientFloorId", fl.clientFloorId))
-        .unique();
-
-      if (existing) {
-        await ctx.db.patch(existing._id, row);
-      } else {
-        await ctx.db.insert("floors", {
-          surveyId: survey._id,
-          clientFloorId: fl.clientFloorId,
-          ...row,
+    await Promise.all(
+      input.floors.map(async (fl) => {
+        const normalized = normalizeFloorFields({
+          usageFactor: fl.usageFactor,
+          usageType: fl.usageType,
         });
-      }
-    }
+        const floorErrors = validateFloorRow({
+          floorName: fl.floorName,
+          usageFactor: normalized.usageFactor || undefined,
+          usageType: normalized.usageType,
+          constructionType: fl.constructionType,
+          areaSqft: fl.areaSqft,
+        });
+        if (Object.keys(floorErrors).length > 0) {
+          clientError("VALIDATION", "Invalid floor row", floorErrors);
+        }
+
+        const row = {
+          position: fl.position,
+          floorName: fl.floorName,
+          usageFactor: normalized.usageFactor || undefined,
+          usageType: normalized.usageType,
+          constructionType: fl.constructionType,
+          isOccupied: usageTypeToOccupied(normalized.usageType),
+          areaSqft: fl.areaSqft,
+        };
+
+        const existing = await ctx.db
+          .query("floors")
+          .withIndex("by_survey_clientFloorId", (q) =>
+            q.eq("surveyId", survey._id).eq("clientFloorId", fl.clientFloorId),
+          )
+          .unique();
+
+        if (existing) {
+          await ctx.db.patch(existing._id, row);
+        } else {
+          await ctx.db.insert("floors", {
+            surveyId: survey._id,
+            clientFloorId: fl.clientFloorId,
+            ...row,
+          });
+        }
+      }),
+    );
 
     if (input.keepClientFloorIds) {
       const keep = new Set(input.keepClientFloorIds);
@@ -1003,11 +1015,11 @@ async function syncSubmitArea(
         .query("floors")
         .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
         .collect();
+      const deleteOps = [];
       for (const row of rows) {
-        if (!keep.has(row.clientFloorId)) {
-          await ctx.db.delete(row._id);
-        }
+        if (!keep.has(row.clientFloorId)) deleteOps.push(ctx.db.delete(row._id));
       }
+      await Promise.all(deleteOps);
     }
 
     serverVersion += 1;

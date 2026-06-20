@@ -23,7 +23,7 @@ export function QcPropertyUseCell({
   return <span className="text-sm font-medium">{formatPropertyUseLabel(propertyUse, propertyUses)}</span>;
 }
 
-export function QcParcelDuplicateBadge({
+function QcParcelDuplicateBadge({
   row,
   siblingIndex,
   ulbCodes,
@@ -100,7 +100,7 @@ export function QcParcelNumberCell({
 }
 
 /** Review panel only — shows parcel · unit · use composite line. */
-export function QcRegistrySlotCell({ row, propertyUses }: { row: ParcelSiblingRow; propertyUses?: MasterOption[] }) {
+function QcRegistrySlotCell({ row, propertyUses }: { row: ParcelSiblingRow; propertyUses?: MasterOption[] }) {
   return (
     <span className="font-mono text-xs leading-snug text-foreground">{formatRegistrySlotLabel(row, propertyUses)}</span>
   );

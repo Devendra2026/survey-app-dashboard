@@ -11,7 +11,7 @@ import type { MasterOption } from "@/convex/areaMasters";
 import { QC_TABLE, SURVEY_ROW_TONE } from "@/lib/design-system";
 import type { ParcelSiblingIndex } from "@/lib/qc/parcel-siblings";
 import { formatRegistryWardNo } from "@/lib/survey/format-registry-parcel";
-import { buildUlbCodeMap, resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
+import { resolveDisplayPropertyId } from "@/lib/survey/resolve-display-property-id";
 import { resolveOwnerDisplayName } from "@/lib/survey/resolve-owner-name";
 import { cn, fmtDay } from "@/lib/utils";
 import { Eye, FileText, Receipt } from "lucide-react";
@@ -137,9 +137,4 @@ export function QcDataTable({
       </div>
     </div>
   );
-}
-
-/** Hook-friendly helper when masters are loaded in parent. */
-export function useQcTableUlbCodes(ulbs: { _id: string; code: string }[] | undefined) {
-  return ulbs ? buildUlbCodeMap(ulbs) : undefined;
 }

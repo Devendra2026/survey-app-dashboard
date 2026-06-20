@@ -111,11 +111,7 @@ export const resolveStorageUrls = query({
     if (me.role === "pending") return [];
 
     const unique = [...new Set(args.storageIds)];
-    const out: Array<{ storageId: (typeof unique)[number]; url: string | null }> = [];
-    for (const storageId of unique) {
-      out.push({ storageId, url: await ctx.storage.getUrl(storageId) });
-    }
-    return out;
+    return Promise.all(unique.map(async (storageId) => ({ storageId, url: await ctx.storage.getUrl(storageId) })));
   },
 });
 
@@ -134,18 +130,20 @@ export const releaseStorage = mutation({
       .filter((q) => q.eq(q.field("storageId"), args.storageId))
       .collect();
 
-    for (const row of rows) {
-      const survey = await ctx.db.get(row.surveyId);
-      if (!survey) {
+    await Promise.all(
+      rows.map(async (row) => {
+        const survey = await ctx.db.get(row.surveyId);
+        if (!survey) {
+          await ctx.db.delete(row._id);
+          return;
+        }
+        assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+        if (survey.qcStatus === "approved" && me.role === "surveyor") {
+          clientError("LOCKED", "Survey is locked");
+        }
         await ctx.db.delete(row._id);
-        continue;
-      }
-      assertCanReadWard(me, survey.municipalityId, survey.wardNo);
-      if (survey.qcStatus === "approved" && me.role === "surveyor") {
-        clientError("LOCKED", "Survey is locked");
-      }
-      await ctx.db.delete(row._id);
-    }
+      }),
+    );
 
     try {
       await ctx.storage.delete(args.storageId);
@@ -181,15 +179,17 @@ export const removeBySurveySlot = mutation({
       .unique();
     if (!existing) return;
 
-    await ctx.storage.delete(existing.storageId);
-    await ctx.db.delete(existing._id);
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: "photo.removed",
-      entity: "survey",
-      entityId: args.surveyId,
-      metadata: { slot: args.slot },
-    });
+    await Promise.all([
+      ctx.storage.delete(existing.storageId),
+      ctx.db.delete(existing._id),
+      writeAudit(ctx, {
+        actorId: me._id,
+        action: "photo.removed",
+        entity: "survey",
+        entityId: args.surveyId,
+        metadata: { slot: args.slot },
+      }),
+    ]);
   },
 });
 
@@ -208,37 +208,38 @@ export const noticePhotoUrls = query({
     if (me.role === "pending") return {};
 
     const ids = args.surveyIds.slice(0, 200);
-    const out: Record<string, { front: string | null; side: string | null }> = {};
+    const entries = await Promise.all(
+      ids.map(async (surveyId) => {
+        const survey = await ctx.db.get(surveyId);
+        if (!survey) {
+          return [surveyId, { front: null, side: null }] as const;
+        }
+        try {
+          assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+        } catch {
+          return [surveyId, { front: null, side: null }] as const;
+        }
 
-    for (const surveyId of ids) {
-      const survey = await ctx.db.get(surveyId);
-      if (!survey) {
-        out[surveyId] = { front: null, side: null };
-        continue;
-      }
-      try {
-        assertCanReadWard(me, survey.municipalityId, survey.wardNo);
-      } catch {
-        out[surveyId] = { front: null, side: null };
-        continue;
-      }
+        const [front, side] = await Promise.all(
+          (["front", "side"] as const).map((slot) =>
+            ctx.db
+              .query("photos")
+              .withIndex("by_survey_slot", (q) => q.eq("surveyId", surveyId).eq("slot", slot))
+              .unique(),
+          ),
+        );
 
-      const [front, side] = await Promise.all(
-        (["front", "side"] as const).map((slot) =>
-          ctx.db
-            .query("photos")
-            .withIndex("by_survey_slot", (q) => q.eq("surveyId", surveyId).eq("slot", slot))
-            .unique(),
-        ),
-      );
+        return [
+          surveyId,
+          {
+            front: front ? await ctx.storage.getUrl(front.storageId) : null,
+            side: side ? await ctx.storage.getUrl(side.storageId) : null,
+          },
+        ] as const;
+      }),
+    );
 
-      out[surveyId] = {
-        front: front ? await ctx.storage.getUrl(front.storageId) : null,
-        side: side ? await ctx.storage.getUrl(side.storageId) : null,
-      };
-    }
-
-    return out;
+    return Object.fromEntries(entries);
   },
 });
 
@@ -250,29 +251,27 @@ export const frontThumbnails = query({
     if (me.role === "pending") return {};
 
     const ids = args.surveyIds.slice(0, 50);
-    const out: Record<string, string | null> = {};
+    const entries = await Promise.all(
+      ids.map(async (surveyId) => {
+        const survey = await ctx.db.get(surveyId);
+        if (!survey) {
+          return [surveyId, null] as const;
+        }
+        try {
+          assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+        } catch {
+          return [surveyId, null] as const;
+        }
 
-    for (const surveyId of ids) {
-      const survey = await ctx.db.get(surveyId);
-      if (!survey) {
-        out[surveyId] = null;
-        continue;
-      }
-      try {
-        assertCanReadWard(me, survey.municipalityId, survey.wardNo);
-      } catch {
-        out[surveyId] = null;
-        continue;
-      }
+        const front = await ctx.db
+          .query("photos")
+          .withIndex("by_survey_slot", (q) => q.eq("surveyId", surveyId).eq("slot", "front"))
+          .unique();
+        return [surveyId, front ? await ctx.storage.getUrl(front.storageId) : null] as const;
+      }),
+    );
 
-      const front = await ctx.db
-        .query("photos")
-        .withIndex("by_survey_slot", (q) => q.eq("surveyId", surveyId).eq("slot", "front"))
-        .unique();
-      out[surveyId] = front ? await ctx.storage.getUrl(front.storageId) : null;
-    }
-
-    return out;
+    return Object.fromEntries(entries);
   },
 });
 

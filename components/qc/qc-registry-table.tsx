@@ -7,8 +7,6 @@ import type { ParcelSiblingIndex } from "@/lib/qc/parcel-siblings";
 import { buildUlbCodeMap } from "@/lib/survey/resolve-display-property-id";
 import { useMemo } from "react";
 
-export { SurveyRegistrySearch as QcRegistrySearch };
-
 /** QC portal wrapper — amber border styling for registry search. */
 export function QcRegistrySearchBar(props: { value: string; onChange: (term: string) => void }) {
   return (

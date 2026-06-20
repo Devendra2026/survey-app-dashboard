@@ -316,9 +316,7 @@ export const markAllRead = mutation({
       .withIndex("by_user_read", (q) => q.eq("userId", me._id).eq("readAt", undefined))
       .collect();
     const now = Date.now();
-    for (const n of unread) {
-      await ctx.db.patch(n._id, { readAt: now });
-    }
+    await Promise.all(unread.map((n) => ctx.db.patch(n._id, { readAt: now })));
   },
 });
 

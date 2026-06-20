@@ -144,10 +144,8 @@ export const listParcelSiblings = query({
   args: { surveyId: v.id("surveys") },
   returns: v.array(parcelSiblingEntry),
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     await requireCapability(ctx, me, "qc.review");
-
-    const survey = await ctx.db.get(args.surveyId);
     if (!survey) return [];
 
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
@@ -162,11 +160,15 @@ export const listParcelSiblings = query({
     }
 
     const wardRows: Doc<"surveys">[] = [];
-    for (const ward of wardVariants) {
-      const batch = await ctx.db
-        .query("surveys")
-        .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", survey.municipalityId).eq("wardNo", ward))
-        .collect();
+    const batches = await Promise.all(
+      [...wardVariants].map((ward) =>
+        ctx.db
+          .query("surveys")
+          .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", survey.municipalityId).eq("wardNo", ward))
+          .collect(),
+      ),
+    );
+    for (const batch of batches) {
       for (const row of batch) {
         if (!wardRows.some((existing) => existing._id === row._id)) wardRows.push(row);
       }
@@ -203,10 +205,8 @@ export const listPropertyIdConflicts = query({
   args: { surveyId: v.id("surveys") },
   returns: v.array(parcelSiblingEntry),
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     await requireCapability(ctx, me, "qc.review");
-
-    const survey = await ctx.db.get(args.surveyId);
     if (!survey) return [];
 
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
@@ -356,10 +356,8 @@ export const decide = mutation({
     taggedSections: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     await requireCapability(ctx, me, "qc.decide");
-
-    const survey = await ctx.db.get(args.surveyId);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
     if (me.role !== "admin") {
       await assertMunicipalityInScope(ctx, me, survey.municipalityId);
@@ -370,21 +368,22 @@ export const decide = mutation({
     }
 
     const now = Date.now();
-    await ctx.db.insert("qcDecisions", {
-      surveyId: args.surveyId,
-      reviewerId: me._id,
-      decision: args.decision,
-      comment: args.comment,
-      taggedSections: args.taggedSections ?? [],
-      decidedAt: now,
-    });
-
-    await ctx.db.patch(args.surveyId, {
-      qcStatus: args.decision === "approve" ? "approved" : "rejected",
-      // Rejection returns the survey to draft so the surveyor can edit and resubmit.
-      status: args.decision === "approve" ? "approved" : "draft",
-      serverVersion: survey.serverVersion + 1,
-    });
+    await Promise.all([
+      ctx.db.insert("qcDecisions", {
+        surveyId: args.surveyId,
+        reviewerId: me._id,
+        decision: args.decision,
+        comment: args.comment,
+        taggedSections: args.taggedSections ?? [],
+        decidedAt: now,
+      }),
+      ctx.db.patch(args.surveyId, {
+        qcStatus: args.decision === "approve" ? "approved" : "rejected",
+        // Rejection returns the survey to draft so the surveyor can edit and resubmit.
+        status: args.decision === "approve" ? "approved" : "draft",
+        serverVersion: survey.serverVersion + 1,
+      }),
+    ]);
 
     // If there's a comment, persist it as a remark too so the thread is complete.
     if (args.comment && args.comment.trim().length > 0) {
@@ -425,9 +424,8 @@ export const decide = mutation({
 export const reopen = mutation({
   args: { surveyId: v.id("surveys"), reason: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     await requireCapability(ctx, me, "qc.reopen");
-    const survey = await ctx.db.get(args.surveyId);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
     if (me.role !== "admin") {
       await assertMunicipalityInScope(ctx, me, survey.municipalityId);
@@ -436,17 +434,19 @@ export const reopen = mutation({
     if (survey.qcStatus !== "approved") {
       clientError("BAD_STATE", "Only approved surveys can be reopened");
     }
-    await ctx.db.patch(args.surveyId, {
-      qcStatus: "pending",
-      status: "submitted",
-      serverVersion: survey.serverVersion + 1,
-    });
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: "qc.reopened",
-      entity: "survey",
-      entityId: args.surveyId,
-      metadata: { reason: args.reason },
-    });
+    await Promise.all([
+      ctx.db.patch(args.surveyId, {
+        qcStatus: "pending",
+        status: "submitted",
+        serverVersion: survey.serverVersion + 1,
+      }),
+      writeAudit(ctx, {
+        actorId: me._id,
+        action: "qc.reopened",
+        entity: "survey",
+        entityId: args.surveyId,
+        metadata: { reason: args.reason },
+      }),
+    ]);
   },
 });

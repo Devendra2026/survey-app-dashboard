@@ -24,7 +24,7 @@ export function formatPropertyUseLabel(propertyUse: string | undefined, property
 }
 
 /** Extract use letter from stored Property ID suffix when present. */
-export function useLetterFromPropertyId(propertyId?: string): string | undefined {
+function useLetterFromPropertyId(propertyId?: string): string | undefined {
   const id = propertyId?.trim().toUpperCase();
   if (!id) return undefined;
   const parts = id.split("-");
@@ -43,6 +43,6 @@ export function formatRegistrySlotLabel(row: RegistrySlotSource, propertyUses?: 
 }
 
 /** Reverse map: letter → master value key (for tooltip copy). */
-export const PROPERTY_USE_LETTER_LABEL: Record<string, string> = Object.fromEntries(
+const PROPERTY_USE_LETTER_LABEL: Record<string, string> = Object.fromEntries(
   Object.entries(PROPERTY_USE_CODES).map(([k, v]) => [v, k.replace(/_/g, " ")]),
 );

@@ -31,14 +31,14 @@ export {
 } from "@/convex/propertyId";
 
 /** 1 sq ft = 0.09290304 sq m (standard conversion). */
-export const SQFT_TO_SQM = 0.09290304;
+const SQFT_TO_SQM = 0.09290304;
 
-export function sqftToSqMeter(sqft: number): number {
+function sqftToSqMeter(sqft: number): number {
   if (!(sqft > 0)) return 0;
   return sqft * SQFT_TO_SQM;
 }
 
-export function roundArea(n: number, digits = 2): number {
+function roundArea(n: number, digits = 2): number {
   if (!(n > 0)) return 0;
   const f = 10 ** digits;
   return Math.round(n * f) / f;

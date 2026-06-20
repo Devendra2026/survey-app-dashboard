@@ -117,7 +117,7 @@ export function useSubmitSurvey() {
 export function useRemoveSurvey() {
   return useMutation(api.survey.remove);
 }
-export function useUpsertSurvey() {
+function useUpsertSurvey() {
   return useMutation(api.survey.upsert);
 }
 export function useSaveDraft() {
@@ -133,7 +133,7 @@ export function useSetGps() {
  * the already-authorized rows in memory. For very large tenants, add a Convex
  * search index later; the call site stays identical.
  */
-export function searchSurveys<
+function searchSurveys<
   T extends PropertyIdSource & {
     respondentName?: string;
     mobileNo?: string;

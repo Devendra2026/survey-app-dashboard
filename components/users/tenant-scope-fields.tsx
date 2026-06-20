@@ -11,6 +11,25 @@ import { useMemo, useState } from "react";
 
 type Ward = { _id: string; wardNo: string };
 
+const SCOPE_TYPE_OPTIONS = [
+  {
+    id: "ulb" as const,
+    icon: Building2,
+    title: "Single ULB",
+    description: "One city municipality",
+    accent: "border-blue-500/40 bg-blue-50/80 dark:bg-blue-500/10",
+    iconClass: "text-blue-600 dark:text-blue-400",
+  },
+  {
+    id: "district" as const,
+    icon: MapPin,
+    title: "Whole district",
+    description: "All ULBs in district",
+    accent: "border-teal-500/40 bg-teal-50/80 dark:bg-teal-500/10",
+    iconClass: "text-teal-600 dark:text-teal-400",
+  },
+] as const;
+
 function ScopeTypePicker({
   value,
   onChange,
@@ -18,28 +37,9 @@ function ScopeTypePicker({
   value: "ulb" | "district";
   onChange: (scope: "ulb" | "district") => void;
 }) {
-  const options = [
-    {
-      id: "ulb" as const,
-      icon: Building2,
-      title: "Single ULB",
-      description: "One city municipality",
-      accent: "border-blue-500/40 bg-blue-50/80 dark:bg-blue-500/10",
-      iconClass: "text-blue-600 dark:text-blue-400",
-    },
-    {
-      id: "district" as const,
-      icon: MapPin,
-      title: "Whole district",
-      description: "All ULBs in district",
-      accent: "border-teal-500/40 bg-teal-50/80 dark:bg-teal-500/10",
-      iconClass: "text-teal-600 dark:text-teal-400",
-    },
-  ];
-
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Tenant scope type">
-      {options.map((opt) => {
+      {SCOPE_TYPE_OPTIONS.map((opt) => {
         const selected = value === opt.id;
         const Icon = opt.icon;
         return (

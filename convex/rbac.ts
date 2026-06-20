@@ -9,61 +9,65 @@ import { PERMISSION_CATALOG, SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from "./per
 
 /** Idempotent seed for permissions, system roles, and default grants. */
 export async function seedSystemRbac(ctx: MutationCtx) {
-  for (const p of PERMISSION_CATALOG) {
-    const existing = await ctx.db
-      .query("permissions")
-      .withIndex("by_key", (q) => q.eq("key", p.key))
-      .unique();
-    if (existing) {
-      await ctx.db.patch(existing._id, { label: p.label, category: p.category, isActive: true });
-    } else {
-      await ctx.db.insert("permissions", {
-        key: p.key,
-        label: p.label,
-        category: p.category,
-        isActive: true,
-      });
-    }
-  }
-
-  for (const r of SYSTEM_ROLES) {
-    let roleId = (
-      await ctx.db
-        .query("roles")
-        .withIndex("by_key", (q) => q.eq("key", r.key))
-        .unique()
-    )?._id;
-
-    if (roleId) {
-      await ctx.db.patch(roleId, { name: r.name, isSystem: r.isSystem, isActive: true });
-    } else {
-      roleId = await ctx.db.insert("roles", {
-        key: r.key,
-        name: r.name,
-        isSystem: r.isSystem,
-        isActive: true,
-      });
-    }
-
-    const desired = new Set<string>(SYSTEM_ROLE_PERMISSIONS[r.key] ?? []);
-    const existingPerms = await ctx.db
-      .query("rolePermissions")
-      .withIndex("by_role", (q) => q.eq("roleId", roleId))
-      .collect();
-
-    for (const row of existingPerms) {
-      if (!desired.has(row.permissionKey)) {
-        await ctx.db.delete(row._id);
+  await Promise.all(
+    PERMISSION_CATALOG.map(async (p) => {
+      const existing = await ctx.db
+        .query("permissions")
+        .withIndex("by_key", (q) => q.eq("key", p.key))
+        .unique();
+      if (existing) {
+        await ctx.db.patch(existing._id, { label: p.label, category: p.category, isActive: true });
+      } else {
+        await ctx.db.insert("permissions", {
+          key: p.key,
+          label: p.label,
+          category: p.category,
+          isActive: true,
+        });
       }
-    }
+    }),
+  );
 
-    const existingKeys = new Set(existingPerms.map((row) => row.permissionKey));
-    for (const key of desired) {
-      if (!existingKeys.has(key)) {
-        await ctx.db.insert("rolePermissions", { roleId, permissionKey: key });
+  await Promise.all(
+    SYSTEM_ROLES.map(async (r) => {
+      let roleId = (
+        await ctx.db
+          .query("roles")
+          .withIndex("by_key", (q) => q.eq("key", r.key))
+          .unique()
+      )?._id;
+
+      if (roleId) {
+        await ctx.db.patch(roleId, { name: r.name, isSystem: r.isSystem, isActive: true });
+      } else {
+        roleId = await ctx.db.insert("roles", {
+          key: r.key,
+          name: r.name,
+          isSystem: r.isSystem,
+          isActive: true,
+        });
       }
-    }
-  }
+
+      const desired = new Set<string>(SYSTEM_ROLE_PERMISSIONS[r.key] ?? []);
+      const existingPerms = await ctx.db
+        .query("rolePermissions")
+        .withIndex("by_role", (q) => q.eq("roleId", roleId))
+        .collect();
+
+      const deleteOps = [];
+      for (const row of existingPerms) {
+        if (!desired.has(row.permissionKey)) deleteOps.push(ctx.db.delete(row._id));
+      }
+      await Promise.all(deleteOps);
+
+      const existingKeys = new Set(existingPerms.map((row) => row.permissionKey));
+      const insertOps = [];
+      for (const key of desired) {
+        if (!existingKeys.has(key)) insertOps.push(ctx.db.insert("rolePermissions", { roleId, permissionKey: key }));
+      }
+      await Promise.all(insertOps);
+    }),
+  );
 }
 
 export const seedSystem = mutation({
@@ -94,18 +98,20 @@ async function listRolesWithPermissions(ctx: QueryCtx, includeInactive: boolean 
   const roles = await ctx.db.query("roles").collect();
   const filtered = roles.filter((r) => includeInactive || r.isActive);
 
-  const result = [];
-  for (const role of filtered.sort((a, b) => a.name.localeCompare(b.name))) {
-    const permRows = await ctx.db
-      .query("rolePermissions")
-      .withIndex("by_role", (q) => q.eq("roleId", role._id))
-      .collect();
-    result.push({
-      ...role,
-      permissionKeys: permRows.map((p) => p.permissionKey).sort(),
-    });
-  }
-  return result;
+  return Promise.all(
+    filtered
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(async (role) => {
+        const permRows = await ctx.db
+          .query("rolePermissions")
+          .withIndex("by_role", (q) => q.eq("roleId", role._id))
+          .collect();
+        return {
+          ...role,
+          permissionKeys: permRows.map((p) => p.permissionKey).sort(),
+        };
+      }),
+  );
 }
 
 export const listRoles = query({
@@ -171,17 +177,16 @@ export const createRole = mutation({
       isActive: true,
     });
 
-    for (const permissionKey of args.permissionKeys) {
-      await ctx.db.insert("rolePermissions", { roleId, permissionKey });
-    }
-
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: "role.created",
-      entity: "role",
-      entityId: roleId,
-      metadata: { key, permissionKeys: args.permissionKeys },
-    });
+    await Promise.all([
+      ...args.permissionKeys.map((permissionKey) => ctx.db.insert("rolePermissions", { roleId, permissionKey })),
+      writeAudit(ctx, {
+        actorId: me._id,
+        action: "role.created",
+        entity: "role",
+        entityId: roleId,
+        metadata: { key, permissionKeys: args.permissionKeys },
+      }),
+    ]);
     return roleId;
   },
 });
@@ -214,12 +219,12 @@ export const updateRole = mutation({
         .query("rolePermissions")
         .withIndex("by_role", (q) => q.eq("roleId", args.roleId))
         .collect();
-      for (const row of existing) {
-        await ctx.db.delete(row._id);
-      }
-      for (const permissionKey of args.permissionKeys) {
-        await ctx.db.insert("rolePermissions", { roleId: args.roleId, permissionKey });
-      }
+      await Promise.all(existing.map((row) => ctx.db.delete(row._id)));
+      await Promise.all(
+        args.permissionKeys.map((permissionKey) =>
+          ctx.db.insert("rolePermissions", { roleId: args.roleId, permissionKey }),
+        ),
+      );
     }
 
     await writeAudit(ctx, {

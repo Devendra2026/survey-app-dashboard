@@ -14,7 +14,7 @@ export interface QcRemarkWithAuthor {
   author: { _id: Id<"users">; name: string; role: string } | null;
 }
 
-export const QC_TAGGABLE_SECTIONS = [
+const QC_TAGGABLE_SECTIONS = [
   "property",
   "owner",
   "address",

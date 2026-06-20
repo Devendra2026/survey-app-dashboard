@@ -78,7 +78,7 @@ export const DEFAULT_RATE_MATRIX: Record<string, Record<string, number>> = {
  * Road surface type multipliers — applied after the base matrix rate.
  * rcc (paved) = no adjustment; dambar/kaccha road = lower value location.
  */
-export const DEFAULT_ROAD_TYPE_FACTORS: Record<string, number> = {
+const DEFAULT_ROAD_TYPE_FACTORS: Record<string, number> = {
   rcc: 1.0,
   dambar: 0.9,
   kaccha: 0.75,
@@ -106,7 +106,7 @@ export const DEFAULT_TAX_RATES = {
 };
 
 /** Fallback flat rate when zone+construction combo is not found in matrix. */
-export const FALLBACK_RATE = 4.0;
+const FALLBACK_RATE = 4.0;
 
 export function annualRateToMonthly(annual: number): number {
   return Math.round((annual / 12) * 100) / 100;
@@ -133,7 +133,7 @@ export const TAX_RATE_CONSTRUCTION_COLS = [
 ] as const;
 
 /** @deprecated Use DEFAULT_RATE_MATRIX instead. Kept for backward compat. */
-export const DEFAULT_ZONE_RATES: Record<string, number> = {
+const DEFAULT_ZONE_RATES: Record<string, number> = {
   below_9m: 6.12,
   "9_to_12m": 5.16,
   "12_to_24m": 4.08,

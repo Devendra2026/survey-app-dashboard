@@ -45,12 +45,16 @@ async function scopeFromWardAssignments(
   const candidateMunis =
     candidateMuniIds.size > 0 ? municipalitiesAll.filter((m) => candidateMuniIds.has(m._id)) : municipalitiesAll;
 
+  const wardBatches = await Promise.all(
+    candidateMunis.map((muni) =>
+      ctx.db
+        .query("wards")
+        .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", muni._id))
+        .collect(),
+    ),
+  );
   const matched: Doc<"wards">[] = [];
-  for (const muni of candidateMunis) {
-    const rows = await ctx.db
-      .query("wards")
-      .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", muni._id))
-      .collect();
+  for (const rows of wardBatches) {
     for (const w of rows) {
       if (wardSet.has(w.wardNo)) matched.push(w);
     }

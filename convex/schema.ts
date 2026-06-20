@@ -6,7 +6,7 @@ import { v } from "convex/values";
 /** Role key — built-in: pending | surveyor | supervisor | admin; admin may add custom keys via rbac. */
 export const userRole = v.string();
 
-export const userStatus = v.union(v.literal("pending_approval"), v.literal("active"), v.literal("disabled"));
+const userStatus = v.union(v.literal("pending_approval"), v.literal("active"), v.literal("disabled"));
 
 export const surveyStatus = v.union(
   v.literal("draft"),

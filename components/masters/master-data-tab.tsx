@@ -103,7 +103,7 @@ function CategoryPicker({ category, onChange }: { category: MasterCategory; onCh
             type="button"
             onClick={() => onChange(c)}
             className={cn(
-              "group relative flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition-all",
+              "group relative flex cursor-pointer flex-col items-start gap-2 rounded-xl border p-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               active
                 ? cn("border-primary/40 bg-primary/5 shadow-sm ring-2", meta.ring)
                 : "border-border/60 bg-card hover:border-primary/25 hover:bg-muted/40",

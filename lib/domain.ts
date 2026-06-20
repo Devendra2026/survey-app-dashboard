@@ -46,13 +46,13 @@ export type SurveyStatus = (typeof SURVEY_STATUSES)[number];
 export const QC_STATUSES = ["pending", "approved", "rejected"] as const;
 export type QcStatus = (typeof QC_STATUSES)[number];
 
-export const PHOTO_SLOTS = ["front", "inside", "side", "document"] as const;
+const PHOTO_SLOTS = ["front", "inside", "side", "document"] as const;
 export type PhotoSlot = (typeof PHOTO_SLOTS)[number];
 
-export const USER_ROLES = ["pending", "surveyor", "supervisor", "qc_supervisor", "admin"] as const;
+const USER_ROLES = ["pending", "surveyor", "supervisor", "qc_supervisor", "admin"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
-export const USER_STATUSES = ["pending_approval", "active", "disabled"] as const;
+const USER_STATUSES = ["pending_approval", "active", "disabled"] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
 
 export const USER_ROLE_LABEL: Record<UserRole, string> = {
@@ -112,13 +112,13 @@ export const QC_STATUS_LABEL: Record<QcStatus, string> = {
  * resubmit) while `qcStatus` becomes `rejected`. The UI should therefore key
  * the "rejected" visual off `qcStatus`, not `status`.
  */
-export const QC_STATUS_TONE: Record<QcStatus, "warning" | "success" | "destructive"> = {
+const QC_STATUS_TONE: Record<QcStatus, "warning" | "success" | "destructive"> = {
   pending: "warning",
   approved: "success",
   rejected: "destructive",
 };
 
-export const SURVEY_STATUS_TONE: Record<SurveyStatus, "muted" | "default" | "success" | "destructive"> = {
+const SURVEY_STATUS_TONE: Record<SurveyStatus, "muted" | "default" | "success" | "destructive"> = {
   draft: "muted",
   submitted: "default",
   approved: "success",
@@ -153,14 +153,14 @@ export function wasEditedAfterSubmit(survey: { submittedAt?: number; clientUpdat
 }
 
 /** Survey can be saved (draft, in QC queue, or returned — not approved/locked). */
-export function canSaveSurveyEdits(survey: { qcStatus: QcStatus }): boolean {
+function canSaveSurveyEdits(survey: { qcStatus: QcStatus }): boolean {
   return survey.qcStatus !== "approved";
 }
 
 /**
  * Show the QC "save corrections" bar instead of surveyor submit — survey stays in the QC queue.
  */
-export function needsQcSaveBar(survey: { status: SurveyStatus; qcStatus: QcStatus }): boolean {
+function needsQcSaveBar(survey: { status: SurveyStatus; qcStatus: QcStatus }): boolean {
   return isSurveyAwaitingQc(survey);
 }
 

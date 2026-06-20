@@ -223,27 +223,26 @@ export const migrateLegacyRows = mutation({
     requireRole(me, "admin");
 
     const all = await ctx.db.query("taxRates").collect();
-    let migrated = 0;
+    const toMigrate = all.filter((doc) => !(doc.rateMatrix && doc.wardRates));
 
-    for (const doc of all) {
-      if (doc.rateMatrix && doc.wardRates) continue;
+    await Promise.all(
+      toMigrate.map(async (doc) => {
+        const normalized = normalizeStoredTaxRates(doc);
+        await ctx.db.replace(doc._id, {
+          municipalityId: doc.municipalityId,
+          rateMatrix: normalized.rateMatrix,
+          wardRates: normalized.wardRates,
+          propertyTaxPct: normalized.propertyTaxPct,
+          waterTaxPct: normalized.waterTaxPct,
+          drainageTaxPct: normalized.drainageTaxPct,
+          usageMultipliers: normalized.usageMultipliers,
+          updatedBy: me._id,
+          updatedAt: Date.now(),
+        });
+      }),
+    );
 
-      const normalized = normalizeStoredTaxRates(doc);
-      await ctx.db.replace(doc._id, {
-        municipalityId: doc.municipalityId,
-        rateMatrix: normalized.rateMatrix,
-        wardRates: normalized.wardRates,
-        propertyTaxPct: normalized.propertyTaxPct,
-        waterTaxPct: normalized.waterTaxPct,
-        drainageTaxPct: normalized.drainageTaxPct,
-        usageMultipliers: normalized.usageMultipliers,
-        updatedBy: me._id,
-        updatedAt: Date.now(),
-      });
-      migrated += 1;
-    }
-
-    return migrated;
+    return toMigrate.length;
   },
 });
 

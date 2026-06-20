@@ -54,25 +54,34 @@ export async function replaceUserAllotments(
     .query("userAllotments")
     .withIndex("by_user", (q) => q.eq("userId", opts.userId))
     .collect();
-  for (const row of existing) {
-    await ctx.db.delete(row._id);
-  }
+  await Promise.all(existing.map((row) => ctx.db.delete(row._id)));
+
+  const validated = await Promise.all(
+    opts.allotments.map(async (a) => ({
+      a,
+      normalized: await validateAllotmentTarget(ctx, a),
+    })),
+  );
 
   const now = Date.now();
   const activeMunis: Id<"municipalities">[] = [];
   let primaryDistrict: Id<"districts"> | undefined;
   const existingUser = await ctx.db.get(opts.userId);
 
-  for (const a of opts.allotments) {
-    const normalized = await validateAllotmentTarget(ctx, a);
-    await ctx.db.insert("userAllotments", {
-      userId: opts.userId,
-      districtId: normalized.districtId,
-      municipalityId: normalized.municipalityId,
-      isActive: a.isActive,
-      assignedBy: opts.assignedBy,
-      assignedAt: now,
-    });
+  await Promise.all(
+    validated.map(({ a, normalized }) =>
+      ctx.db.insert("userAllotments", {
+        userId: opts.userId,
+        districtId: normalized.districtId,
+        municipalityId: normalized.municipalityId,
+        isActive: a.isActive,
+        assignedBy: opts.assignedBy,
+        assignedAt: now,
+      }),
+    ),
+  );
+
+  for (const { a, normalized } of validated) {
     if (a.isActive) {
       if (normalized.municipalityId) activeMunis.push(normalized.municipalityId);
       if (normalized.districtId) primaryDistrict = normalized.districtId;
@@ -168,24 +177,46 @@ export const listForUser = query({
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
 
-    const result = [];
+    const districtIds = new Set<Id<"districts">>();
+    const municipalityIds = new Set<Id<"municipalities">>();
     for (const a of rows) {
-      let districtName: string | null = null;
-      let municipalityName: string | null = null;
-      if (a.districtId) {
-        const d = await ctx.db.get(a.districtId);
-        districtName = d?.name ?? null;
-      }
-      if (a.municipalityId) {
-        const m = await ctx.db.get(a.municipalityId);
-        municipalityName = m?.name ?? null;
-        if (!districtName && m) {
-          const d = await ctx.db.get(m.districtId);
-          districtName = d?.name ?? null;
-        }
-      }
-      result.push({ ...a, districtName, municipalityName });
+      if (a.districtId) districtIds.add(a.districtId);
+      if (a.municipalityId) municipalityIds.add(a.municipalityId);
     }
+
+    const [districtDocs, municipalityDocs] = await Promise.all([
+      Promise.all([...districtIds].map((id) => ctx.db.get(id))),
+      Promise.all([...municipalityIds].map((id) => ctx.db.get(id))),
+    ]);
+    const districtById = new Map<Id<"districts">, string>();
+    for (const d of districtDocs) {
+      if (d) districtById.set(d._id, d.name);
+    }
+    const municipalityById = new Map<Id<"municipalities">, NonNullable<(typeof municipalityDocs)[number]>>();
+    for (const m of municipalityDocs) {
+      if (m) municipalityById.set(m._id, m);
+    }
+
+    const missingDistrictIds = new Set<Id<"districts">>();
+    for (const m of municipalityDocs) {
+      if (m && !districtById.has(m.districtId)) missingDistrictIds.add(m.districtId);
+    }
+    if (missingDistrictIds.size > 0) {
+      const extraDistrictDocs = await Promise.all([...missingDistrictIds].map((id) => ctx.db.get(id)));
+      for (const d of extraDistrictDocs) {
+        if (d) districtById.set(d._id, d.name);
+      }
+    }
+
+    const result = rows.map((a) => {
+      let districtName: string | null = a.districtId ? (districtById.get(a.districtId) ?? null) : null;
+      const m = a.municipalityId ? municipalityById.get(a.municipalityId) : undefined;
+      const municipalityName = m?.name ?? null;
+      if (!districtName && m) {
+        districtName = districtById.get(m.districtId) ?? null;
+      }
+      return { ...a, districtName, municipalityName };
+    });
     return result.sort((a, b) => Number(b.isActive) - Number(a.isActive) || b.assignedAt - a.assignedAt);
   },
 });

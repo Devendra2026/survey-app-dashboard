@@ -28,7 +28,7 @@ export function normalizeWardNo(wardNo: string): string {
   return Number.isNaN(n) ? wardNo : String(n);
 }
 
-export function wardGroupKey(row: Pick<SurveyWardSourceRow, "municipalityId" | "wardNo">): string {
+function wardGroupKey(row: Pick<SurveyWardSourceRow, "municipalityId" | "wardNo">): string {
   return `${row.municipalityId ?? ""}:${normalizeWardNo(row.wardNo)}`;
 }
 

@@ -47,7 +47,11 @@ async function loadMunicipalityCodes(
 ): Promise<Map<Id<"municipalities">, string>> {
   const unique = [...new Set(municipalityIds)];
   const munis = await Promise.all(unique.map((id) => ctx.db.get(id)));
-  return new Map(munis.filter((m): m is Doc<"municipalities"> => m != null).map((m) => [m._id, m.code] as const));
+  const codes = new Map<Id<"municipalities">, string>();
+  for (const m of munis) {
+    if (m) codes.set(m._id, m.code);
+  }
+  return codes;
 }
 
 function enrichSurveyPropertyIds(rows: Doc<"surveys">[], codes: Map<Id<"municipalities">, string>): Doc<"surveys">[] {
@@ -166,45 +170,46 @@ async function enrichSurveysForExport(
   const districtMap = mapTruthyById(districts);
   const surveyorMap = mapTruthyById(surveyors);
 
-  const bundles = [];
-  for (const survey of enriched) {
-    const [floorRows, photoRows] = await Promise.all([
-      ctx.db
-        .query("floors")
-        .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
-        .collect(),
-      ctx.db
-        .query("photos")
-        .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
-        .collect(),
-    ]);
+  const bundles = await Promise.all(
+    enriched.map(async (survey) => {
+      const [floorRows, photoRows] = await Promise.all([
+        ctx.db
+          .query("floors")
+          .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
+          .collect(),
+        ctx.db
+          .query("photos")
+          .withIndex("by_survey", (q) => q.eq("surveyId", survey._id))
+          .collect(),
+      ]);
 
-    const photos = await Promise.all(
-      photoRows.map(async (p) => ({
-        slot: p.slot,
-        sizeKb: p.sizeKb,
-        width: p.width,
-        height: p.height,
-        capturedAt: p.capturedAt,
-        url: await ctx.storage.getUrl(p.storageId),
-      })),
-    );
+      const photos = await Promise.all(
+        photoRows.map(async (p) => ({
+          slot: p.slot,
+          sizeKb: p.sizeKb,
+          width: p.width,
+          height: p.height,
+          capturedAt: p.capturedAt,
+          url: await ctx.storage.getUrl(p.storageId),
+        })),
+      );
 
-    const muni = muniMap.get(survey.municipalityId);
-    const district = districtMap.get(survey.districtId);
-    const surveyor = surveyorMap.get(survey.surveyorId);
+      const muni = muniMap.get(survey.municipalityId);
+      const district = districtMap.get(survey.districtId);
+      const surveyor = surveyorMap.get(survey.surveyorId);
 
-    bundles.push({
-      ...survey,
-      districtName: district?.name ?? "",
-      municipalityName: muni?.name ?? survey.city,
-      municipalityCode: muni?.code ?? "",
-      surveyorName: surveyor?.name ?? "",
-      surveyorEmail: surveyor?.email ?? "",
-      floors: floorRows.sort((a, b) => a.position - b.position).map(presentFloorRow),
-      photos,
-    });
-  }
+      return {
+        ...survey,
+        districtName: district?.name ?? "",
+        municipalityName: muni?.name ?? survey.city,
+        municipalityCode: muni?.code ?? "",
+        surveyorName: surveyor?.name ?? "",
+        surveyorEmail: surveyor?.email ?? "",
+        floors: floorRows.sort((a, b) => a.position - b.position).map(presentFloorRow),
+        photos,
+      };
+    }),
+  );
 
   return bundles;
 }

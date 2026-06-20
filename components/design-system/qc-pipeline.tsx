@@ -129,7 +129,7 @@ export function QcPipeline({
   );
 }
 
-export function QcReviewTimeline({
+function QcReviewTimeline({
   events,
   className,
 }: {

@@ -69,7 +69,7 @@ export function sanitizeSurveyWorkScope(scope: SurveyWorkScope, allowed: SurveyT
   return next;
 }
 
-export function scopeFromSurveyRow(survey: {
+function scopeFromSurveyRow(survey: {
   municipalityId?: string;
   districtId?: string;
   wardNo?: string;

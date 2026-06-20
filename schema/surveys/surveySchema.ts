@@ -73,7 +73,7 @@ const surveySubmitBaseSchema = z.object({
   clientUpdatedAt: z.number(),
 });
 
-export const surveySubmitSchema = surveySubmitBaseSchema.refine((v) => !(v.plinthSqft > v.plotSqft && v.plotSqft > 0), {
+const surveySubmitSchema = surveySubmitBaseSchema.refine((v) => !(v.plinthSqft > v.plotSqft && v.plotSqft > 0), {
   message: "Plinth area cannot exceed plot area",
   path: ["plinthSqft"],
 });
@@ -90,7 +90,7 @@ export const surveyDraftSchema = surveySubmitBaseSchema.partial().extend({
 export type SurveyDraftValues = z.infer<typeof surveyDraftSchema>;
 
 /** Floor row — mirrors validateFloorRow. */
-export const floorSchema = z.object({
+const floorSchema = z.object({
   clientFloorId: z.string().min(1),
   position: z.number().int().nonnegative(),
   floorName: z.string().min(1, "Floor is required"),

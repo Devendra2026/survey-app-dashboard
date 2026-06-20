@@ -32,7 +32,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 
-export function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
+function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
   const empty = value == null || value === "" || value === "—";
   return (
     <div className="rounded-xl border border-border/50 bg-card/80 px-3 py-2.5 shadow-premium-sm backdrop-blur-sm dark:bg-card/40">
@@ -46,7 +46,7 @@ export function DetailField({ label, value }: { label: string; value: React.Reac
   );
 }
 
-export function ReportPhoto({ url, label }: { url?: string | null; label: string }) {
+function ReportPhoto({ url, label }: { url?: string | null; label: string }) {
   return (
     <figure className="premium-card overflow-hidden rounded-xl border border-border/60">
       <div className="relative aspect-4/3 bg-muted/40">

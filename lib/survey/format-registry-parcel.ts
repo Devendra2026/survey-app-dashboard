@@ -1,6 +1,4 @@
-import { normalizeParcelKey, padParcelNo, padWardNo } from "@/lib/survey/area";
-
-export { normalizeParcelKey };
+import { padParcelNo, padWardNo } from "@/lib/survey/area";
 
 /** Registry ward column — 3-digit padded (e.g. 5 → 005). */
 export function formatRegistryWardNo(wardNo?: string): string {
@@ -14,9 +12,4 @@ export function formatRegistryParcelNo(parcelNo?: string): string {
   const raw = parcelNo?.trim();
   if (!raw) return "—";
   return padParcelNo(raw) || raw;
-}
-
-/** @deprecated Use formatRegistryParcelNo — parcel column no longer includes use suffix. */
-export function formatRegistryParcelLabel(survey: { parcelNo?: string }): string {
-  return formatRegistryParcelNo(survey.parcelNo);
 }

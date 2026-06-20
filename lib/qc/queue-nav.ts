@@ -1,6 +1,6 @@
 import type { SurveyRow } from "@/components/surveys/survey-tables";
 
-export function isSurveyPendingQc(row: Pick<SurveyRow, "qcStatus" | "status">): boolean {
+function isSurveyPendingQc(row: Pick<SurveyRow, "qcStatus" | "status">): boolean {
   return row.qcStatus === "pending" && row.status === "submitted";
 }
 
@@ -12,6 +12,6 @@ export function findNextPendingSurvey(rows: SurveyRow[], currentId: string): Sur
   return pending[idx + 1];
 }
 
-export function countPendingQc(rows: SurveyRow[]): number {
+function countPendingQc(rows: SurveyRow[]): number {
   return rows.filter(isSurveyPendingQc).length;
 }

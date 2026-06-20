@@ -82,11 +82,15 @@ export async function assertUniqueSurveySlot(
   }
 
   const wardRows: Doc<"surveys">[] = [];
-  for (const ward of wardVariants) {
-    const batch = await ctx.db
-      .query("surveys")
-      .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", input.municipalityId).eq("wardNo", ward))
-      .collect();
+  const batches = await Promise.all(
+    [...wardVariants].map((ward) =>
+      ctx.db
+        .query("surveys")
+        .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", input.municipalityId).eq("wardNo", ward))
+        .collect(),
+    ),
+  );
+  for (const batch of batches) {
     for (const row of batch) {
       if (!wardRows.some((existing) => existing._id === row._id)) wardRows.push(row);
     }

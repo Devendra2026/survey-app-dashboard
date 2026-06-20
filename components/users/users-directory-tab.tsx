@@ -199,7 +199,7 @@ export function AllUsersDirectoryTab({
               {filteredUsers?.map((u) => (
                 <TableRow
                   key={u._id}
-                  className="cursor-pointer border-border transition-colors hover:bg-muted/30"
+                  className="cursor-pointer border-border transition-colors duration-200 hover:bg-muted/30"
                   onClick={() => setSheetUser(toListedSheet(u))}
                 >
                   <TableCell className="py-3 pl-5">

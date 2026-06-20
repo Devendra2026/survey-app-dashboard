@@ -17,7 +17,7 @@ export function useDecide() {
 }
 
 /** "Request correction" = append an open remark; survey stays where it is. */
-export function useAddRemark() {
+function useAddRemark() {
   return useMutation(api.qc.addRemark);
 }
 

@@ -136,8 +136,3 @@ export function SurveyExcelActions({
     </div>
   );
 }
-
-/** @deprecated Use SurveyExcelActions — kept for reports card compatibility */
-export function ExportExcelButton({ filters, disabled }: { filters: SurveyExportFilters; disabled?: boolean }) {
-  return <SurveyExcelActions filters={filters} disabled={disabled} />;
-}

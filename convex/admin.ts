@@ -203,32 +203,30 @@ export const rejectUser = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
+    const [me, target] = await Promise.all([requireUser(ctx), ctx.db.get(args.userId)]);
     requireRole(me, "admin");
-
-    const target = await ctx.db.get(args.userId);
     if (!target) clientError("NOT_FOUND", "User not found");
 
-    await ctx.db.patch(args.userId, {
-      status: "disabled",
-      disabledBy: me._id,
-      disabledAt: Date.now(),
-    });
-
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: "user.rejected",
-      entity: "user",
-      entityId: args.userId,
-      metadata: { reason: args.reason },
-    });
-
-    await ctx.db.insert("notifications", {
-      userId: args.userId,
-      type: "account_rejected",
-      title: "Account request denied",
-      body: args.reason ?? "Contact your administrator for more information.",
-    });
+    await Promise.all([
+      ctx.db.patch(args.userId, {
+        status: "disabled",
+        disabledBy: me._id,
+        disabledAt: Date.now(),
+      }),
+      writeAudit(ctx, {
+        actorId: me._id,
+        action: "user.rejected",
+        entity: "user",
+        entityId: args.userId,
+        metadata: { reason: args.reason },
+      }),
+      ctx.db.insert("notifications", {
+        userId: args.userId,
+        type: "account_rejected",
+        title: "Account request denied",
+        body: args.reason ?? "Contact your administrator for more information.",
+      }),
+    ]);
   },
 });
 
@@ -249,26 +247,33 @@ async function buildScopeLabel(
   const muniNames = new Set<string>();
   const districtNames = new Set<string>();
 
+  const missingMuniIds = new Set<NonNullable<(typeof active)[number]["municipalityId"]>>();
+  const missingDistrictIds = new Set<NonNullable<(typeof active)[number]["districtId"]>>();
+  for (const row of active) {
+    if (row.municipalityId && !munis.has(row.municipalityId)) {
+      missingMuniIds.add(row.municipalityId);
+    } else if (row.districtId && !row.municipalityId && !districts.has(row.districtId)) {
+      missingDistrictIds.add(row.districtId);
+    }
+  }
+
+  const [missingMuniDocs, missingDistrictDocs] = await Promise.all([
+    Promise.all([...missingMuniIds].map((id) => ctx.db.get(id))),
+    Promise.all([...missingDistrictIds].map((id) => ctx.db.get(id))),
+  ]);
+  for (const doc of missingMuniDocs) {
+    if (doc) munis.set(doc._id, { name: doc.name, code: doc.code, districtId: doc.districtId });
+  }
+  for (const doc of missingDistrictDocs) {
+    if (doc) districts.set(doc._id, doc.name);
+  }
+
   for (const row of active) {
     if (row.municipalityId) {
-      let m = munis.get(row.municipalityId);
-      if (!m) {
-        const doc = await ctx.db.get(row.municipalityId);
-        if (doc) {
-          m = { name: doc.name, code: doc.code, districtId: doc.districtId };
-          munis.set(row.municipalityId, m);
-        }
-      }
+      const m = munis.get(row.municipalityId);
       if (m) muniNames.add(m.name);
     } else if (row.districtId) {
-      let name = districts.get(row.districtId);
-      if (!name) {
-        const doc = await ctx.db.get(row.districtId);
-        if (doc) {
-          name = doc.name;
-          districts.set(row.districtId, name);
-        }
-      }
+      const name = districts.get(row.districtId);
       if (name) districtNames.add(`${name} (district)`);
     }
   }
@@ -289,15 +294,21 @@ async function buildScopeLabel(
 async function hydrateUsersForAdmin(ctx: QueryCtx, rows: Doc<"users">[]) {
   const munis = new Map<string, { name: string; code: string; districtId: string }>();
   const districts = new Map<string, string>();
+  const missingDistrictIds = new Set<NonNullable<(typeof rows)[number]["districtId"]>>();
+  const missingMuniIds = new Set<NonNullable<(typeof rows)[number]["municipalityId"]>>();
   for (const u of rows) {
-    if (u.districtId && !districts.has(u.districtId)) {
-      const d = await ctx.db.get(u.districtId);
-      if (d) districts.set(u.districtId, d.name);
-    }
-    if (u.municipalityId && !munis.has(u.municipalityId)) {
-      const m = await ctx.db.get(u.municipalityId);
-      if (m) munis.set(u.municipalityId, { name: m.name, code: m.code, districtId: m.districtId });
-    }
+    if (u.districtId && !districts.has(u.districtId)) missingDistrictIds.add(u.districtId);
+    if (u.municipalityId && !munis.has(u.municipalityId)) missingMuniIds.add(u.municipalityId);
+  }
+  const [missingDistrictDocs, missingMuniDocs] = await Promise.all([
+    Promise.all([...missingDistrictIds].map((id) => ctx.db.get(id))),
+    Promise.all([...missingMuniIds].map((id) => ctx.db.get(id))),
+  ]);
+  for (const d of missingDistrictDocs) {
+    if (d) districts.set(d._id, d.name);
+  }
+  for (const m of missingMuniDocs) {
+    if (m) munis.set(m._id, { name: m.name, code: m.code, districtId: m.districtId });
   }
 
   const scopeLabels = await Promise.all(rows.map((u) => buildScopeLabel(ctx, u, districts, munis)));
@@ -370,10 +381,8 @@ export const countActiveUsers = query({
 export const getUserForAdmin = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
+    const [me, row] = await Promise.all([requireUser(ctx), ctx.db.get(args.userId)]);
     await assertCanListUsers(ctx, me);
-
-    const row = await ctx.db.get(args.userId);
     if (!row) return null;
 
     const [user] = await hydrateUsersForAdmin(ctx, [row]);
@@ -392,36 +401,34 @@ export const assignTenant = mutation({
     const me = await requireUser(ctx);
     requireRole(me, "admin");
 
-    const target = await ctx.db.get(args.userId);
+    const [target, muni] = await Promise.all([ctx.db.get(args.userId), ctx.db.get(args.municipalityId)]);
     if (!target) clientError("NOT_FOUND", "User not found");
     if (!(await roleRequiresTenancy(ctx, target.role))) {
       clientError("BAD_REQUEST", "Tenant assignment applies to field roles with tenant scope only");
     }
-
-    const muni = await ctx.db.get(args.municipalityId);
     if (!muni || muni.isActive === false) {
       clientError("BAD_REQUEST", "Unknown municipality");
     }
 
-    await ctx.db.patch(args.userId, {
-      municipalityId: args.municipalityId,
-      districtId: muni.districtId,
-      wardAssignments: args.wardAssignments ?? [],
-    });
-
-    await upsertAllotmentForUser(ctx, {
-      userId: args.userId,
-      municipalityId: args.municipalityId,
-      assignedBy: me._id,
-    });
-
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: "user.tenant_assigned",
-      entity: "user",
-      entityId: args.userId,
-      metadata: { municipalityId: args.municipalityId, districtId: muni.districtId },
-    });
+    await Promise.all([
+      ctx.db.patch(args.userId, {
+        municipalityId: args.municipalityId,
+        districtId: muni.districtId,
+        wardAssignments: args.wardAssignments ?? [],
+      }),
+      upsertAllotmentForUser(ctx, {
+        userId: args.userId,
+        municipalityId: args.municipalityId,
+        assignedBy: me._id,
+      }),
+      writeAudit(ctx, {
+        actorId: me._id,
+        action: "user.tenant_assigned",
+        entity: "user",
+        entityId: args.userId,
+        metadata: { municipalityId: args.municipalityId, districtId: muni.districtId },
+      }),
+    ]);
   },
 });
 
@@ -435,10 +442,8 @@ export const updateUser = mutation({
     status: v.optional(v.union(v.literal("active"), v.literal("disabled"))),
   },
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
+    const [me, target] = await Promise.all([requireUser(ctx), ctx.db.get(args.userId)]);
     await assertCanPatchUser(ctx, me, args);
-
-    const target = await ctx.db.get(args.userId);
     if (!target) clientError("NOT_FOUND", "User not found");
 
     const patch: Record<string, unknown> = {};
@@ -460,14 +465,16 @@ export const updateUser = mutation({
     if (Object.keys(patch).length === 0) {
       throw new ConvexError({ code: "BAD_REQUEST", message: "Nothing to update" });
     }
-    await ctx.db.patch(args.userId, patch);
-    await writeAudit(ctx, {
-      actorId: me._id,
-      action: "user.updated",
-      entity: "user",
-      entityId: args.userId,
-      metadata: patch,
-    });
+    await Promise.all([
+      ctx.db.patch(args.userId, patch),
+      writeAudit(ctx, {
+        actorId: me._id,
+        action: "user.updated",
+        entity: "user",
+        entityId: args.userId,
+        metadata: patch,
+      }),
+    ]);
   },
 });
 

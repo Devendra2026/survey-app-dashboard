@@ -23,14 +23,14 @@ export function f2(n: number) {
   return n.toFixed(2);
 }
 
-export function normalizeWardNo(wardNo: string): string {
+function normalizeWardNo(wardNo: string): string {
   const trimmed = wardNo.trim();
   const stripped = trimmed.replace(/^0+/, "");
   return stripped.length > 0 ? stripped : "0";
 }
 
 /** Ward keys that may exist in stored wardRates (01 vs 1). */
-export function wardLookupKeys(wardNo: string): string[] {
+function wardLookupKeys(wardNo: string): string[] {
   const trimmed = wardNo.trim();
   const normalized = normalizeWardNo(trimmed);
   const keys = new Set<string>([trimmed, normalized]);

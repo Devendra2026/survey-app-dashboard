@@ -10,7 +10,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useState } from "react";
 import type { DistrictDraft, MunicipalityDraft, WardDraft } from "./tenant-types";
 
-export function DistrictDialog({
+function DistrictDialog({
   draft,
   onClose,
   onSave,
@@ -90,7 +90,7 @@ export function DistrictDialog({
   );
 }
 
-export function MunicipalityDialog({
+function MunicipalityDialog({
   draft,
   onClose,
   onSave,
@@ -194,7 +194,7 @@ export function MunicipalityDialog({
   );
 }
 
-export function WardDialog({
+function WardDialog({
   draft,
   onClose,
   onSave,

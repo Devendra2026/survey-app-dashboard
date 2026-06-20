@@ -12,11 +12,6 @@ export function usePhotos(surveyId: string | undefined) {
   return useQuery(api.photos.list, ready && surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip");
 }
 
-export function useFrontThumbnails(surveyIds: string[]) {
-  const ready = useConvexAuthReady();
-  const ids = surveyIds.slice(0, 50);
-  return useQuery(api.photos.frontThumbnails, ready && ids.length > 0 ? { surveyIds: ids as Id<"surveys">[] } : "skip");
-}
 export function useRemovePhotoSlot() {
   return useMutation(api.photos.removeBySurveySlot);
 }

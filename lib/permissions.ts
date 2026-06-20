@@ -101,7 +101,7 @@ export function can(role: Role | undefined, capability: Capability): boolean {
   return MATRIX[role as keyof typeof MATRIX]?.includes(capability) ?? false;
 }
 
-export function canAny(role: Role | undefined, capabilities: Capability[]): boolean {
+function canAny(role: Role | undefined, capabilities: Capability[]): boolean {
   return capabilities.some((c) => can(role, c));
 }
 
@@ -164,7 +164,7 @@ export function navKeysForUser(serverCapabilities: string[] | undefined, role: R
 }
 
 /** Which nav sections a role may see. Keep in sync with components/layout/sidebar. */
-export const NAV_VISIBILITY: Record<Role, string[]> = {
+const NAV_VISIBILITY: Record<Role, string[]> = {
   pending: [],
   surveyor: ["dashboard", "surveys_registry", "settings"],
   supervisor: ["dashboard", "surveys", "surveys_registry", "users", "reports", "settings"],

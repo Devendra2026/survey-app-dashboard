@@ -1,9 +1,6 @@
 import type { RateForm, WardInfo } from "@/components/masters/tax-rates-types";
 import type { NormalizedTaxRates } from "@/lib/qc/normalize-tax-rates";
-import {
-  DEFAULT_TAX_RATES,
-  DEFAULT_USAGE_MULTIPLIERS,
-} from "@/lib/qc/tax-rate-defaults";
+import { DEFAULT_TAX_RATES, DEFAULT_USAGE_MULTIPLIERS } from "@/lib/qc/tax-rate-defaults";
 import {
   annualMatrixToMonthlyForm,
   buildDefaultMonthlyMatrix,
@@ -13,7 +10,7 @@ import {
   type RateMatrixMonthlyForm,
 } from "@/lib/qc/tax-rate-matrix";
 
-export const USAGE_ROWS = [
+const USAGE_ROWS = [
   { key: "residential", label: "Residential" },
   { key: "commercial", label: "Commercial" },
   { key: "mix", label: "Mixed Use" },

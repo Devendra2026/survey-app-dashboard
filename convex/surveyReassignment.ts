@@ -235,10 +235,8 @@ export const reassignDrafts = mutation({
   },
   returns: reassignResult,
   handler: async (ctx, args) => {
-    const me = await requireUser(ctx);
+    const [me, target] = await Promise.all([requireUser(ctx), loadTargetSurveyor(ctx, args.toSurveyorId)]);
     await requireCapability(ctx, me, "surveys.reassign");
-
-    const target = await loadTargetSurveyor(ctx, args.toSurveyorId);
     if (args.toSurveyorId === args.fromSurveyorId) {
       clientError("BAD_REQUEST", "Source and target surveyor must differ");
     }
@@ -304,38 +302,38 @@ export const reassignDrafts = mutation({
         ctx.db.get("users", args.toSurveyorId),
       ]);
 
-      await ctx.db.patch(survey._id, {
-        surveyorId: args.toSurveyorId,
-        localId,
-        serverVersion: survey.serverVersion + 1,
-        clientUpdatedAt: now,
-      });
-
-      await ctx.db.insert("notifications", {
-        userId: args.toSurveyorId,
-        type: "survey_draft_assigned",
-        title: "Draft surveys assigned to you",
-        body: `A draft in Ward ${survey.wardNo || "—"} was assigned by an administrator.`,
-        relatedEntity: "survey",
-        relatedId: survey._id,
-      });
-
-      await writeAudit(ctx, {
-        actorId: me._id,
-        action: "survey.draft_reassigned",
-        entity: "survey",
-        entityId: survey._id,
-        metadata: {
-          fromSurveyorId,
-          fromSurveyorName: fromSurveyor?.name,
-          toSurveyorId: args.toSurveyorId,
-          toSurveyorName: toSurveyor?.name,
-          mode: args.mode,
-          localIdAdjusted: adjusted,
-          wardNo: survey.wardNo,
-          municipalityId: survey.municipalityId,
-        },
-      });
+      await Promise.all([
+        ctx.db.patch(survey._id, {
+          surveyorId: args.toSurveyorId,
+          localId,
+          serverVersion: survey.serverVersion + 1,
+          clientUpdatedAt: now,
+        }),
+        ctx.db.insert("notifications", {
+          userId: args.toSurveyorId,
+          type: "survey_draft_assigned",
+          title: "Draft surveys assigned to you",
+          body: `A draft in Ward ${survey.wardNo || "—"} was assigned by an administrator.`,
+          relatedEntity: "survey",
+          relatedId: survey._id,
+        }),
+        writeAudit(ctx, {
+          actorId: me._id,
+          action: "survey.draft_reassigned",
+          entity: "survey",
+          entityId: survey._id,
+          metadata: {
+            fromSurveyorId,
+            fromSurveyorName: fromSurveyor?.name,
+            toSurveyorId: args.toSurveyorId,
+            toSurveyorName: toSurveyor?.name,
+            mode: args.mode,
+            localIdAdjusted: adjusted,
+            wardNo: survey.wardNo,
+            municipalityId: survey.municipalityId,
+          },
+        }),
+      ]);
 
       transferred += 1;
     }

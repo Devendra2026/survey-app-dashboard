@@ -155,19 +155,25 @@ export async function buildNoticePayloadsForSurveys(
     ? await ctx.storage.getUrl(muni.executiveSignatureStorageId)
     : null;
 
-  const payloads: DemandNoticeDocumentProps[] = [];
+  const payloads = await Promise.all(
+    args.surveyIds.map(async (surveyId) => {
+      const survey = await ctx.db.get(surveyId);
+      if (!survey) return null;
+      assertCanReadWard(me, survey.municipalityId, survey.wardNo);
 
-  for (const surveyId of args.surveyIds) {
-    const survey = await ctx.db.get(surveyId);
-    if (!survey) continue;
-    assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+      const [floors, photoUrls] = await Promise.all([loadFloors(ctx, surveyId), loadPhotoUrls(ctx, surveyId)]);
 
-    const [floors, photoUrls] = await Promise.all([loadFloors(ctx, surveyId), loadPhotoUrls(ctx, surveyId)]);
+      return buildDemandNoticeDocumentProps(
+        survey,
+        floors,
+        masters,
+        rateConfig,
+        args.reportDateMs,
+        photoUrls,
+        signatureUrl,
+      );
+    }),
+  );
 
-    payloads.push(
-      buildDemandNoticeDocumentProps(survey, floors, masters, rateConfig, args.reportDateMs, photoUrls, signatureUrl),
-    );
-  }
-
-  return payloads;
+  return payloads.filter((payload): payload is DemandNoticeDocumentProps => payload !== null);
 }

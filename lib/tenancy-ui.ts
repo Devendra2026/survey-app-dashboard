@@ -2,7 +2,7 @@ import { SYSTEM_ROLE_PERMISSIONS, type PermissionKey } from "@/convex/permission
 
 const TENANCY_PERMISSIONS: PermissionKey[] = ["surveys.viewAssigned", "surveys.viewOwn", "qc.review"];
 
-export const SYSTEM_ROLE_KEYS = new Set(["pending", "surveyor", "supervisor", "qc_supervisor", "admin"]);
+const SYSTEM_ROLE_KEYS = new Set(["pending", "surveyor", "supervisor", "qc_supervisor", "admin"]);
 
 export function roleRequiresTenancy(roleKey: string, permissionKeys?: readonly string[]): boolean {
   if (roleKey === "admin" || roleKey === "pending") return false;

@@ -64,24 +64,23 @@ export const listForSurveys = query({
     }
     const me = await requireUser(ctx);
     const uniqueSurveyIds = [...new Set(args.surveyIds)];
-    const grouped = [];
-
-    for (const surveyId of uniqueSurveyIds) {
-      const survey = await ctx.db.get(surveyId);
-      if (!survey) {
-        grouped.push({ surveyId, floors: [] });
-        continue;
-      }
-      assertCanReadWard(me, survey.municipalityId, survey.wardNo);
-      const rows = await ctx.db
-        .query("floors")
-        .withIndex("by_survey", (q) => q.eq("surveyId", surveyId))
-        .collect();
-      grouped.push({
-        surveyId,
-        floors: rows.sort((a, b) => a.position - b.position).map(presentFloorRow),
-      });
-    }
+    const grouped = await Promise.all(
+      uniqueSurveyIds.map(async (surveyId) => {
+        const survey = await ctx.db.get(surveyId);
+        if (!survey) {
+          return { surveyId, floors: [] };
+        }
+        assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+        const rows = await ctx.db
+          .query("floors")
+          .withIndex("by_survey", (q) => q.eq("surveyId", surveyId))
+          .collect();
+        return {
+          surveyId,
+          floors: rows.sort((a, b) => a.position - b.position).map(presentFloorRow),
+        };
+      }),
+    );
 
     return grouped;
   },
@@ -190,11 +189,11 @@ export const removeOrphans = mutation({
       .query("floors")
       .withIndex("by_survey", (q) => q.eq("surveyId", args.surveyId))
       .collect();
+    const deleteOps = [];
     for (const row of rows) {
-      if (!keep.has(row.clientFloorId)) {
-        await ctx.db.delete(row._id);
-      }
+      if (!keep.has(row.clientFloorId)) deleteOps.push(ctx.db.delete(row._id));
     }
+    await Promise.all(deleteOps);
   },
 });
 
@@ -234,10 +233,12 @@ export const reorder = mutation({
     const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
-    for (const o of args.order) {
-      const f = await ctx.db.get(o.id);
-      if (!f || f.surveyId !== args.surveyId) continue;
-      await ctx.db.patch(o.id, { position: o.position });
-    }
+    await Promise.all(
+      args.order.map(async (o) => {
+        const f = await ctx.db.get(o.id);
+        if (!f || f.surveyId !== args.surveyId) return;
+        await ctx.db.patch(o.id, { position: o.position });
+      }),
+    );
   },
 });

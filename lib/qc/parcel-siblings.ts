@@ -18,7 +18,7 @@ export type ParcelSiblingRow = {
 };
 
 /** Group key: same ULB + ward + parcel (ignores unit and property use). */
-export function parcelSiblingKey(row: Pick<ParcelSiblingRow, "municipalityId" | "wardNo" | "parcelNo">): string {
+function parcelSiblingKey(row: Pick<ParcelSiblingRow, "municipalityId" | "wardNo" | "parcelNo">): string {
   return `${row.municipalityId ?? ""}:${normalizeWardNo(row.wardNo)}:${normalizeParcelKey(row.parcelNo)}`;
 }
 

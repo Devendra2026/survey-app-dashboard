@@ -69,7 +69,7 @@ export function useUpdateUser() {
   return useMutation(api.admin.updateUser);
 }
 /** Disable = updateUser({ status: 'disabled' }). */
-export function useDisableUser() {
+function useDisableUser() {
   const update = useMutation(api.admin.updateUser);
   return (userId: string) => update({ userId: userId as Id<"users">, status: "disabled" });
 }

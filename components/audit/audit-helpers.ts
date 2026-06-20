@@ -1,7 +1,7 @@
 import type { AuditEntry } from "@/schema/audit/index";
 import { Activity, Building2, ClipboardList, Image, MapPin, ShieldCheck, User, type LucideIcon } from "lucide-react";
 
-export const AVATAR_PALETTE = [
+const AVATAR_PALETTE = [
   "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300",
   "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300",
   "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
@@ -12,7 +12,7 @@ export const AVATAR_PALETTE = [
   "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300",
 ];
 
-export const ENTITY_COLORS: Record<string, string> = {
+const ENTITY_COLORS: Record<string, string> = {
   survey:
     "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
   user: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30",
@@ -86,7 +86,7 @@ const DEFAULT_ACTION_STYLE: ActionStyle = {
   text: "text-slate-600 dark:text-slate-400",
 };
 
-export function actionCategory(action: string) {
+function actionCategory(action: string) {
   return action.split(".")[0] ?? action;
 }
 

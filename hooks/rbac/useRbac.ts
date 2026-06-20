@@ -44,6 +44,6 @@ export function useSetUserAllotments() {
   return useMutation(api.allotments.setForUser);
 }
 
-export function useToggleAllotment() {
+function useToggleAllotment() {
   return useMutation(api.allotments.setActive);
 }

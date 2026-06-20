@@ -29,8 +29,7 @@ const exportJobValidator = v.object({
   downloadUrl: v.union(v.string(), v.null()),
 });
 
-async function assertJobAccess(
-  ctx: Parameters<typeof requireUser>[0],
+function assertJobAccess(
   me: Awaited<ReturnType<typeof requireUser>>,
   job: { requestedBy: import("./_generated/dataModel").Id<"users"> } | null,
 ) {
@@ -111,7 +110,7 @@ export const getExportJob = query({
   returns: exportJobValidator,
   handler: async (ctx, args) => {
     const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
-    await assertJobAccess(ctx, me, job);
+    assertJobAccess(me, job);
 
     let downloadUrl: string | null = null;
     if (job!.status === "completed" && job!.storageId) {
@@ -156,7 +155,7 @@ export const getNoticePayloads = query({
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
-    await assertJobAccess(ctx, me, job);
+    assertJobAccess(me, job);
 
     return await buildNoticePayloadsForSurveys(ctx, me, {
       surveyIds: job!.surveyIds,
@@ -174,7 +173,7 @@ export const updateExportProgress = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
-    await assertJobAccess(ctx, me, job);
+    assertJobAccess(me, job);
 
     await ctx.db.patch(args.jobId, {
       processedCount: Math.min(args.processedCount, job!.totalCount),
@@ -189,9 +188,12 @@ export const generateUploadUrl = mutation({
   returns: v.string(),
   handler: async (ctx, args) => {
     const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
-    await assertJobAccess(ctx, me, job);
-    await ctx.db.patch(args.jobId, { status: "uploading" });
-    return await ctx.storage.generateUploadUrl();
+    assertJobAccess(me, job);
+    const [, uploadUrl] = await Promise.all([
+      ctx.db.patch(args.jobId, { status: "uploading" }),
+      ctx.storage.generateUploadUrl(),
+    ]);
+    return uploadUrl;
   },
 });
 
@@ -203,7 +205,7 @@ export const completeExport = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
-    await assertJobAccess(ctx, me, job);
+    assertJobAccess(me, job);
 
     await ctx.db.patch(args.jobId, {
       status: "completed",
@@ -223,7 +225,7 @@ export const failExport = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const [me, job] = await Promise.all([requireUser(ctx), ctx.db.get(args.jobId)]);
-    await assertJobAccess(ctx, me, job);
+    assertJobAccess(me, job);
 
     await ctx.db.patch(args.jobId, {
       status: "failed",

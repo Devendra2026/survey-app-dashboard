@@ -12,7 +12,6 @@ import { SurveyViewHero } from "@/components/surveys/survey-view-hero";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQcPendingQueue } from "@/hooks/qc/useQcPendingQueue";
 import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
-import { useSyncQcScopeFromSurvey } from "@/hooks/qc/useSyncQcScopeFromSurvey";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
 import { isSurveyAwaitingQc, wasEditedAfterSubmit } from "@/lib/domain";
 import { findNextPendingSurvey } from "@/lib/qc/queue-nav";
@@ -23,11 +22,9 @@ import { Suspense, use, useMemo } from "react";
 
 function QcReviewBody({ id }: { id: string }) {
   const survey = useSurvey(id);
-  const { patchScope } = useQcWorkScope();
+  useQcWorkScope(survey);
   const workScope = useMemo(() => (survey ? scopeFromSurveyRow(survey) : {}), [survey]);
   const pendingQueue = useQcPendingQueue(workScope, !!survey);
-
-  useSyncQcScopeFromSurvey(survey, patchScope);
 
   const nextSurvey = useMemo(() => findNextPendingSurvey(pendingQueue, id), [pendingQueue, id]);
 

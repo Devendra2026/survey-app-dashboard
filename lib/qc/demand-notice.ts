@@ -81,7 +81,7 @@ export function buildSurveyAddress(survey: SurveyDetail): string {
 }
 
 /** e.g. "Sukhwasi w/o Ram Kishan" when father name is present. */
-export function formatOwnerDisplay(ownerName: string, fatherName?: string): string {
+function formatOwnerDisplay(ownerName: string, fatherName?: string): string {
   const name = ownerName.trim();
   const father = fatherName?.trim();
   if (!name || name === "—") return "—";
@@ -89,7 +89,7 @@ export function formatOwnerDisplay(ownerName: string, fatherName?: string): stri
   return `${name} w/o ${father}`;
 }
 
-export const DEMAND_NOTICE_SHORT_LEGAL = {
+const DEMAND_NOTICE_SHORT_LEGAL = {
   english:
     "Any objection to this assessment must be submitted in writing to the Executive Officer within 15 days from the date of this notice. Failure to do so will result in the demand being considered final and recoverable as arrears.",
   hindi:

@@ -1,4 +1,4 @@
-export const USER_AVATAR_PALETTE = [
+const USER_AVATAR_PALETTE = [
   "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300",
   "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300",
   "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",

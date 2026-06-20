@@ -41,7 +41,8 @@ export function matchesSurveySearch(row: SearchableWithSurveyor, term: string, m
     row.wardNo ? `w${row.wardNo}` : undefined,
   ];
 
-  const values = [
+  const values: string[] = [];
+  for (const v of [
     displayId,
     row.propertyId,
     row.respondentName,
@@ -51,9 +52,9 @@ export function matchesSurveySearch(row: SearchableWithSurveyor, term: string, m
     ...wardVariants,
     ...(row.owners?.map((o) => o.name) ?? []),
     row.surveyorName,
-  ]
-    .filter(Boolean)
-    .map((v) => String(v).toLowerCase());
+  ]) {
+    if (v) values.push(String(v).toLowerCase());
+  }
 
   return values.some((v) => v.includes(q));
 }
