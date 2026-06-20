@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const appRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const withBundleAnalyzer =
   process.env.ANALYZE === "true"
@@ -7,7 +11,9 @@ const withBundleAnalyzer =
     : (config: NextConfig) => config;
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  turbopack: {
+    root: appRoot,
+  },
 };
 
 export default withBundleAnalyzer(nextConfig);

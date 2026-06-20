@@ -45,7 +45,7 @@ export const dailyTrend = query({
     days: v.optional(v.number()),
     districtId: v.optional(v.id("districts")),
     municipalityId: v.optional(v.id("municipalities")),
-    nowMs: v.number(),
+    nowMs: v.optional(v.number()),
   },
   returns: v.array(
     v.object({
@@ -64,6 +64,10 @@ export const dailyTrend = query({
     let rows = await loadScopedSurveys(ctx, me);
     if (args.districtId) rows = rows.filter((r) => r.districtId === args.districtId);
     if (args.municipalityId) rows = rows.filter((r) => r.municipalityId === args.municipalityId);
+
+    if (args.nowMs === undefined) {
+      return [];
+    }
 
     const start = new Date(args.nowMs);
     start.setHours(0, 0, 0, 0);

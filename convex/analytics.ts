@@ -49,10 +49,10 @@ export type SurveyCounts = {
   rejected: number;
 };
 
-function countRows(rows: Doc<"surveys">[], todayStartMs: number): SurveyCounts {
+function countRows(rows: Doc<"surveys">[], todayStartMs: number | null): SurveyCounts {
   return {
     total: rows.length,
-    today: rows.filter((r) => r._creationTime >= todayStartMs).length,
+    today: todayStartMs !== null ? rows.filter((r) => r._creationTime >= todayStartMs).length : 0,
     drafts: rows.filter((r) => r.status === "draft").length,
     submitted: rows.filter((r) => r.status === "submitted").length,
     approved: rows.filter((r) => r.qcStatus === "approved").length,
@@ -131,7 +131,7 @@ export const surveyStatsBreakdown = query({
     districtId: v.optional(v.id("districts")),
     municipalityId: v.optional(v.id("municipalities")),
     surveyorId: v.optional(v.id("users")),
-    nowMs: v.number(),
+    nowMs: v.optional(v.number()),
   },
   returns: v.object({
     summary: v.object(surveyCountsShape),
@@ -212,11 +212,14 @@ export const surveyStatsBreakdown = query({
       rows = rows.filter((r) => r.surveyorId === args.surveyorId);
     }
 
-    const todayStartMs = (() => {
-      const d = new Date(args.nowMs);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
-    })();
+    const todayStartMs =
+      args.nowMs !== undefined
+        ? (() => {
+            const d = new Date(args.nowMs);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+          })()
+        : null;
 
     const districtMap = new Map(scope.districts.map((d) => [d._id, d]));
     const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));

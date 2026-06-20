@@ -338,7 +338,7 @@ const dashboardCountsShape = {
  * can see — surveyor sees own, supervisor sees ULB, admin sees all.
  */
 export const dashboardCounts = query({
-  args: { nowMs: v.number() },
+  args: { nowMs: v.optional(v.number()) },
   returns: v.object(dashboardCountsShape),
   handler: async (ctx, args) => {
     const me = await requireUser(ctx, { allowPending: true });
@@ -348,22 +348,28 @@ export const dashboardCounts = query({
 
     const rows = await collectSurveysInFieldScope(ctx, me);
 
-    const todayMs = (() => {
-      const d = new Date(args.nowMs);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
-    })();
+    const todayMs =
+      args.nowMs !== undefined
+        ? (() => {
+            const d = new Date(args.nowMs);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+          })()
+        : null;
 
     return {
       total: rows.length,
-      today: rows.filter((r) => r._creationTime >= todayMs).length,
+      today: todayMs !== null ? rows.filter((r) => r._creationTime >= todayMs).length : 0,
       drafts: rows.filter((r) => r.status === "draft").length,
       pending: rows.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length,
-      submittedToday: rows.filter(
-        (r) =>
-          r.status === "submitted" &&
-          (r.submittedAt !== undefined ? r.submittedAt >= todayMs : r._creationTime >= todayMs),
-      ).length,
+      submittedToday:
+        todayMs !== null
+          ? rows.filter(
+              (r) =>
+                r.status === "submitted" &&
+                (r.submittedAt !== undefined ? r.submittedAt >= todayMs : r._creationTime >= todayMs),
+            ).length
+          : 0,
       approved: rows.filter((r) => r.qcStatus === "approved").length,
       submitted: rows.filter((r) => r.status === "submitted").length,
       rejected: rows.filter((r) => r.qcStatus === "rejected").length,
