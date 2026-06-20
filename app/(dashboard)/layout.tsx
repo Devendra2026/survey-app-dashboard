@@ -8,15 +8,42 @@ import { Topbar } from "@/components/layout/Topbar";
 import { useCurrentUser } from "@/lib/session";
 import { useAuth } from "@clerk/nextjs";
 import { Authenticated, AuthLoading, AuthRefreshing } from "convex/react";
-import { Clock, Loader2, ShieldX } from "lucide-react";
+import { Clock, Loader2, RefreshCw, ShieldX } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 function AccountGate({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, isPending, isDisabled } = useCurrentUser();
+  const { user, isLoading, isPending, isDisabled, isProvisioning, provisionFailed, retryProvision } =
+    useCurrentUser();
 
-  if (isLoading || !user) {
+  if (isLoading) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    if (provisionFailed) {
+      return (
+        <StatusScreen
+          icon={RefreshCw}
+          tone="text-warning"
+          title="Account setup delayed"
+          body="We couldn't finish setting up your account. This usually resolves when the Clerk webhook completes. Try again or contact your administrator."
+          action={
+            <Button type="button" variant="default" className="mt-4" onClick={retryProvision}>
+              Retry setup
+            </Button>
+          }
+        />
+      );
+    }
+
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="sr-only">{isProvisioning ? "Setting up account" : "Loading account"}</span>
       </div>
     );
   }
@@ -67,11 +94,13 @@ function StatusScreen({
   tone,
   title,
   body,
+  action,
 }: {
   icon: React.ElementType;
   tone: string;
   title: string;
   body: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-4">
@@ -79,6 +108,7 @@ function StatusScreen({
         <Icon className={`mx-auto mb-4 h-10 w-10 ${tone}`} />
         <h1 className="font-display text-xl font-semibold">{title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{body}</p>
+        {action}
       </div>
     </div>
   );

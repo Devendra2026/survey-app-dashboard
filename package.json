@@ -10,6 +10,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "lint:convex": "eslint convex --config eslint.convex.config.mjs",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint:convex",
     "test": "vitest run",
     "deploy:backend": "node ./scripts/sync-clerk-issuer.mjs && convex deploy --yes",
     "deploy:backend:dev": "node ./scripts/sync-clerk-issuer.mjs && convex dev --once",
@@ -55,6 +58,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@convex-dev/eslint-plugin": "^2.0.0",
     "@next/bundle-analyzer": "16.2.9",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/node": "^26.0.0",
@@ -68,6 +72,7 @@
     "shadcn": "^4.11.0",
     "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1",
     "vitest": "^4.1.9"
   },
   "ignoreScripts": [

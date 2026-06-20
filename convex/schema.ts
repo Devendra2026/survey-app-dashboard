@@ -248,7 +248,8 @@ export default defineSchema({
     uploadedBy: v.id("users"),
   })
     .index("by_survey", ["surveyId"])
-    .index("by_survey_slot", ["surveyId", "slot"]),
+    .index("by_survey_slot", ["surveyId", "slot"])
+    .index("by_storageId", ["storageId"]),
 
   /**
    * qcRemarks — chat-style thread between supervisor and surveyor.

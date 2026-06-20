@@ -56,9 +56,10 @@ export function QcDataTable({
   }
 
   return (
-    <div className={QC_TABLE.wrapper}>
-      <div className={QC_TABLE.scroll}>
-        <Table className={QC_TABLE.table}>
+    <>
+      <div className={cn(QC_TABLE.wrapper, "hidden lg:block")}>
+        <div className={QC_TABLE.scroll}>
+          <Table className={QC_TABLE.table}>
           <TableHeader className="sticky top-0 z-10">
             <TableRow className={QC_TABLE.headerRow}>
               <TableHead className={QC_TABLE.headerCell}>S. No</TableHead>
@@ -136,5 +137,36 @@ export function QcDataTable({
         </Table>
       </div>
     </div>
+
+      <div className="grid gap-3 lg:hidden">
+        {rows.map((row, index) => (
+          <article
+            key={row._id}
+            className={cn("rounded-xl border border-border/70 bg-card p-4 shadow-sm", surveyRowTone(row))}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-mono text-sm font-semibold">{resolveDisplayPropertyId(row, ulbCodes) || "—"}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{resolveOwnerDisplayName(row)}</p>
+              </div>
+              <QcStatusBadge status={row.qcStatus} />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+              <p>Ward: {formatRegistryWardNo(row.wardNo)}</p>
+              <p>Mobile: {row.mobileNo || "—"}</p>
+              {showSurveyor && <p className="col-span-2">Surveyor: {row.surveyorName || "—"}</p>}
+              <p className="col-span-2">Date: {fmtDay(row.submittedAt ?? row._creationTime)}</p>
+            </div>
+            <Button
+              asChild
+              size="sm"
+              className="mt-3 min-h-11 w-full rounded-xl bg-warning text-amber-950 hover:bg-warning/90"
+            >
+              <Link href={`${hrefBase}/${row._id}`}>Review · #{pageStart + index + 1}</Link>
+            </Button>
+          </article>
+        ))}
+      </div>
+    </>
   );
 }

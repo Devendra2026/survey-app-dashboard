@@ -338,9 +338,9 @@ const dashboardCountsShape = {
  * can see — surveyor sees own, supervisor sees ULB, admin sees all.
  */
 export const dashboardCounts = query({
-  args: {},
+  args: { nowMs: v.number() },
   returns: v.object(dashboardCountsShape),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const me = await requireUser(ctx, { allowPending: true });
     if (me.status !== "active") {
       return { total: 0, today: 0, drafts: 0, pending: 0, submittedToday: 0, approved: 0, submitted: 0, rejected: 0 };
@@ -348,9 +348,11 @@ export const dashboardCounts = query({
 
     const rows = await collectSurveysInFieldScope(ctx, me);
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayMs = today.getTime();
+    const todayMs = (() => {
+      const d = new Date(args.nowMs);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    })();
 
     return {
       total: rows.length,

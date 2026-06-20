@@ -1,6 +1,7 @@
 "use client";
 
 import { PermissionDeniedDialog, PermissionDeniedInline } from "@/components/shared/permission-boundary";
+import { Skeleton } from "@/components/ui/skeleton";
 import { canAnyWithCapabilities, canWithCapabilities, type Capability } from "@/lib/permissions";
 import { useCurrentUser } from "@/lib/session";
 
@@ -40,7 +41,14 @@ export function RoleGate({
       ? canAnyWithCapabilities(capabilities, role, anyOf)
       : false;
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label="Loading permissions">
+        <Skeleton className="h-9 w-48 rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-2xl" />
+      </div>
+    );
+  }
   if (allowed) return <>{children}</>;
 
   if (fallback !== undefined) return <>{fallback}</>;

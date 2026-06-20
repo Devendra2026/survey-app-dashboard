@@ -29,11 +29,11 @@ export interface SurveyListFilters {
 }
 
 /** api.survey.list — server enforces tenant scope + role visibility. */
-export function useSurveyList(filters: SurveyListFilters = {}) {
+export function useSurveyList(filters: SurveyListFilters = {}, enabled = true) {
   const ready = useConvexAuthReady();
   return useConvexQuery(
     api.survey.list,
-    ready
+    ready && enabled
       ? {
           status: filters.status,
           qcStatus: filters.qcStatus,

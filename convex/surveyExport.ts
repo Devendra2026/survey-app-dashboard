@@ -6,9 +6,9 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { normalizeAddressFields } from "./addressRules";
 import { normalizeFloorFields, presentFloorRow, usageTypeToOccupied, validateFloorRow } from "./areaMasters";
-import { hasCapability } from "./capabilities";
+import { hasCapability, requireCapability } from "./capabilities";
 import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
-import { assertCanReadWard, clientError, mapTruthyById, requireRole, requireUser, writeAudit } from "./helpers";
+import { assertCanReadWard, clientError, mapTruthyById, requireUser, writeAudit } from "./helpers";
 import { lookupSurveyByPropertyId } from "./lib/propertyIdLookup";
 import { comparePropertyIds, resolvePropertyId } from "./propertyId";
 import { gpsCapture, photoSlot, qcStatus, sanitationType, surveyOwnerEntry, surveyStatus, waterSource } from "./schema";
@@ -346,7 +346,7 @@ export const importExcelBundle = mutation({
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    requireRole(me, "supervisor", "admin");
+    await requireCapability(ctx, me, "reports.export");
 
     let created = 0;
     let updated = 0;

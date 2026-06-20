@@ -40,12 +40,6 @@ const userFilterOption = v.object({
   email: v.string(),
 });
 
-function startOfTodayMs(): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return today.getTime();
-}
-
 export type SurveyCounts = {
   total: number;
   today: number;
@@ -55,11 +49,10 @@ export type SurveyCounts = {
   rejected: number;
 };
 
-function countRows(rows: Doc<"surveys">[]): SurveyCounts {
-  const todayMs = startOfTodayMs();
+function countRows(rows: Doc<"surveys">[], todayStartMs: number): SurveyCounts {
   return {
     total: rows.length,
-    today: rows.filter((r) => r._creationTime >= todayMs).length,
+    today: rows.filter((r) => r._creationTime >= todayStartMs).length,
     drafts: rows.filter((r) => r.status === "draft").length,
     submitted: rows.filter((r) => r.status === "submitted").length,
     approved: rows.filter((r) => r.qcStatus === "approved").length,
@@ -138,6 +131,7 @@ export const surveyStatsBreakdown = query({
     districtId: v.optional(v.id("districts")),
     municipalityId: v.optional(v.id("municipalities")),
     surveyorId: v.optional(v.id("users")),
+    nowMs: v.number(),
   },
   returns: v.object({
     summary: v.object(surveyCountsShape),
@@ -218,6 +212,12 @@ export const surveyStatsBreakdown = query({
       rows = rows.filter((r) => r.surveyorId === args.surveyorId);
     }
 
+    const todayStartMs = (() => {
+      const d = new Date(args.nowMs);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    })();
+
     const districtMap = new Map(scope.districts.map((d) => [d._id, d]));
     const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
 
@@ -229,7 +229,7 @@ export const surveyStatsBreakdown = query({
           districtId: districtId as Id<"districts">,
           code: d?.code ?? "—",
           name: d?.name ?? "Unknown district",
-          ...countRows(group),
+          ...countRows(group, todayStartMs),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -245,7 +245,7 @@ export const surveyStatsBreakdown = query({
           name: m?.name ?? "Unknown ULB",
           districtId: m?.districtId ?? group[0]!.districtId,
           districtName: d?.name ?? "—",
-          ...countRows(group),
+          ...countRows(group, todayStartMs),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -276,7 +276,7 @@ export const surveyStatsBreakdown = query({
           municipalityName: muni?.name ?? null,
           districtName: dist?.name ?? null,
           status: "active" as const,
-          ...countRows(group),
+          ...countRows(group, todayStartMs),
         };
       })
       .sort((a, b) => b.approved + b.submitted - (a.approved + a.submitted));
@@ -320,7 +320,7 @@ export const surveyStatsBreakdown = query({
     );
 
     return {
-      summary: countRows(rows),
+      summary: countRows(rows, todayStartMs),
       byDistrict,
       byUlb,
       bySurveyor,

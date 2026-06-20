@@ -8,7 +8,6 @@ import {
   QcReportSidebar,
   ShieldCheck,
 } from "@/components/qc/qc-final-report-sections";
-import { generateQcFinalReportPdf } from "@/components/reports/queries/pdf";
 import { Button } from "@/components/ui/button";
 import { useMasters } from "@/hooks/masters/useMasters";
 import { getQcReportDemand } from "@/lib/qc/qc-report-demand";
@@ -118,7 +117,10 @@ export function QcFinalReportView({ survey, surveyId, backHref = `/qc/${surveyId
               <Button
                 size="sm"
                 className="btn-brand cursor-pointer rounded-xl"
-                onClick={() => generateQcFinalReportPdf(survey, pdfOptions)}
+                onClick={async () => {
+                  const { generateQcFinalReportPdf } = await import("@/components/reports/queries/pdf");
+                  generateQcFinalReportPdf(survey, pdfOptions);
+                }}
               >
                 <Download className="h-4 w-4" aria-hidden /> Download PDF
               </Button>

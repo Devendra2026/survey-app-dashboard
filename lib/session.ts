@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import type { Role } from "@/lib/permissions";
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type CurrentUser = {
   _id: string;
@@ -26,17 +26,34 @@ export function useCurrentUser() {
   const user = useQuery(api.users.currentUser, ready ? {} : "skip") as CurrentUser | null | undefined;
   const provision = useMutation(api.users.provisionCurrentUser);
   const provisioned = useRef(false);
+  const [provisionFailed, setProvisionFailed] = useState(false);
+  const [isProvisioning, setIsProvisioning] = useState(false);
+
+  const runProvision = useCallback(async () => {
+    setIsProvisioning(true);
+    setProvisionFailed(false);
+    try {
+      await provision({});
+    } catch {
+      setProvisionFailed(true);
+      provisioned.current = false;
+    } finally {
+      setIsProvisioning(false);
+    }
+  }, [provision]);
 
   useEffect(() => {
     // `undefined` = still loading; `null` = authenticated but no domain row yet.
-    if (user === null && !provisioned.current) {
+    if (user === null && !provisioned.current && !isProvisioning) {
       provisioned.current = true;
-      provision({}).catch(() => {
-        // Webhook will eventually create the row; the reactive query recovers.
-        provisioned.current = false;
-      });
+      void runProvision();
     }
-  }, [user, provision]);
+  }, [user, isProvisioning, runProvision]);
+
+  const retryProvision = useCallback(() => {
+    provisioned.current = true;
+    void runProvision();
+  }, [runProvision]);
 
   return {
     user: user ?? null,
@@ -44,6 +61,9 @@ export function useCurrentUser() {
     capabilities: user?.capabilities,
     roleName: user?.roleName,
     isLoading: user === undefined,
+    isProvisioning: user === null && (isProvisioning || !provisionFailed),
+    provisionFailed: user === null && provisionFailed,
+    retryProvision,
     isActive: user?.status === "active",
     isPending: user?.status === "pending_approval",
     isDisabled: user?.status === "disabled",

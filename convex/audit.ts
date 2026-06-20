@@ -157,13 +157,12 @@ export const listPaginated = query({
 
 /** Lightweight KPI stats — scans a recent window instead of hydrating the full feed. */
 export const summary = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { nowMs: v.number() },
+  handler: async (ctx, args) => {
     const me = await requireUser(ctx);
     requireRole(me, "admin");
 
     const recent = await ctx.db.query("auditLogs").order("desc").take(1000);
-    const now = Date.now();
     const dayMs = 86_400_000;
 
     return {
@@ -171,7 +170,7 @@ export const summary = query({
       capped: recent.length === 1000,
       actions: new Set(recent.map((r) => r.action)).size,
       entities: new Set(recent.map((r) => r.entity)).size,
-      today: recent.filter((r) => now - r._creationTime < dayMs).length,
+      today: recent.filter((r) => args.nowMs - r._creationTime < dayMs).length,
     };
   },
 });

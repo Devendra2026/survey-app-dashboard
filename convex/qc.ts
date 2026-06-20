@@ -11,7 +11,7 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireCapability } from "./capabilities";
-import { fieldSurveyAccess } from "./fieldAccess";
+import { assertCanAccessSurvey, fieldSurveyAccess } from "./fieldAccess";
 import { assertCanReadWard, clientError, mapTruthyById, requireUser, writeAudit } from "./helpers";
 import { computeQcWardAggregates } from "./lib/qcWardStats";
 import { normalizeParcelKey, resolvePropertyId } from "./propertyId";
@@ -51,6 +51,7 @@ export const commandCenterStats = query({
     wardNo: v.optional(v.string()),
     fromMs: v.optional(v.number()),
     toMs: v.optional(v.number()),
+    nowMs: v.number(),
   },
   returns: v.object(commandCenterStatsShape),
   handler: async (ctx, args) => {
@@ -91,9 +92,11 @@ export const commandCenterStats = query({
 
     const filtered = rows.filter((r) => inDateRange(r.submittedAt, r._creationTime));
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayMs = today.getTime();
+    const todayMs = (() => {
+      const d = new Date(args.nowMs);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    })();
 
     const pending = filtered.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length;
     const approved = filtered.filter((r) => r.qcStatus === "approved").length;
@@ -248,7 +251,7 @@ export const listRemarks = query({
   handler: async (ctx, args) => {
     const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) return [];
-    assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+    await assertCanAccessSurvey(ctx, me, survey);
 
     const rows = await ctx.db
       .query("qcRemarks")

@@ -3,6 +3,7 @@
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useHasCapability } from "@/hooks/use-capability";
+import { useClientNowMs } from "@/hooks/use-client-now";
 import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { useQuery as useConvexQuery } from "convex/react";
 import { useMemo } from "react";
@@ -95,5 +96,6 @@ export function useAuditFacets() {
 
 export function useAuditSummary() {
   const allowed = useHasCapability("audit.view");
-  return useConvexQuery(api.audit.summary, allowed ? {} : "skip");
+  const nowMs = useClientNowMs();
+  return useConvexQuery(api.audit.summary, allowed ? { nowMs } : "skip");
 }

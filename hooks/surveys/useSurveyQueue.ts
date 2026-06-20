@@ -18,6 +18,7 @@ import {
   type SurveyWardRow,
   type SurveyWardSourceRow,
 } from "@/lib/surveys/ward-stats";
+import { useClientNowMs } from "@/hooks/use-client-now";
 import { useQuery as useConvexQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -56,6 +57,7 @@ export function useSurveyQueue(options: UseSurveyQueueOptions = {}) {
   const { scope, setScope, patchScope, scopeReady } = useSurveyWorkScope();
   const { masters } = useMasters();
   const authReady = useConvexAuthReady();
+  const nowMs = useClientNowMs();
 
   const queryScope = useMemo(() => {
     if (!masters) return {} as SurveyWorkScope;
@@ -136,11 +138,16 @@ export function useSurveyQueue(options: UseSurveyQueueOptions = {}) {
           qcStatus: scopeFilters.qcStatus,
           fromMs: fromDateMs,
           toMs: toDateMs,
+          nowMs,
         }
       : "skip",
   );
 
-  const aggregateSurveys = useSurveyList(scopeReady ? { ...scopeFilters, limit: SURVEY_AGGREGATE_LIMIT } : {});
+  const needsAggregateFallback = mode === "command" && serverStats === undefined;
+  const aggregateSurveys = useSurveyList(
+    scopeReady && needsAggregateFallback ? { ...scopeFilters, limit: SURVEY_AGGREGATE_LIMIT } : {},
+    scopeReady && needsAggregateFallback,
+  );
 
   const paginated = useSurveyListPaginated(
     {
@@ -158,8 +165,8 @@ export function useSurveyQueue(options: UseSurveyQueueOptions = {}) {
     mode === "registry"
       ? paginated.isLoading || (scopeReady && serverStats === undefined)
       : scopeReady
-        ? serverStats === undefined || aggregateSurveys === undefined
-        : aggregateSurveys === undefined;
+        ? serverStats === undefined && aggregateSurveys === undefined
+        : false;
 
   const filteredByTab = useMemo((): SurveyDataTableRow[] => {
     if (mode === "registry") return (paginated.surveys ?? []) as SurveyDataTableRow[];

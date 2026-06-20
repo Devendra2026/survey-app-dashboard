@@ -6,8 +6,7 @@ import { usePathname } from "next/navigation";
 /** Indigo-themed shell — visually distinct from the QC (amber) module. */
 export default function SurveyPortalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const inPortal =
-    pathname === "/surveys" || pathname.startsWith("/surveys/registry") || pathname.startsWith("/surveys/wards");
+  const inPortal = pathname === "/surveys" || pathname.startsWith("/surveys/");
 
   if (!inPortal) return <>{children}</>;
 

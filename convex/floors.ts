@@ -14,6 +14,7 @@ import {
   usageTypeToOccupied,
   validateFloorRow,
 } from "./areaMasters";
+import { assertCanAccessSurvey } from "./fieldAccess";
 import { assertCanReadWard, clientError, requireUser, writeAudit } from "./helpers";
 
 /** Matches max QC table page size (`QC_TABLE_PAGE_SIZE_OPTIONS`). */
@@ -39,7 +40,7 @@ export const list = query({
   handler: async (ctx, args) => {
     const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) return [];
-    assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+    await assertCanAccessSurvey(ctx, me, survey);
     const rows = await ctx.db
       .query("floors")
       .withIndex("by_survey", (q) => q.eq("surveyId", args.surveyId))
@@ -70,7 +71,11 @@ export const listForSurveys = query({
         if (!survey) {
           return { surveyId, floors: [] };
         }
-        assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+        try {
+          await assertCanAccessSurvey(ctx, me, survey);
+        } catch {
+          return { surveyId, floors: [] };
+        }
         const rows = await ctx.db
           .query("floors")
           .withIndex("by_survey", (q) => q.eq("surveyId", surveyId))

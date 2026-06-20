@@ -10,18 +10,24 @@
  * to avoid stale references.
  */
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { hasCapability } from "./capabilities";
-import { assertCanReadWard, clientError, requireUser, writeAudit } from "./helpers";
+import { assertCanAccessSurvey } from "./fieldAccess";
+import { clientError, requireUser, writeAudit } from "./helpers";
 import { photoSlot } from "./schema";
 import { assertSurveyWritable } from "./surveyEditRules";
 
 /** Returns a one-time upload URL. Valid for ~1 hour by Convex defaults. */
 export const generateUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const me = await requireUser(ctx);
-    if (me.role === "pending") clientError("FORBIDDEN", "Not allowed");
+  args: { surveyId: v.id("surveys") },
+  handler: async (ctx, args) => {
+    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
+    if (!survey) clientError("NOT_FOUND", "Survey not found");
+    await assertCanAccessSurvey(ctx, me, survey);
+    const canUpload =
+      (await hasCapability(ctx, me, "surveys.uploadPhotos")) || (await hasCapability(ctx, me, "qc.review"));
+    if (!canUpload) clientError("FORBIDDEN", "You don't have permission to upload photos");
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -49,7 +55,7 @@ export const linkPhoto = mutation({
       await ctx.storage.delete(args.storageId);
       clientError("NOT_FOUND", "Survey not found");
     }
-    assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+    await assertCanAccessSurvey(ctx, me, survey);
     try {
       await assertSurveyWritable(ctx, me, survey);
     } catch {
@@ -103,15 +109,51 @@ export const linkPhoto = mutation({
   },
 });
 
-/** Signed preview URLs for wizard/review (storage ids from the caller's uploads). */
+/** Signed preview URLs — only for blobs linked to accessible surveys (or unlinked draft blobs with survey context). */
 export const resolveStorageUrls = query({
-  args: { storageIds: v.array(v.id("_storage")) },
+  args: {
+    storageIds: v.array(v.id("_storage")),
+    surveyId: v.optional(v.id("surveys")),
+  },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
     if (me.role === "pending") return [];
 
+    let draftSurvey: Doc<"surveys"> | null = null;
+    if (args.surveyId) {
+      const survey = await ctx.db.get(args.surveyId);
+      if (!survey) return args.storageIds.map((storageId) => ({ storageId, url: null }));
+      await assertCanAccessSurvey(ctx, me, survey);
+      draftSurvey = survey;
+    }
+
     const unique = [...new Set(args.storageIds)];
-    return Promise.all(unique.map(async (storageId) => ({ storageId, url: await ctx.storage.getUrl(storageId) })));
+    return Promise.all(
+      unique.map(async (storageId) => {
+        const photo = await ctx.db
+          .query("photos")
+          .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
+          .first();
+
+        if (photo) {
+          const survey = await ctx.db.get(photo.surveyId);
+          if (!survey) return { storageId, url: null };
+          try {
+            await assertCanAccessSurvey(ctx, me, survey);
+          } catch {
+            return { storageId, url: null };
+          }
+          return { storageId, url: await ctx.storage.getUrl(storageId) };
+        }
+
+        if (!draftSurvey) return { storageId, url: null };
+        const canUpload =
+          (await hasCapability(ctx, me, "surveys.uploadPhotos")) ||
+          (await hasCapability(ctx, me, "qc.review"));
+        if (!canUpload) return { storageId, url: null };
+        return { storageId, url: await ctx.storage.getUrl(storageId) };
+      }),
+    );
   },
 });
 
@@ -127,7 +169,7 @@ export const releaseStorage = mutation({
 
     const rows = await ctx.db
       .query("photos")
-      .filter((q) => q.eq(q.field("storageId"), args.storageId))
+      .withIndex("by_storageId", (q) => q.eq("storageId", args.storageId))
       .collect();
 
     await Promise.all(
@@ -137,7 +179,7 @@ export const releaseStorage = mutation({
           await ctx.db.delete(row._id);
           return;
         }
-        assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+        await assertCanAccessSurvey(ctx, me, survey);
         if (survey.qcStatus === "approved" && me.role === "surveyor") {
           clientError("LOCKED", "Survey is locked");
         }
@@ -168,7 +210,7 @@ export const removeBySurveySlot = mutation({
   handler: async (ctx, args) => {
     const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) return;
-    assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+    await assertCanAccessSurvey(ctx, me, survey);
     if (survey.qcStatus === "approved" && me.role === "surveyor") {
       clientError("LOCKED", "Survey is locked");
     }
@@ -215,7 +257,7 @@ export const noticePhotoUrls = query({
           return [surveyId, { front: null, side: null }] as const;
         }
         try {
-          assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+          await assertCanAccessSurvey(ctx, me, survey);
         } catch {
           return [surveyId, { front: null, side: null }] as const;
         }
@@ -258,7 +300,7 @@ export const frontThumbnails = query({
           return [surveyId, null] as const;
         }
         try {
-          assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+          await assertCanAccessSurvey(ctx, me, survey);
         } catch {
           return [surveyId, null] as const;
         }
@@ -280,7 +322,7 @@ export const list = query({
   handler: async (ctx, args) => {
     const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.surveyId)]);
     if (!survey) return [];
-    assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+    await assertCanAccessSurvey(ctx, me, survey);
 
     const rows = await ctx.db
       .query("photos")
@@ -302,7 +344,7 @@ export const remove = mutation({
     if (!photo) return;
     const survey = await ctx.db.get(photo.surveyId);
     if (!survey) return;
-    assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+    await assertCanAccessSurvey(ctx, me, survey);
     if (survey.qcStatus === "approved" && me.role === "surveyor") {
       clientError("LOCKED", "Survey is locked");
     }

@@ -2,17 +2,52 @@
  * Field-role access: surveyor (own), supervisor/QC (assigned), admin (all).
  * Centralises multi-city allotment + ward rules used by survey list, analytics, exports.
  */
+import { ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
-import type { QueryCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { hasCapability } from "./capabilities";
-import { canReadWard } from "./helpers";
-import { resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
+import { assertCanReadWard, canReadWard } from "./helpers";
+import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
 
 export type FieldSurveyAccess = "own" | "assigned" | "admin" | "none";
 
 /** True when the user creates/edits only their own field surveys (mobile surveyor scope). */
 export async function isOwnScopeSurveyor(ctx: QueryCtx, user: Doc<"users">): Promise<boolean> {
   return (await fieldSurveyAccess(ctx, user)) === "own";
+}
+
+type SurveyAccessCtx = QueryCtx | MutationCtx;
+
+/** Enforce municipality scope + field-role access on a single survey read. */
+export async function assertCanAccessSurvey(
+  ctx: SurveyAccessCtx,
+  me: Doc<"users">,
+  survey: Doc<"surveys">,
+): Promise<void> {
+  await assertMunicipalityInScope(ctx, me, survey.municipalityId);
+
+  const access = await fieldSurveyAccess(ctx, me);
+  if (access === "none") {
+    throw new ConvexError({
+      code: "FORBIDDEN",
+      message: "You don't have permission to view this survey.",
+    });
+  }
+
+  if (access === "own") {
+    if (survey.surveyorId !== me._id) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "You can only view your own surveys.",
+      });
+    }
+    if (survey.wardNo?.trim()) {
+      assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+    }
+    return;
+  }
+
+  assertCanReadWard(me, survey.municipalityId, survey.wardNo);
 }
 
 export async function fieldSurveyAccess(ctx: QueryCtx, user: Doc<"users">): Promise<FieldSurveyAccess> {
@@ -201,6 +236,30 @@ export async function collectSurveysInFieldScope(ctx: QueryCtx, me: Doc<"users">
   }
 
   if (access === "admin") {
+    const scopedMunis =
+      scope.municipalities.length > 0
+        ? scope.municipalities.map((m) => m._id)
+        : [...muniIds];
+    if (scopedMunis.length > 0) {
+      const batches = await Promise.all(
+        scopedMunis.map((municipalityId) =>
+          ctx.db
+            .query("surveys")
+            .withIndex("by_municipality_status", (q) => q.eq("municipalityId", municipalityId))
+            .collect(),
+        ),
+      );
+      const seen = new Set<string>();
+      const rows: Doc<"surveys">[] = [];
+      for (const batch of batches) {
+        for (const row of batch) {
+          if (seen.has(row._id)) continue;
+          seen.add(row._id);
+          rows.push(row);
+        }
+      }
+      return await filterSurveysInScope(ctx, rows, me, muniIds);
+    }
     const rows = await ctx.db.query("surveys").collect();
     return await filterSurveysInScope(ctx, rows, me, muniIds);
   }

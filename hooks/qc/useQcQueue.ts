@@ -8,6 +8,7 @@ import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters"
 import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
 import { searchQcRegistry, useSurveyList, useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
+import { useClientNowMs } from "@/hooks/use-client-now";
 import { activeParcelSiblingPool, buildParcelSiblingIndex, filterParcelSharedRows } from "@/lib/qc/parcel-siblings";
 import { computeQcWardStats, enrichServerWardStats, type QcWardRow } from "@/lib/qc/ward-stats";
 import { sanitizeQcWorkScope, type QcWorkScope } from "@/lib/qc/work-scope";
@@ -50,6 +51,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
   const { scope, setScope, patchScope, scopeReady } = useQcWorkScope();
   const { masters } = useMasters();
   const authReady = useConvexAuthReady();
+  const nowMs = useClientNowMs();
 
   const queryScope = useMemo(() => {
     if (!masters) return {} as QcWorkScope;
@@ -129,6 +131,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
           municipalityId: scopeFilters.municipalityId as Id<"municipalities"> | undefined,
           fromMs: fromDateMs,
           toMs: toDateMs,
+          nowMs,
         }
       : "skip",
   );

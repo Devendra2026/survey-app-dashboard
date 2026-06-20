@@ -14,6 +14,7 @@ import {
 } from "./areaMasters";
 import { hasCapability, requireCapability } from "./capabilities";
 import {
+  assertCanAccessSurvey,
   collectSurveysInFieldScope,
   fieldSurveyAccess,
   isOwnScopeSurveyor,
@@ -432,6 +433,7 @@ export const listPaginated = query({
     continueCursor: v.union(v.string(), v.null()),
     isDone: v.boolean(),
     totalCount: v.number(),
+    scopeTruncated: v.boolean(),
   }),
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
@@ -458,7 +460,8 @@ export const listPaginated = query({
       filtered = filterSurveysBySearch(withNames, args.searchTerm, searchCodes);
     }
 
-    if (filtered.length > LIST_PAGINATED_SCOPE_LIMIT) {
+    const scopeTruncated = filtered.length > LIST_PAGINATED_SCOPE_LIMIT;
+    if (scopeTruncated) {
       filtered = filtered.slice(0, LIST_PAGINATED_SCOPE_LIMIT);
     }
 
@@ -480,6 +483,7 @@ export const listPaginated = query({
       continueCursor: nextOffset < filtered.length ? String(nextOffset) : null,
       isDone: nextOffset >= filtered.length,
       totalCount,
+      scopeTruncated,
     };
   },
 });
@@ -518,6 +522,7 @@ export const commandCenterStats = query({
     qcStatus: v.optional(qcStatus),
     fromMs: v.optional(v.number()),
     toMs: v.optional(v.number()),
+    nowMs: v.number(),
   },
   returns: v.object(surveyCommandCenterStatsShape),
   handler: async (ctx, args) => {
@@ -558,9 +563,11 @@ export const commandCenterStats = query({
 
     const filtered = rows.filter((r) => inDateRange(r.submittedAt, r._creationTime));
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayMs = today.getTime();
+    const todayMs = (() => {
+      const d = new Date(args.nowMs);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    })();
 
     const completionSum = filtered.reduce((sum, r) => sum + (r.completionPct ?? 0), 0);
     const surveyCompletionPct = filtered.length > 0 ? Math.round(completionSum / filtered.length) : 0;
@@ -612,8 +619,7 @@ export const get = query({
   handler: async (ctx, args) => {
     const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
     if (!survey) return null;
-    await assertMunicipalityInScope(ctx, me, survey.municipalityId);
-    assertCanReadWard(me, survey.municipalityId, survey.wardNo);
+    await assertCanAccessSurvey(ctx, me, survey);
 
     const [floors, photos, qcRemarks, surveyor, muni] = await Promise.all([
       ctx.db
