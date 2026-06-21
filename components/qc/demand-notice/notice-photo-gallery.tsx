@@ -45,7 +45,7 @@ function GisMapPanel({ survey }: { survey: SurveyDetail }) {
               mode="embed-and-static"
               variant="dark"
               coordinateDigits={4}
-              className="absolute inset-0 h-full min-h-[160px]"
+              className="absolute inset-0 h-full min-h-40"
               iframeClassName="opacity-95"
               showKeyBanner={false}
               overlayClassName="print:hidden"

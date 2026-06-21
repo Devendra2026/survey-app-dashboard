@@ -95,7 +95,7 @@ export function GoogleMapFrame({
           )}
         />
       ) : showStatic && !staticMapUrl ? (
-        <div className="flex h-full min-h-[120px] flex-col items-center justify-center gap-2 text-muted-foreground">
+        <div className="flex h-full min-h-30 flex-col items-center justify-center gap-2 text-muted-foreground">
           <MapPin className="h-5 w-5 opacity-50" aria-hidden />
           <p className="text-xs font-medium">Map preview unavailable — configure Maps Static API key</p>
         </div>
