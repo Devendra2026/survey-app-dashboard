@@ -1,5 +1,6 @@
 "use client";
 
+import { waitForNoticeImages } from "@/lib/reports/generate-demand-notice-bulk-pdf";
 import { useCallback, useEffect } from "react";
 
 const MIN_SCALE = 0.5;
@@ -99,6 +100,11 @@ async function preparePrint(): Promise<void> {
   await waitForLayout();
   fitScaleIfNeeded();
   await waitForLayout();
+
+  const printRoot = document.querySelector<HTMLElement>(PRINT_ROOT_SELECTOR);
+  if (printRoot) {
+    await waitForNoticeImages(printRoot);
+  }
 }
 
 function cleanupPrint() {

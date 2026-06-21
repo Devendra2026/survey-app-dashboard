@@ -327,14 +327,22 @@
     overflow: hidden !important;
   }
 
+  .demand-notice-gis-frame iframe {
+    display: none !important;
+  }
+
+  .demand-notice-gis-frame img[data-gis-static-map] {
+    display: block !important;
+  }
+
   .demand-notice-photo-frame img,
-  .demand-notice-gis-frame img {
+  .demand-notice-gis-frame img[data-gis-static-map] {
     object-fit: cover !important;
     width: 100% !important;
     height: 100% !important;
   }
 
-  .demand-notice-gis-frame img {
+  .demand-notice-gis-frame img[data-gis-static-map] {
     object-fit: contain !important;
     object-position: center center !important;
     background: #e2e8f0 !important;

@@ -1,61 +1,45 @@
 "use client";
 
+import { GisDebugPanel } from "@/components/dev/gis-debug-panel";
+import { GoogleMapEmbed } from "@/components/shared/google-map-embed";
 import { Badge } from "@/components/ui/badge";
 import { useSetGps } from "@/hooks/surveys/useSurveys";
 import { GPS_ACCEPT_MAX_ACCURACY_METERS } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
+import { assertClientGpsAccuracy, captureBrowserGps } from "@/lib/surveys/gps-browser-capture";
 import { gpsCoordinateInputsKey } from "@/lib/surveys/gps-coordinates";
+import { formatGpsDecimal } from "@/lib/surveys/gps-format";
 import { fmtDate } from "@/lib/utils";
 import type { GpsCapture } from "@/schema/surveys/index";
-import { Crosshair, ExternalLink, MapPin } from "lucide-react";
+import { Crosshair } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { GpsCoordinateInputs } from "./gps-coordinate-inputs";
 
-function GisPreview({ gps }: { gps: GpsCapture }) {
-  const lat = gps.latitude;
-  const lng = gps.longitude;
+function GisPreview({ gps, surveyId }: { gps: GpsCapture; surveyId: string }) {
   const accuracyOk = gps.accuracyMeters <= GPS_ACCEPT_MAX_ACCURACY_METERS;
 
   return (
-    <div className="premium-card flex flex-col overflow-hidden rounded-xl border border-border/60 shadow-premium-sm">
-      <a
-        href={`https://www.google.com/maps?q=${lat},${lng}`}
-        target="_blank"
-        rel="noreferrer"
-        className="relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center gap-2 bg-muted/50 transition-colors duration-200 hover:bg-muted"
-      >
-        <MapPin className="h-10 w-10 text-primary/70" aria-hidden />
-        <span className="text-sm font-semibold text-primary">Open location in Google Maps</span>
-        <span className="font-mono text-xs tabular-nums text-muted-foreground">
-          {lat.toFixed(6)}, {lng.toFixed(6)}
+    <div className="space-y-3">
+      <GoogleMapEmbed
+        latitude={gps.latitude}
+        longitude={gps.longitude}
+        accuracyMeters={gps.accuracyMeters}
+        title="Geo-Tagged Location"
+        variant="compact"
+      />
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/80 px-3 py-2 text-xs">
+        <Badge variant={accuracyOk ? "default" : "destructive"} className="font-mono text-[10px] uppercase">
+          ±{gps.accuracyMeters.toFixed(1)} m
+        </Badge>
+        <span className="font-mono tabular-nums text-muted-foreground">
+          {formatGpsDecimal(gps.latitude, gps.longitude)}
         </span>
-        <div className="absolute left-3 top-3">
-          <Badge variant={accuracyOk ? "default" : "destructive"} className="font-mono text-[10px] uppercase shadow-sm">
-            ±{gps.accuracyMeters.toFixed(1)} m
-          </Badge>
-        </div>
-      </a>
-      <div className="grid grid-cols-3 divide-x divide-border/50 border-t border-border/50 bg-card">
-        <div className="px-3 py-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Latitude</p>
-          <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">{lat.toFixed(6)}</p>
-        </div>
-        <div className="px-3 py-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Longitude</p>
-          <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">{lng.toFixed(6)}</p>
-        </div>
-        <div className="flex items-center px-3 py-2.5">
-          <a
-            href={`https://www.google.com/maps?q=${lat},${lng}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-primary transition-colors duration-200 hover:underline"
-          >
-            <ExternalLink className="h-3 w-3" aria-hidden /> Maps
-          </a>
-        </div>
+        {gps.provider === "manual" ? (
+          <span className="text-muted-foreground">Manual entry — accuracy not measured</span>
+        ) : null}
       </div>
+      <GisDebugPanel surveyId={surveyId} gps={gps} />
     </div>
   );
 }
@@ -66,38 +50,20 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
   const [saving, setSaving] = useState(false);
 
   async function capture() {
-    if (!("geolocation" in navigator)) {
-      toast.error("Geolocation not available in this browser");
-      return;
-    }
     setCapturing(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          await setGps({
-            id: surveyId as any,
-            gps: {
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude,
-              accuracyMeters: Math.round(pos.coords.accuracy),
-              capturedAt: Date.now(),
-              provider: "browser",
-              isMockLocation: false,
-            },
-          });
-          toast.success("GPS captured");
-        } catch (e) {
-          toast.error(parseConvexError(e).message);
-        } finally {
-          setCapturing(false);
-        }
-      },
-      (err) => {
-        toast.error(err.message);
-        setCapturing(false);
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-    );
+    try {
+      const fix = await captureBrowserGps();
+      assertClientGpsAccuracy(fix.accuracyMeters);
+      await setGps({
+        id: surveyId as any,
+        gps: fix,
+      });
+      toast.success("GPS captured");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : parseConvexError(e).message);
+    } finally {
+      setCapturing(false);
+    }
   }
 
   async function saveManual(lat: number | null, lng: number | null) {
@@ -116,7 +82,7 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
         gps: {
           latitude: lat,
           longitude: lng,
-          accuracyMeters: 5,
+          accuracyMeters: GPS_ACCEPT_MAX_ACCURACY_METERS,
           capturedAt: Date.now(),
           provider: "manual",
           isMockLocation: false,
@@ -131,7 +97,7 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
   }
 
   if (!canEdit) {
-    if (gps) return <GisPreview gps={gps} />;
+    if (gps) return <GisPreview gps={gps} surveyId={surveyId} />;
     return (
       <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/50 py-14 text-muted-foreground">
         <Crosshair className="h-8 w-8 opacity-30" aria-hidden />
@@ -145,7 +111,7 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
   return (
     <div className="space-y-4">
       {gps ? (
-        <GisPreview gps={gps} />
+        <GisPreview gps={gps} surveyId={surveyId} />
       ) : (
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/50 py-10 text-muted-foreground">
           <Crosshair className="h-8 w-8 opacity-30" aria-hidden />

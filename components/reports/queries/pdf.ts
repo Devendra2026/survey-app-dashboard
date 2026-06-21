@@ -4,6 +4,7 @@ import type { MasterOption } from "@/convex/areaMasters";
 import { QC_STATUS_LABEL, SURVEY_STATUS_LABEL } from "@/lib/domain";
 import { surveyAreaMetrics } from "@/lib/survey/area";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
+import { formatLatitudeDms, formatLongitudeDms } from "@/lib/surveys/gps-format";
 import { fmtDate } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -211,8 +212,8 @@ export function generateQcFinalReportPdf(survey: any, options: QcFinalReportOpti
     autoTable(doc, {
       head: [["Geo-Tagged Location", ""]],
       body: [
-        ["Latitude", `${survey.gps.latitude.toFixed(6)}° N`],
-        ["Longitude", `${survey.gps.longitude.toFixed(6)}° E`],
+        ["Latitude", formatLatitudeDms(survey.gps.latitude, 6)],
+        ["Longitude", formatLongitudeDms(survey.gps.longitude, 6)],
         ["Accuracy", `${survey.gps.accuracyMeters.toFixed(1)} m`],
         ["Captured", fmtDate(survey.gps.capturedAt)],
       ],

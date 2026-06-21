@@ -32,7 +32,7 @@ html.dn-print-measure .demand-notice-print-root .demand-notice-sheet-body {
 
 
 
-  /* -- Typography scale -- */
+/* -- Typography scale -- */
 
 html.dn-print-measure .demand-notice-print-root .dn-print-title {
 
@@ -99,7 +99,7 @@ html.dn-print-measure .demand-notice-print-root .dn-value {
 
 
 
-  /* -- Dynamic values (no clipping) -- */
+/* -- Dynamic values (no clipping) -- */
 
 html.dn-print-measure .demand-notice-print-root .property-id,
 html.dn-print-measure .demand-notice-print-root .dn-dynamic-value {
@@ -120,7 +120,7 @@ html.dn-print-measure .demand-notice-print-root .property-id {
 
 
 
-  /* -- Header -- */
+/* -- Header -- */
 
 html.dn-print-measure .demand-notice-header {
 
@@ -198,7 +198,7 @@ html.dn-print-measure .demand-notice-header-title .dn-print-notice-title-hi {
 
 
 
-  /* Metadata strip — 3 equal cards below header */
+/* Metadata strip — 3 equal cards below header */
 
 html.dn-print-measure .demand-notice-header-meta-strip,
 html.dn-print-measure .demand-notice-header-details {
@@ -248,7 +248,7 @@ html.dn-print-measure .demand-notice-meta-card .property-id {
 
 
 
-  /* -- Property & owner -- */
+/* -- Property & owner -- */
 
 html.dn-print-measure .demand-notice-property-row {
 
@@ -337,7 +337,7 @@ html.dn-print-measure .demand-notice-property-row .sm\:col-span-2 {
 
 
 
-  /* -- Site imagery & GIS -- */
+/* -- Site imagery & GIS -- */
 
 html.dn-print-measure .demand-notice-imagery-row {
 
@@ -378,19 +378,23 @@ html.dn-print-measure .demand-notice-gis-frame {
     overflow: hidden !important;
 }
 
-html.dn-print-measure .demand-notice-photo-frame img,
-html.dn-print-measure .demand-notice-gis-frame img {
-
+html.dn-print-measure .demand-notice-photo-frame img {
     object-fit: cover !important;
     width: 100% !important;
     height: 100% !important;
 }
 
-html.dn-print-measure .demand-notice-gis-frame img {
+html.dn-print-measure .demand-notice-gis-frame iframe {
+    display: none !important;
+}
 
+html.dn-print-measure .demand-notice-gis-frame img[data-gis-static-map] {
+    display: block !important;
     object-fit: contain !important;
     object-position: center center !important;
     background: #e2e8f0 !important;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 html.dn-print-measure .demand-notice-site-photos .grid {
@@ -409,7 +413,7 @@ html.dn-print-measure .demand-notice-photo-cell {
 
 
 
-  /* -- Assessment table -- */
+/* -- Assessment table -- */
 
 html.dn-print-measure .demand-notice-table-section {
 
@@ -513,7 +517,7 @@ html.dn-print-measure .demand-notice-table-section tbody td {
 
 
 
-  /* -- Tax demand summary -- */
+/* -- Tax demand summary -- */
 
 html.dn-print-measure .demand-notice-tax-row {
 
@@ -596,7 +600,7 @@ html.dn-print-measure .demand-notice-summary-total p:last-child {
 
 
 
-  /* -- Important notice -- */
+/* -- Important notice -- */
 
 html.dn-print-measure .demand-notice-legal-section {
 
@@ -637,7 +641,7 @@ html.dn-print-measure .demand-notice-legal-text .demand-notice-hi+.demand-notice
 
 
 
-  /* -- Signature (attached to notice) -- */
+/* -- Signature (attached to notice) -- */
 
 html.dn-print-measure .demand-notice-signature-section {
 
@@ -717,7 +721,7 @@ html.dn-print-measure .demand-notice-signature-title-hi {
 
 
 
-  /* -- Compact footer -- */
+/* -- Compact footer -- */
 
 html.dn-print-measure .demand-notice-print-footer {
 

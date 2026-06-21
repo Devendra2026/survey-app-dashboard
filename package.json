@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint:convex",
     "verify:clerk-keys": "node ./scripts/verify-clerk-keys.mjs",
+    "verify:google-maps-key": "node ./scripts/verify-google-maps-key.mjs",
     "test": "vitest run",
     "deploy:backend": "node ./scripts/sync-clerk-issuer.mjs && convex deploy --yes",
     "deploy:backend:dev": "node ./scripts/sync-clerk-issuer.mjs && convex dev --once",

@@ -54,6 +54,38 @@ npx convex env set CLERK_JWT_ISSUER_DOMAIN "https://…" --prod
 
 Register Clerk webhook: `<CONVEX_SITE_URL>/clerk-webhook`.
 
+## Google Maps (GIS)
+
+Survey GPS coordinates are displayed via **Maps Embed API** (iframe) and **Maps Static API** (print/PDF). Browser GPS capture uses `navigator.geolocation` — not Google's Geolocation API.
+
+1. Add to `.env.local` (see [`.env.example`](.env.example)):
+
+   ```bash
+   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_key_here
+   ```
+
+2. In [Google Cloud Console](https://console.cloud.google.com/google/maps-apis), enable **billing** and these APIs:
+   - **Maps Embed API** (required for live map embeds)
+   - **Maps Static API** (required for demand-notice print maps)
+
+   The Maps JavaScript API is **not** required for this app.
+
+3. Restrict the API key (HTTP referrers):
+   - `http://localhost:3000/*`
+   - `http://localhost:3001/*`
+   - `https://*.vercel.app/*`
+   - `https://YOUR-PRODUCTION-DOMAIN/*`
+
+4. Verify locally:
+
+   ```bash
+   npm run verify:google-maps-key
+   ```
+
+5. **Vercel:** set `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` for Development, Preview, and Production, then **redeploy** (Next.js inlines `NEXT_PUBLIC_*` at build time).
+
+Without a key, embeds fall back to a keyless URL and static maps are omitted. A dev-only GIS debug panel appears on survey GPS screens when `NODE_ENV=development`.
+
 ## Database & file storage backups
 
 Full snapshots (tables + survey photos in Convex storage) live under `convex-backups/`. See [convex-backups/README.md](convex-backups/README.md) for export/import and dev→prod sync (`npm run convex:export:dev`, `npm run convex:import:prod`, etc.).

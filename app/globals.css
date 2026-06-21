@@ -493,7 +493,7 @@ html.dn-print-measure .demand-notice-gis-frame iframe {
   display: none !important;
 }
 
-html.dn-print-measure .demand-notice-gis-frame img {
+html.dn-print-measure .demand-notice-gis-frame img[data-gis-static-map] {
   display: block !important;
 }
 

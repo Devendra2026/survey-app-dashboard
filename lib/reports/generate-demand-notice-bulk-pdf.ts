@@ -12,7 +12,7 @@ function waitForLayout(frames = 2): Promise<void> {
   });
 }
 
-function waitForImage(img: HTMLImageElement, timeoutMs = 8000): Promise<void> {
+function waitForImage(img: HTMLImageElement, timeoutMs = 8000, strict = false): Promise<void> {
   if (img.complete && img.naturalWidth > 0) {
     return typeof img.decode === "function" ? img.decode().catch(() => undefined) : Promise.resolve();
   }
@@ -20,7 +20,11 @@ function waitForImage(img: HTMLImageElement, timeoutMs = 8000): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
       cleanup();
-      reject(new Error("Timed out loading demand notice image."));
+      if (strict) {
+        reject(new Error(`Timed out loading GIS static map: ${img.alt || "map image"}`));
+      } else {
+        reject(new Error("Timed out loading demand notice image."));
+      }
     }, timeoutMs);
 
     const onDone = () => {
@@ -30,7 +34,11 @@ function waitForImage(img: HTMLImageElement, timeoutMs = 8000): Promise<void> {
 
     const onError = () => {
       cleanup();
-      resolve();
+      if (strict) {
+        reject(new Error(`Failed to load GIS static map: ${img.alt || img.src}`));
+      } else {
+        resolve();
+      }
     };
 
     const cleanup = () => {
@@ -45,8 +53,10 @@ function waitForImage(img: HTMLImageElement, timeoutMs = 8000): Promise<void> {
 }
 
 export async function waitForNoticeImages(printRoot: HTMLElement, timeoutMs = 8000): Promise<void> {
-  const images = [...printRoot.querySelectorAll<HTMLImageElement>("img")];
-  await Promise.all(images.map((img) => waitForImage(img, timeoutMs)));
+  const allImages = [...printRoot.querySelectorAll<HTMLImageElement>("img")];
+  const gisStaticImages = [...printRoot.querySelectorAll<HTMLImageElement>("img[data-gis-static-map]")];
+
+  await Promise.all(allImages.map((img) => waitForImage(img, timeoutMs, gisStaticImages.includes(img))));
 }
 
 export async function findDemandNoticePrintRoot(mount: HTMLElement | null, attempts = 8): Promise<HTMLElement> {

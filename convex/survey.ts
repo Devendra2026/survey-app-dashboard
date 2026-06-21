@@ -20,8 +20,8 @@ import {
   isOwnScopeSurveyor,
   querySurveysInFieldScope,
 } from "./fieldAccess";
-import { GPS_ACCEPT_MAX_ACCURACY_METERS, GPS_TARGET_ACCURACY_METERS } from "./gpsAccuracy";
 import { assertCanReadWard, canReadWard, clientError, requireUser, writeAudit } from "./helpers";
+import { validateGps } from "./lib/gpsValidation";
 import { refreshSurveyCompletionPct } from "./lib/surveyProgress";
 import { filterSurveysBySearch } from "./lib/surveySearch";
 import { assertUniqueSurveySlot, surveyIdentifyingSlotChanged } from "./lib/surveyUniqueness";
@@ -922,10 +922,9 @@ export const setGps = mutation({
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
     await assertSurveyWritable(ctx, me, survey);
-    if (args.gps.accuracyMeters > GPS_ACCEPT_MAX_ACCURACY_METERS) {
-      clientError("VALIDATION", `GPS must be within ±${GPS_ACCEPT_MAX_ACCURACY_METERS} m — retake outside`, {
-        gps: [`GPS must be within ±${GPS_ACCEPT_MAX_ACCURACY_METERS} m — retake in open sky`],
-      });
+    const gpsMessage = validateGps(args.gps);
+    if (gpsMessage) {
+      clientError("VALIDATION", gpsMessage, { gps: [gpsMessage] });
     }
     await ctx.db.patch(args.id, {
       gps: args.gps,
@@ -1494,14 +1493,13 @@ function validateBusinessRules(
       details.constructedYear = [`Enter a year between 1800 and ${currentYear}`];
     }
   }
-  if (
-    strict &&
-    in_.gps &&
-    (in_.gps as unknown as { accuracyMeters: number }).accuracyMeters > GPS_ACCEPT_MAX_ACCURACY_METERS
-  ) {
-    details.gps = [
-      `GPS must be within ±${GPS_ACCEPT_MAX_ACCURACY_METERS} m (target ±${GPS_TARGET_ACCURACY_METERS} m) — retake in open sky`,
-    ];
+  if (in_.gps) {
+    const gpsMessage = validateGps(in_.gps as NonNullable<Doc<"surveys">["gps"]>, {
+      requireAccuracy: strict,
+    });
+    if (gpsMessage) {
+      details.gps = [gpsMessage];
+    }
   }
   if (Object.keys(details).length > 0) {
     throw new ConvexError({

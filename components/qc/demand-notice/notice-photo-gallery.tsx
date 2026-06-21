@@ -1,6 +1,7 @@
 "use client";
 
-import { googleMapsEmbedUrl, googleMapsStaticUrl } from "@/lib/maps/google-maps";
+import { GoogleMapFrame } from "@/components/shared/google-map-frame";
+import { formatGpsLatLongLabel } from "@/lib/surveys/gps-format";
 import type { SurveyDetail } from "@/schema/surveys/index";
 import { ImageOff, MapPin } from "lucide-react";
 import Image from "next/image";
@@ -27,10 +28,8 @@ function GalleryPhoto({ url, label }: { url?: string | null; label: string }) {
   );
 }
 
-function GisMapPanel({ survey, isPrint }: { survey: SurveyDetail; isPrint: boolean }) {
+function GisMapPanel({ survey }: { survey: SurveyDetail }) {
   const gps = survey.gps;
-  const staticMapUrl = gps ? googleMapsStaticUrl(gps.latitude, gps.longitude, 640, 360) : null;
-  const embedUrl = gps ? googleMapsEmbedUrl(gps.latitude, gps.longitude) : null;
 
   return (
     <figure className="demand-notice-gis-panel flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-slate-900 text-slate-100 print:rounded-none print:border-black">
@@ -40,52 +39,22 @@ function GisMapPanel({ survey, isPrint }: { survey: SurveyDetail; isPrint: boole
       {gps ? (
         <>
           <div className="demand-notice-gis-frame relative min-h-0 flex-1 overflow-hidden bg-slate-800 print:aspect-auto">
-            {!isPrint && (
-              <>
-                <div
-                  className="absolute inset-0 opacity-40"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(to right, rgba(148,163,184,0.25) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.25) 1px, transparent 1px)",
-                    backgroundSize: "28px 28px",
-                  }}
-                />
-                {embedUrl ? (
-                  <iframe
-                    title={`GIS Map — ${gps.latitude.toFixed(4)}, ${gps.longitude.toFixed(4)}`}
-                    src={embedUrl}
-                    className="absolute inset-0 h-full w-full border-0 opacity-95"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    sandbox="allow-scripts allow-popups allow-forms"
-                  />
-                ) : null}
-                <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded border border-emerald-300 bg-emerald-400/20 px-1.5 py-0.5">
-                  <MapPin className="h-3 w-3 text-emerald-200" aria-hidden />
-                  <span className="font-mono text-[8px] font-semibold text-emerald-100">Parcel</span>
-                </div>
-              </>
-            )}
-            {staticMapUrl ? (
-              <Image
-                src={staticMapUrl}
-                alt={`GIS Map — ${gps.latitude.toFixed(4)}, ${gps.longitude.toFixed(4)}`}
-                fill
-                unoptimized
-                sizes="640px"
-                className={isPrint ? "object-contain" : "hidden object-contain print:block"}
-              />
-            ) : isPrint ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 bg-slate-200 text-slate-600">
-                <MapPin className="h-5 w-5 opacity-50" aria-hidden />
-                <p className="text-[7px] font-medium">Map preview unavailable</p>
-              </div>
-            ) : null}
+            <GoogleMapFrame
+              latitude={gps.latitude}
+              longitude={gps.longitude}
+              mode="embed-and-static"
+              variant="dark"
+              coordinateDigits={4}
+              className="absolute inset-0 h-full min-h-[160px]"
+              iframeClassName="opacity-95"
+              showKeyBanner={false}
+              overlayClassName="print:hidden"
+            />
           </div>
           <figcaption className="shrink-0 border-t border-slate-700 px-2 py-1 text-[6px] print:border-black">
             <p className="font-semibold uppercase tracking-wide text-slate-300 print:text-slate-600">Lat / Long</p>
             <p className="font-mono text-[7px] text-emerald-200 print:text-slate-800">
-              LAT: {gps.latitude.toFixed(6)} LONG: {gps.longitude.toFixed(6)}
+              {formatGpsLatLongLabel(gps.latitude, gps.longitude)}
             </p>
           </figcaption>
         </>
@@ -140,7 +109,7 @@ export function NoticePhotoGallery({
           </div>
         </div>
 
-        <GisMapPanel survey={survey} isPrint={isPrint} />
+        <GisMapPanel survey={survey} />
       </div>
     </section>
   );

@@ -25,6 +25,7 @@ import type * as gpsAccuracy from "../gpsAccuracy.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as lib_auditActor from "../lib/auditActor.js";
+import type * as lib_gpsValidation from "../lib/gpsValidation.js";
 import type * as lib_propertyIdLookup from "../lib/propertyIdLookup.js";
 import type * as lib_qcWardStats from "../lib/qcWardStats.js";
 import type * as lib_surveyProgress from "../lib/surveyProgress.js";
@@ -78,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   helpers: typeof helpers;
   http: typeof http;
   "lib/auditActor": typeof lib_auditActor;
+  "lib/gpsValidation": typeof lib_gpsValidation;
   "lib/propertyIdLookup": typeof lib_propertyIdLookup;
   "lib/qcWardStats": typeof lib_qcWardStats;
   "lib/surveyProgress": typeof lib_surveyProgress;

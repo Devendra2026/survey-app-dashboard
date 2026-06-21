@@ -20,6 +20,7 @@ export function NoticeLogo({ logoUrl }: { ulbName: string; logoUrl?: string | nu
         alt="Government of Uttar Pradesh emblem"
         width={80}
         height={80}
+        priority
         unoptimized
         className="h-full w-full object-cover"
       />
