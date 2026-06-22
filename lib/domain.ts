@@ -32,12 +32,6 @@ export { CONSTRUCTION_TYPES, FLOOR_NAMES, FLOOR_USAGE_FACTORS, FLOOR_USAGE_TYPES
 
 export { MAX_SURVEY_OWNERS, RESPONDENT_RELATIONSHIP_VALUES, RESPONDENT_RELATIONSHIPS } from "@/convex/ownerConstants";
 
-export {
-  GPS_ACCEPT_MAX_ACCURACY_METERS,
-  GPS_EXCELLENT_ACCURACY_METERS,
-  GPS_TARGET_ACCURACY_METERS,
-} from "@/convex/gpsAccuracy";
-
 /* ── Status vocabularies (mirror schema.ts unions exactly) ─────────────────── */
 
 export const SURVEY_STATUSES = ["draft", "submitted", "approved", "rejected"] as const;

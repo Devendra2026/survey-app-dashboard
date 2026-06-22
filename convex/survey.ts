@@ -15,6 +15,7 @@ import {
 import { hasCapability, requireCapability } from "./capabilities";
 import {
   assertCanAccessSurvey,
+  canInsertSurveyDraft,
   collectSurveysInFieldScope,
   fieldSurveyAccess,
   isOwnScopeSurveyor,
@@ -708,9 +709,10 @@ export const saveDraft = mutation({
   args: draftSurveyInput,
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    const [, ownScope, muni, existing] = await Promise.all([
+    const [, ownScope, canInsert, muni, existing] = await Promise.all([
       requireSurveyDraftEdit(ctx, me),
       isOwnScopeSurveyor(ctx, me),
+      canInsertSurveyDraft(ctx, me),
       assertMunicipalityInScope(ctx, me, args.municipalityId),
       resolveExistingSurveyForSave(ctx, me, {
         id: args.id,
@@ -719,7 +721,7 @@ export const saveDraft = mutation({
       }),
     ]);
     if (existing) await assertSurveyWritable(ctx, me, existing);
-    if (!existing && !ownScope) {
+    if (!existing && !canInsert) {
       clientError("BAD_REQUEST", "No survey found to update — open the record from QC review and try saving again");
     }
 
@@ -819,9 +821,10 @@ export const upsert = mutation({
   args: surveyInput,
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    const [, ownScope, muni] = await Promise.all([
+    const [, ownScope, canInsert, muni] = await Promise.all([
       requireSurveyDraftEdit(ctx, me),
       isOwnScopeSurveyor(ctx, me),
+      canInsertSurveyDraft(ctx, me),
       assertMunicipalityInScope(ctx, me, args.municipalityId),
     ]);
     assertCanReadWard(me, args.municipalityId, args.wardNo);
@@ -850,7 +853,7 @@ export const upsert = mutation({
       municipalityId: args.municipalityId,
     });
     if (existing) await assertSurveyWritable(ctx, me, existing);
-    if (!existing && !ownScope) {
+    if (!existing && !canInsert) {
       clientError("BAD_REQUEST", "No survey found to update — open the record from QC review and try saving again");
     }
 
@@ -922,7 +925,7 @@ export const setGps = mutation({
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);
     assertCanReadWard(me, survey.municipalityId, survey.wardNo);
     await assertSurveyWritable(ctx, me, survey);
-    const gpsMessage = validateGps(args.gps);
+    const gpsMessage = validateGps(args.gps, { strict: false });
     if (gpsMessage) {
       clientError("VALIDATION", gpsMessage, { gps: [gpsMessage] });
     }
@@ -1495,7 +1498,7 @@ function validateBusinessRules(
   }
   if (in_.gps) {
     const gpsMessage = validateGps(in_.gps as NonNullable<Doc<"surveys">["gps"]>, {
-      requireAccuracy: strict,
+      strict,
     });
     if (gpsMessage) {
       details.gps = [gpsMessage];

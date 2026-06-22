@@ -11,9 +11,30 @@ import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenan
 
 export type FieldSurveyAccess = "own" | "assigned" | "admin" | "none";
 
-/** True when the user creates/edits only their own field surveys (mobile surveyor scope). */
+/**
+ * True when the user syncs drafts by `localId` under their own `surveyorId`.
+ * Intentionally separate from `fieldSurveyAccess` so list visibility (assigned vs
+ * own) does not block draft creation for misconfigured or mixed-capability roles.
+ */
 export async function isOwnScopeSurveyor(ctx: QueryCtx, user: Doc<"users">): Promise<boolean> {
-  return (await fieldSurveyAccess(ctx, user)) === "own";
+  if (user.role === "surveyor") return true;
+  return await hasCapability(ctx, user, "surveys.viewOwn");
+}
+
+/**
+ * Whether `saveDraft` may insert a new row when no existing survey is resolved.
+ * QC-only editors must open a record by server id; field surveyors and supervisors may create.
+ */
+export async function canInsertSurveyDraft(ctx: QueryCtx, user: Doc<"users">): Promise<boolean> {
+  if (await isOwnScopeSurveyor(ctx, user)) return true;
+  if (user.role === "supervisor") return true;
+  const [editDraft, submit, viewAssigned, qcReview] = await Promise.all([
+    hasCapability(ctx, user, "surveys.editDraft"),
+    hasCapability(ctx, user, "surveys.submit"),
+    hasCapability(ctx, user, "surveys.viewAssigned"),
+    hasCapability(ctx, user, "qc.review"),
+  ]);
+  return editDraft && submit && viewAssigned && !qcReview;
 }
 
 type SurveyAccessCtx = QueryCtx | MutationCtx;
@@ -54,6 +75,9 @@ export async function fieldSurveyAccess(ctx: QueryCtx, user: Doc<"users">): Prom
   if (user.role === "admin" || (await hasCapability(ctx, user, "surveys.viewAll"))) {
     return "admin";
   }
+  // Surveyors must always resolve to own-scope, even if dynamic role permissions
+  // accidentally include broader capabilities.
+  if (user.role === "surveyor") return "own";
   // Assigned / QC scope is broader than own — check it first so dual-capability users
   // (e.g. supervisor profile with leftover viewOwn) still see the full ULB.
   if ((await hasCapability(ctx, user, "surveys.viewAssigned")) || (await hasCapability(ctx, user, "qc.review"))) {
@@ -236,10 +260,7 @@ export async function collectSurveysInFieldScope(ctx: QueryCtx, me: Doc<"users">
   }
 
   if (access === "admin") {
-    const scopedMunis =
-      scope.municipalities.length > 0
-        ? scope.municipalities.map((m) => m._id)
-        : [...muniIds];
+    const scopedMunis = scope.municipalities.length > 0 ? scope.municipalities.map((m) => m._id) : [...muniIds];
     if (scopedMunis.length > 0) {
       const batches = await Promise.all(
         scopedMunis.map((municipalityId) =>

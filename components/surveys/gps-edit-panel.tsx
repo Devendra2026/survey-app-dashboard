@@ -4,9 +4,8 @@ import { GisDebugPanel } from "@/components/dev/gis-debug-panel";
 import { GoogleMapEmbed } from "@/components/shared/google-map-embed";
 import { Badge } from "@/components/ui/badge";
 import { useSetGps } from "@/hooks/surveys/useSurveys";
-import { GPS_ACCEPT_MAX_ACCURACY_METERS } from "@/lib/domain";
 import { parseConvexError } from "@/lib/errors";
-import { assertClientGpsAccuracy, captureBrowserGps } from "@/lib/surveys/gps-browser-capture";
+import { captureBrowserGps } from "@/lib/surveys/gps-browser-capture";
 import { gpsCoordinateInputsKey } from "@/lib/surveys/gps-coordinates";
 import { formatGpsDecimal } from "@/lib/surveys/gps-format";
 import { fmtDate } from "@/lib/utils";
@@ -17,8 +16,6 @@ import { toast } from "sonner";
 import { GpsCoordinateInputs } from "./gps-coordinate-inputs";
 
 function GisPreview({ gps, surveyId }: { gps: GpsCapture; surveyId: string }) {
-  const accuracyOk = gps.accuracyMeters <= GPS_ACCEPT_MAX_ACCURACY_METERS;
-
   return (
     <div className="space-y-3">
       <GoogleMapEmbed
@@ -29,7 +26,7 @@ function GisPreview({ gps, surveyId }: { gps: GpsCapture; surveyId: string }) {
         variant="compact"
       />
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/80 px-3 py-2 text-xs">
-        <Badge variant={accuracyOk ? "default" : "destructive"} className="font-mono text-[10px] uppercase">
+        <Badge variant="secondary" className="font-mono text-[10px] uppercase">
           ±{gps.accuracyMeters.toFixed(1)} m
         </Badge>
         <span className="font-mono tabular-nums text-muted-foreground">
@@ -53,7 +50,6 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
     setCapturing(true);
     try {
       const fix = await captureBrowserGps();
-      assertClientGpsAccuracy(fix.accuracyMeters);
       await setGps({
         id: surveyId as any,
         gps: fix,
@@ -82,7 +78,7 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
         gps: {
           latitude: lat,
           longitude: lng,
-          accuracyMeters: GPS_ACCEPT_MAX_ACCURACY_METERS,
+          accuracyMeters: 1,
           capturedAt: Date.now(),
           provider: "manual",
           isMockLocation: false,
@@ -106,8 +102,6 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
     );
   }
 
-  const outOfTolerance = gps && gps.accuracyMeters > GPS_ACCEPT_MAX_ACCURACY_METERS;
-
   return (
     <div className="space-y-4">
       {gps ? (
@@ -123,11 +117,6 @@ export function GpsEditPanel({ surveyId, gps, canEdit }: { surveyId: string; gps
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span>Captured {fmtDate(gps.capturedAt)}</span>
           {gps.provider && <Badge variant="outline">{gps.provider}</Badge>}
-          {outOfTolerance && (
-            <span className="text-brand-red">
-              Beyond ±{GPS_ACCEPT_MAX_ACCURACY_METERS} m — recapture outdoors before submitting.
-            </span>
-          )}
         </div>
       )}
 
