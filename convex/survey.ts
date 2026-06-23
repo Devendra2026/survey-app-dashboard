@@ -23,7 +23,11 @@ import {
 } from "./fieldAccess";
 import { assertCanReadWard, canReadWard, clientError, requireUser, writeAudit } from "./helpers";
 import { validateGps } from "./lib/gpsValidation";
-import { refreshSurveyCompletionPct } from "./lib/surveyProgress";
+import {
+  completionPctForSurvey,
+  computeSurveyCompletionPercent,
+  refreshSurveyCompletionPct,
+} from "./lib/surveyProgress";
 import { filterSurveysBySearch } from "./lib/surveySearch";
 import { assertUniqueSurveySlot, surveyIdentifyingSlotChanged } from "./lib/surveyUniqueness";
 import { computeSurveyWardAggregates } from "./lib/surveyWardStats";
@@ -38,7 +42,7 @@ import {
   resolveExistingSurveyForSave,
   resolvePostSaveStatuses,
 } from "./surveyEditRules";
-import { validateTaxationSection } from "./taxationMasters";
+import { loadAllowedTaxZoneSet, normalizeTaxationFields, validateTaxationSection } from "./taxationMasters";
 import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
 
 async function loadMunicipalityCodes(
@@ -174,6 +178,24 @@ const surveyInput = {
 
 /* ────────────────────────── reactive queries ────────────────────────── */
 
+const surveySortBy = v.union(v.literal("propertyId"), v.literal("updated"));
+
+function resolveListSort(args: {
+  status?: Doc<"surveys">["status"];
+  sortBy?: "propertyId" | "updated";
+}): "propertyId" | "updated" {
+  if (args.sortBy) return args.sortBy;
+  if (args.status === "draft") return "updated";
+  return "propertyId";
+}
+
+function sortSurveyRows(rows: Doc<"surveys">[], sortBy: "propertyId" | "updated"): Doc<"surveys">[] {
+  if (sortBy === "updated") {
+    return [...rows].sort((a, b) => b.clientUpdatedAt - a.clientUpdatedAt);
+  }
+  return [...rows].sort((a, b) => comparePropertyIds(a.propertyId, b.propertyId));
+}
+
 /**
  * Tenant-filtered list. The mobile app subscribes to this with `useQuery`
  * — Convex pushes updates automatically when any matching row changes,
@@ -189,6 +211,7 @@ export const list = query({
     municipalityId: v.optional(v.id("municipalities")),
     surveyorId: v.optional(v.id("users")),
     limit: v.optional(v.number()),
+    sortBy: v.optional(surveySortBy),
   },
   handler: async (ctx, args) => {
     const me = await requireUser(ctx);
@@ -241,7 +264,7 @@ export const list = query({
     if (args.wardNo) {
       rows = rows.filter((r) => wardNumbersMatch(r.wardNo, args.wardNo!));
     }
-    rows.sort((a, b) => comparePropertyIds(a.propertyId, b.propertyId));
+    rows = sortSurveyRows(rows, resolveListSort(args));
     const codes = await loadMunicipalityCodes(
       ctx,
       rows.map((r) => r.municipalityId),
@@ -262,6 +285,7 @@ const listFilterArgs = {
   fromMs: v.optional(v.number()),
   toMs: v.optional(v.number()),
   searchTerm: v.optional(v.string()),
+  sortBy: v.optional(surveySortBy),
 };
 
 function wardNumbersMatch(rowWard: string, filterWard: string): boolean {
@@ -283,6 +307,7 @@ function applySurveyListFilters(
     surveyorId?: Id<"users">;
     fromMs?: number;
     toMs?: number;
+    sortBy?: "propertyId" | "updated";
   },
   me: Doc<"users">,
   muniIds: Set<Id<"municipalities">>,
@@ -307,6 +332,10 @@ function applySurveyListFilters(
   if (args.wardNo) filtered = filtered.filter((r) => wardNumbersMatch(r.wardNo, args.wardNo!));
   if (args.fromMs !== undefined) filtered = filtered.filter((r) => r._creationTime >= args.fromMs!);
   if (args.toMs !== undefined) filtered = filtered.filter((r) => r._creationTime <= args.toMs!);
+  const sortBy = resolveListSort(args);
+  if (sortBy === "updated") {
+    return filtered.sort((a, b) => b.clientUpdatedAt - a.clientUpdatedAt);
+  }
   return filtered.sort(compareWardThenParcel);
 }
 
@@ -742,11 +771,12 @@ export const saveDraft = mutation({
     };
 
     const merged = mergeDraftArgs(existing, args, muni);
+    const allowedTaxZones = await loadAllowedTaxZoneSet(ctx);
     const normalized = normalizeAddressFields(
-      normalizeOwnerFields(withResolvedPropertyId(normalizePropertyFields(merged), muni.code)),
+      normalizeOwnerFields(normalizeTaxationFields(withResolvedPropertyId(normalizePropertyFields(merged), muni.code))),
       muni,
     );
-    validateBusinessRules(normalized, addressCtx, "draft");
+    validateBusinessRules(normalized, addressCtx, "draft", { allowedTaxZones });
 
     if (existing && existing.status === "submitted") {
       const isQcEditor = await hasCapability(ctx, me, "qc.review");
@@ -767,6 +797,7 @@ export const saveDraft = mutation({
 
     if (existing) {
       const { status, qcStatus } = resolvePostSaveStatuses(existing);
+      const completionPct = await completionPctForSurvey(ctx, { ...existing, ...writable } as Doc<"surveys">);
 
       await ctx.db.patch(existing._id, {
         ...writable,
@@ -774,19 +805,18 @@ export const saveDraft = mutation({
         qcStatus,
         serverVersion: existing.serverVersion + 1,
         clientUpdatedAt: args.clientUpdatedAt,
+        completionPct,
       });
-      await Promise.all([
-        refreshSurveyCompletionPct(ctx, existing._id),
-        writeAudit(ctx, {
-          actorId: me._id,
-          action: auditActionForSave(existing, ownScope, false),
-          entity: "survey",
-          entityId: existing._id,
-        }),
-      ]);
+      await writeAudit(ctx, {
+        actorId: me._id,
+        action: auditActionForSave(existing, ownScope, false),
+        entity: "survey",
+        entityId: existing._id,
+      });
       return existing._id;
     }
 
+    const completionPct = computeSurveyCompletionPercent({ ...writable, floors: [], photos: [] });
     const newId = await ctx.db.insert("surveys", {
       ...writable,
       surveyorId: me._id,
@@ -795,17 +825,15 @@ export const saveDraft = mutation({
       qcStatus: "pending",
       serverVersion: 1,
       clientUpdatedAt: args.clientUpdatedAt,
+      completionPct,
     });
-    await Promise.all([
-      refreshSurveyCompletionPct(ctx, newId),
-      writeAudit(ctx, {
-        actorId: me._id,
-        action: auditActionForSave(null, ownScope, true),
-        entity: "survey",
-        entityId: newId,
-        metadata: { localId: args.localId, draft: true },
-      }),
-    ]);
+    await writeAudit(ctx, {
+      actorId: me._id,
+      action: auditActionForSave(null, ownScope, true),
+      entity: "survey",
+      entityId: newId,
+      metadata: { localId: args.localId, draft: true },
+    });
     return newId;
   },
 });
@@ -834,11 +862,12 @@ export const upsert = mutation({
       ...addressTenantContext(muni, district),
       configuredPostalCode: muni.postalCode,
     };
+    const allowedTaxZones = await loadAllowedTaxZoneSet(ctx);
     const normalized = normalizeAddressFields(
-      normalizeOwnerFields(withResolvedPropertyId(normalizePropertyFields(args), muni.code)),
+      normalizeOwnerFields(normalizeTaxationFields(withResolvedPropertyId(normalizePropertyFields(args), muni.code))),
       muni,
     );
-    validateBusinessRules(normalized, addressCtx, "submit");
+    validateBusinessRules(normalized, addressCtx, "submit", { allowedTaxZones });
 
     // Confirm ward exists within the municipality
     const ward = await ctx.db
@@ -1410,6 +1439,7 @@ function validateBusinessRules(
   in_: Record<string, unknown>,
   addressCtx: Parameters<typeof validateAddressSection>[1],
   mode: "draft" | "submit" = "submit",
+  options?: { allowedTaxZones?: Set<string> },
 ): void {
   const details: Record<string, string[]> = {};
   const strict = mode === "submit";
@@ -1475,6 +1505,7 @@ function validateBusinessRules(
         taxRateZone: in_.taxRateZone as string | undefined,
       },
       mode,
+      options,
     ),
   );
   Object.assign(

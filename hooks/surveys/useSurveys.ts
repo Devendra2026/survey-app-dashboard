@@ -12,7 +12,29 @@ import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { formatRegistryParcelNo, formatRegistryWardNo } from "@/lib/survey/format-registry-parcel";
 import { resolveDisplayPropertyId, type PropertyIdSource } from "@/lib/survey/resolve-display-property-id";
 import { useQuery as useConvexQuery, useMutation } from "convex/react";
-import { useMemo } from "react";
+import type { FunctionArgs } from "convex/server";
+import { useCallback, useMemo } from "react";
+
+let saveDraftQueue: Promise<unknown> = Promise.resolve();
+
+function isSaveDraftOccError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("changed while this mutation") || msg.includes("Documents read from or written");
+}
+
+async function runSaveDraftWithRetry<T>(run: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await run();
+    } catch (err) {
+      lastError = err;
+      if (!isSaveDraftOccError(err) || attempt === 2) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
 
 export interface SurveyListFilters {
   status?: SurveyStatus;
@@ -121,7 +143,17 @@ function useUpsertSurvey() {
   return useMutation(api.survey.upsert);
 }
 export function useSaveDraft() {
-  return useMutation(api.survey.saveDraft);
+  const mutate = useMutation(api.survey.saveDraft);
+
+  return useCallback(
+    (args: FunctionArgs<typeof api.survey.saveDraft>) => {
+      const run = () => runSaveDraftWithRetry(() => mutate(args));
+      const result = saveDraftQueue.then(run, run);
+      saveDraftQueue = result.catch(() => undefined);
+      return result;
+    },
+    [mutate],
+  );
 }
 export function useSetGps() {
   return useMutation(api.survey.setGps);

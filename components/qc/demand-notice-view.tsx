@@ -79,12 +79,17 @@ export function DemandNoticeView({ survey, surveyId, backHref = `/qc/${surveyId}
   }
 
   if (!noticeProps) {
+    const notApproved = survey.qcStatus !== "approved";
     return (
       <PageTransition
         className={`demand-notice ${notoDevanagari.variable} ${geist.variable} bg-slate-50 ${jetbrainsMono.variable}`}
       >
         <div className="mx-auto w-full max-w-480 rounded-2xl border border-zinc-200 bg-white p-8 text-center">
-          <p className="text-sm text-muted-foreground">Demand notice data could not be loaded for this property.</p>
+          <p className="text-sm text-muted-foreground">
+            {notApproved
+              ? "QC approval is required before generating a demand notice for this property."
+              : "Demand notice data could not be loaded for this property."}
+          </p>
           <Button asChild variant="outline" size="sm" className="mt-4">
             <Link href={backHref}>Back</Link>
           </Button>

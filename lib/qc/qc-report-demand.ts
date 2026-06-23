@@ -1,6 +1,6 @@
 import type { MasterOption } from "@/convex/areaMasters";
 import { estimateDemandAssessment, type DemandAssessment } from "@/lib/qc/demand-estimate";
-import { computeDemandNotice } from "@/lib/qc/demand-notice";
+import { computeDemandNotice, type TaxRateConfig } from "@/lib/qc/demand-notice";
 import { surveyAreaMetrics } from "@/lib/survey/area";
 import type { FloorRow, SurveyDetail } from "@/schema/surveys/index";
 
@@ -33,11 +33,12 @@ export function getQcReportDemand(
   survey: SurveyDetail,
   floors: FloorRow[] | undefined,
   masters?: DemandMasters,
+  rateConfig?: TaxRateConfig | null,
 ): DemandAssessment & { assessableSqft: number } {
   const assessableSqft = resolveAssessableSqft(survey);
 
   if (floors && floors.length > 0) {
-    const notice = computeDemandNotice(survey, floors, masters);
+    const notice = computeDemandNotice(survey, floors, masters, rateConfig ?? undefined);
     if (notice.totalAnnualDemand > 0) {
       return {
         assessableSqft: notice.totalArea > 0 ? notice.totalArea : assessableSqft,

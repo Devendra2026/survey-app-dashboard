@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFloors } from "@/hooks/surveys/useFloors";
 import { useSurvey } from "@/hooks/surveys/useSurveys";
 import type { ConflictSurveyLinkVariant } from "@/lib/errors";
+import { plinthSqftFromFloors } from "@/lib/survey/area";
 import { firstAreaSubmitError, surveyAreaSubmitErrors } from "@/lib/survey/progress";
 import { cn } from "@/lib/utils";
 import type { SurveyListItem } from "@/schema/surveys/index";
@@ -89,6 +90,7 @@ export function SurveyEditor({
 }) {
   const [activeTab, setActiveTab] = useState("details");
   const [saving, setSaving] = useState(false);
+  const [floorMutating, setFloorMutating] = useState(false);
   const loaded = useSurvey(surveyId);
   const survey = existing ?? loaded;
   const floors = useFloors(surveyId);
@@ -102,17 +104,26 @@ export function SurveyEditor({
   }, []);
 
   async function persistDetailsAndArea(opts?: { validateForSubmit?: boolean }): Promise<boolean> {
-    const detailsSaved = await (saveDetailsRef.current?.save() ?? Promise.resolve(true));
+    const plotSqft = Math.max(plotSqftDraftRef.current, survey?.plotSqft ?? 0);
+    const plinthSqft = plinthSqftFromFloors(floors ?? []);
+    const areaPatch =
+      plotSqft > 0
+        ? {
+            plotSqft,
+            plinthSqft: plinthSqft > 0 ? plinthSqft : (survey?.plinthSqft ?? 0),
+          }
+        : undefined;
+
+    const detailsSaved = await (saveDetailsRef.current?.save(areaPatch) ?? Promise.resolve(true));
     if (!detailsSaved) return false;
 
-    const areaSaved = await (saveAreaFn.current?.() ?? Promise.resolve(true));
-    if (!areaSaved) {
+    const areaValid = await (saveAreaFn.current?.() ?? Promise.resolve(true));
+    if (!areaValid) {
       setActiveTab("area");
       return false;
     }
 
     if (opts?.validateForSubmit) {
-      const plotSqft = Math.max(plotSqftDraftRef.current, survey?.plotSqft ?? 0);
       const areaErrors = surveyAreaSubmitErrors({
         plotSqft,
         plinthSqft: survey?.plinthSqft,
@@ -176,7 +187,7 @@ export function SurveyEditor({
     }
   }
 
-  const isWorking = submitting || saving;
+  const isWorking = submitting || saving || floorMutating;
 
   const correctionsBar = showSaveBar && canEditSections && (
     <RoleGate capability="surveys.editDraft" fallback={null}>
@@ -279,6 +290,7 @@ export function SurveyEditor({
               existing={survey as SurveyListItem | null | undefined}
               onSaved={onSaved}
               onDirty={onDirty}
+              onValidationError={() => setActiveTab("details")}
               conflictLinkVariant={conflictLinkVariant}
             />
           )}
@@ -292,6 +304,7 @@ export function SurveyEditor({
               plotSqft={survey?.plotSqft}
               plinthSqft={survey?.plinthSqft}
               onDirty={onDirty}
+              onFloorMutatingChange={setFloorMutating}
               conflictLinkVariant={conflictLinkVariant}
               onRegisterSave={(fn) => {
                 saveAreaFn.current = fn;

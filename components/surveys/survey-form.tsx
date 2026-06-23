@@ -26,7 +26,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 export type SurveyFormHandle = {
-  save: () => Promise<boolean>;
+  save: (patch?: Partial<SurveyDraftValues>) => Promise<boolean>;
 };
 
 type SurveyFormProps = {
@@ -38,6 +38,7 @@ type SurveyFormProps = {
   existing?: SurveyListItem | null;
   onSaved?: (surveyId: string) => void;
   onDirty?: () => void;
+  onValidationError?: () => void;
   conflictLinkVariant?: ConflictSurveyLinkVariant;
 };
 
@@ -102,6 +103,7 @@ export function SurveyForm({
   existing,
   onSaved,
   onDirty,
+  onValidationError,
   conflictLinkVariant = "surveys",
 }: SurveyFormProps) {
   const router = useRouter();
@@ -131,45 +133,54 @@ export function SurveyForm({
   onSavedRef.current = onSaved;
   const onDirtyRef = useRef(onDirty);
   onDirtyRef.current = onDirty;
+  const onValidationErrorRef = useRef(onValidationError);
+  onValidationErrorRef.current = onValidationError;
   const conflictLinkVariantRef = useRef(conflictLinkVariant);
   conflictLinkVariantRef.current = conflictLinkVariant;
   const routerRef = useRef(router);
   routerRef.current = router;
   const skipDirtyRef = useRef(true);
 
-  const saveDetails = useCallback((): Promise<boolean> => {
-    return new Promise<boolean>((resolve) => {
-      handleSubmit(
-        async (values) => {
-          try {
-            const id = await saveDraftRef.current({
-              ...values,
-              ...(rowIdRef.current ? { id: rowIdRef.current as any } : {}),
-              clientUpdatedAt: Date.now(),
-            } as any);
-            toast.success("Details saved");
-            setConflictingSurveyId(undefined);
-            onSavedRef.current?.(id as unknown as string);
-            resolve(true);
-          } catch (e) {
-            const parsed = applyServerFieldErrors(e, setErrorRef.current as any);
-            const conflictId = getConflictingSurveyId(e);
-            setConflictingSurveyId(conflictId);
-            if (
-              !toastSurveyConflict(e, {
-                variant: conflictLinkVariantRef.current,
-                onNavigate: (href) => routerRef.current.push(href),
-              })
-            ) {
-              toast.error(parsed.message);
+  const saveDetails = useCallback(
+    (patch?: Partial<SurveyDraftValues>): Promise<boolean> => {
+      return new Promise<boolean>((resolve) => {
+        handleSubmit(
+          async (values) => {
+            try {
+              const id = await saveDraftRef.current({
+                ...values,
+                ...patch,
+                ...(rowIdRef.current ? { id: rowIdRef.current as any } : {}),
+                clientUpdatedAt: Date.now(),
+              } as any);
+              toast.success("Details saved");
+              setConflictingSurveyId(undefined);
+              onSavedRef.current?.(id as unknown as string);
+              resolve(true);
+            } catch (e) {
+              const parsed = applyServerFieldErrors(e, setErrorRef.current as any);
+              const conflictId = getConflictingSurveyId(e);
+              setConflictingSurveyId(conflictId);
+              if (parsed.code === "VALIDATION") {
+                onValidationErrorRef.current?.();
+              }
+              if (
+                !toastSurveyConflict(e, {
+                  variant: conflictLinkVariantRef.current,
+                  onNavigate: (href) => routerRef.current.push(href),
+                })
+              ) {
+                toast.error(parsed.message);
+              }
+              resolve(false);
             }
-            resolve(false);
-          }
-        },
-        () => resolve(false),
-      )();
-    });
-  }, [handleSubmit]);
+          },
+          () => resolve(false),
+        )();
+      });
+    },
+    [handleSubmit],
+  );
 
   useImperativeHandle(ref, () => ({ save: saveDetails }), [saveDetails]);
 

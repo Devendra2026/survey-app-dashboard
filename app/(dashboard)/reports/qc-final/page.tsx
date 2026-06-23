@@ -31,7 +31,7 @@ function QcFinalReportContent() {
 
   return (
     <div className="space-y-6">
-      <QcFinalReportPanelHero />
+      <QcFinalReportPanelHero filters={filters} exportDisabled={isLoading} />
       <QcFinalReportPanelFilters value={filters} onChange={setFilters} />
       <QcFinalReportPanelKpis
         propertyCount={totals.propertyCount}

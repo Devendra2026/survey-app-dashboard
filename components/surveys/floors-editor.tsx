@@ -33,6 +33,7 @@ export function FloorsEditor({
   onRegisterSave,
   onPlotSqftChange,
   onDirty,
+  onFloorMutatingChange,
   conflictLinkVariant = "surveys",
 }: {
   surveyId: string;
@@ -41,6 +42,7 @@ export function FloorsEditor({
   onRegisterSave?: (fn: () => Promise<boolean>) => void;
   onPlotSqftChange?: (plotSqft: number) => void;
   onDirty?: () => void;
+  onFloorMutatingChange?: (busy: boolean) => void;
   conflictLinkVariant?: ConflictSurveyLinkVariant;
 }) {
   const router = useRouter();
@@ -76,6 +78,17 @@ export function FloorsEditor({
   conflictLinkVariantRef.current = conflictLinkVariant;
   const routerRef = useRef(router);
   routerRef.current = router;
+  const onFloorMutatingChangeRef = useRef(onFloorMutatingChange);
+  onFloorMutatingChangeRef.current = onFloorMutatingChange;
+
+  async function withFloorMutation<T>(fn: () => Promise<T>): Promise<T> {
+    onFloorMutatingChangeRef.current?.(true);
+    try {
+      return await fn();
+    } finally {
+      onFloorMutatingChangeRef.current?.(false);
+    }
+  }
 
   const opts = {
     floors: masters?.floors ?? [],
@@ -131,9 +144,24 @@ export function FloorsEditor({
 
   useEffect(() => {
     if (!onRegisterSave) return;
-    // react-doctor-disable-next-line react-doctor/no-pass-data-to-parent, react-doctor/no-prop-callback-in-effect, react-doctor/no-pass-live-state-to-parent -- parent registers area save on submit
-    onRegisterSave(async () => persistPlotArea(plotSqftRef.current));
-  }, [onRegisterSave, persistPlotArea]);
+    // react-doctor-disable-next-line react-doctor/no-pass-data-to-parent, react-doctor/no-prop-callback-in-effect, react-doctor/no-pass-live-state-to-parent -- parent registers area validation on submit
+    onRegisterSave(async () => {
+      const currentSurvey = surveyRef.current;
+      if (!currentSurvey) return false;
+      const plot = plotSqftRef.current;
+      if (!(plot > 0)) {
+        toast.error("Enter plot area greater than 0.");
+        return false;
+      }
+      const plinth = resolvePlinthSqft(currentSurvey);
+      const conflict = plotPlinthConflict(plot, plinth);
+      if (conflict) {
+        toast.error(conflict);
+        return false;
+      }
+      return true;
+    });
+  }, [onRegisterSave]);
 
   async function savePlot() {
     if (!survey) return;
@@ -151,23 +179,25 @@ export function FloorsEditor({
 
   async function saveFloor() {
     if (!draft) return;
-    try {
-      await upsert({
-        surveyId: surveyId as any,
-        clientFloorId: draft.clientFloorId,
-        position: draft.position,
-        floorName: draft.floorName,
-        usageFactor: draft.usageFactor || undefined,
-        usageType: draft.usageType,
-        constructionType: draft.constructionType,
-        isOccupied: draft.usageType === "self_occupied" || draft.usageType === "rented",
-        areaSqft: draft.areaSqft,
-      });
-      toast.success("Floor saved");
-      setDraft(null);
-    } catch (e) {
-      toast.error(parseConvexError(e).message);
-    }
+    await withFloorMutation(async () => {
+      try {
+        await upsert({
+          surveyId: surveyId as any,
+          clientFloorId: draft.clientFloorId,
+          position: draft.position,
+          floorName: draft.floorName,
+          usageFactor: draft.usageFactor || undefined,
+          usageType: draft.usageType,
+          constructionType: draft.constructionType,
+          isOccupied: draft.usageType === "self_occupied" || draft.usageType === "rented",
+          areaSqft: draft.areaSqft,
+        });
+        toast.success("Floor saved");
+        setDraft(null);
+      } catch (e) {
+        toast.error(parseConvexError(e).message);
+      }
+    });
   }
 
   function openAddFloor(isOpenLand: boolean) {
@@ -183,12 +213,14 @@ export function FloorsEditor({
 
   async function handleRemoveFloor(id: string) {
     if (!confirm("Remove this floor row?")) return;
-    try {
-      await remove({ id: id as any });
-      toast.success("Floor removed");
-    } catch (e) {
-      toast.error(parseConvexError(e).message);
-    }
+    await withFloorMutation(async () => {
+      try {
+        await remove({ id: id as any });
+        toast.success("Floor removed");
+      } catch (e) {
+        toast.error(parseConvexError(e).message);
+      }
+    });
   }
 
   const floorMasters = {

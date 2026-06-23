@@ -24,11 +24,26 @@ export function PhotoUploader({ surveyId }: { surveyId: string }) {
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   async function onPick(slot: PhotoSlot, file?: File) {
-    if (!file) return;
+    if (!file || busySlot !== null) return;
     setBusySlot(slot);
     try {
       await upload(surveyId, slot, file);
       toast.success(`${PHOTO_SLOT_LABEL[slot]} photo uploaded`);
+    } catch (e) {
+      toast.error(parseConvexError(e).message);
+    } finally {
+      setBusySlot(null);
+      const input = inputs.current[slot];
+      if (input) input.value = "";
+    }
+  }
+
+  async function onRemove(slot: PhotoSlot) {
+    if (busySlot !== null) return;
+    setBusySlot(slot);
+    try {
+      await removeSlot({ surveyId: surveyId as any, slot });
+      toast.success(`${PHOTO_SLOT_LABEL[slot]} photo removed`);
     } catch (e) {
       toast.error(parseConvexError(e).message);
     } finally {
@@ -110,7 +125,7 @@ export function PhotoUploader({ surveyId }: { surveyId: string }) {
                 size="sm"
                 variant="outline"
                 className="flex-1 cursor-pointer rounded-xl border-brand-navy/20 hover:bg-brand-navy/5 dark:border-primary/25"
-                disabled={busySlot === slot}
+                disabled={busySlot !== null}
                 onClick={() => inputs.current[slot]?.click()}
               >
                 <Upload className="h-3.5 w-3.5" aria-hidden /> {photo ? "Replace" : "Upload"}
@@ -120,15 +135,9 @@ export function PhotoUploader({ surveyId }: { surveyId: string }) {
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 cursor-pointer rounded-xl"
-                  disabled={busySlot === slot}
+                  disabled={busySlot !== null}
                   aria-label={`Remove ${slotLabel} photo`}
-                  onClick={async () => {
-                    try {
-                      await removeSlot({ surveyId: surveyId as any, slot });
-                    } catch (e) {
-                      toast.error(parseConvexError(e).message);
-                    }
-                  }}
+                  onClick={() => onRemove(slot)}
                 >
                   <Trash2 className="h-3.5 w-3.5 text-brand-red" aria-hidden />
                 </Button>

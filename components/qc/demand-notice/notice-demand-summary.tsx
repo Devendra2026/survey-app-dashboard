@@ -6,9 +6,9 @@ import { SectionLabel } from "./section-label";
 
 export function NoticeDemandSummary({
   notice,
-  propPct: _propPct,
-  waterPct: _waterPct,
-  drainPct: _drainPct,
+  propPct,
+  waterPct,
+  drainPct,
 }: {
   notice: DemandNoticeData;
   propPct: string;
@@ -16,9 +16,9 @@ export function NoticeDemandSummary({
   drainPct: string;
 }) {
   const rows = [
-    { label: "Property Tax (10%)", value: notice.propertyTax },
-    { label: "Water Tax (7.5%)", value: notice.waterTax },
-    { label: "Drainage Tax (2.5%)", value: notice.drainageTax },
+    { label: `Property Tax (${propPct})`, value: notice.propertyTax },
+    { label: `Water Tax (${waterPct})`, value: notice.waterTax },
+    { label: `Drainage Tax (${drainPct})`, value: notice.drainageTax },
   ];
 
   return (
