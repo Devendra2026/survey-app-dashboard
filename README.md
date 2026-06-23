@@ -89,3 +89,18 @@ Without a key, embeds fall back to a keyless URL and static maps are omitted. A 
 ## Database & file storage backups
 
 Full snapshots (tables + survey photos in Convex storage) live under `convex-backups/`. See [convex-backups/README.md](convex-backups/README.md) for export/import and dev→prod sync (`npm run convex:export:dev`, `npm run convex:import:prod`, etc.).
+
+### Self-hosted (Dokploy / EC2)
+
+Copy [`.env.selfhosted.example`](.env.selfhosted.example) values into `.env.local`. For large snapshots:
+
+1. `npm run convex:prepare:import-zip` — strips `generated_schema.jsonl` (fixes `uniform` parse error)
+2. `npx convex import --replace-all --yes .\survey-backup-import.zip`
+
+For EC2-local import (avoids proxy issues), see [convex-backups/README.md](convex-backups/README.md).
+
+```bash
+./convex-backups/import-selfhosted-ec2.sh /tmp/survey-backup.zip
+```
+
+Scripts: `npm run convex:deploy:selfhosted`, `npm run convex:import:selfhosted`, `npm run convex:post-import:selfhosted`.

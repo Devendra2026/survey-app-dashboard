@@ -22,6 +22,12 @@
     "convex:export:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/export-prod.ps1",
     "convex:import:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/import-dev.ps1",
     "convex:import:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/import-prod.ps1",
+    "convex:deploy:selfhosted": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/deploy-selfhosted.ps1",
+    "convex:import:selfhosted": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/import-selfhosted.ps1",
+    "convex:import:ec2": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/import-via-ec2.ps1",
+    "convex:verify:zip": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/verify-zip.ps1",
+    "convex:prepare:import-zip": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/prepare-import-zip.ps1",
+    "convex:post-import:selfhosted": "powershell -NoProfile -ExecutionPolicy Bypass -File convex-backups/post-import-checklist.ps1",
     "doctor": "npx react-doctor@latest",
     "analyze": "cross-env ANALYZE=true next build"
   },

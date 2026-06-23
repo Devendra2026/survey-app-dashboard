@@ -36,6 +36,7 @@ yarn-error.log*
 # convex backup extracts (keep .zip locally if needed)
 convex-backups/_inspect/
 convex-backups/*.zip
+survey-backup-import.zip
 
 # vercel
 .vercel
