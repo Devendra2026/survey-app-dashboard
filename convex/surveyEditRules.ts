@@ -84,6 +84,14 @@ export function resolvePostSaveStatuses(existing: Doc<"surveys">): Pick<Doc<"sur
     return { status: "draft", qcStatus: "rejected" };
   }
 
+  if (existing.status === "submitted") {
+    return { status: "submitted", qcStatus: existing.qcStatus };
+  }
+
+  if (existing.status === "approved") {
+    return { status: "approved", qcStatus: existing.qcStatus };
+  }
+
   return { status: "draft", qcStatus: existing.qcStatus };
 }
 

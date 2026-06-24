@@ -1,13 +1,19 @@
 /**
- * Verify NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY, and
- * CLERK_JWT_ISSUER_DOMAIN in .env.local refer to the same Clerk app.
+ * Verify Clerk publishable key, secret key, and JWT issuer refer to the same Clerk app.
+ *
+ * Usage:
+ *   node ./scripts/verify-clerk-keys.mjs           # .env.local (dev)
+ *   node ./scripts/verify-clerk-keys.mjs --prod    # .env.production
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseEnvFile, resolveWebEnvPath } from "./read-env-file.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const envPath = path.join(root, ".env.local");
+const isProd = process.argv.includes("--prod");
+const envPath = resolveWebEnvPath(root, isProd ? "production" : "local");
+const envLabel = isProd ? ".env.production" : ".env.local";
 
 let failed = false;
 
@@ -18,16 +24,6 @@ function fail(msg) {
 
 function ok(msg) {
   console.log(`[verify-clerk-keys] OK — ${msg}`);
-}
-
-function readEnv(key) {
-  if (!existsSync(envPath)) {
-    fail("Missing .env.local");
-    return null;
-  }
-  const text = readFileSync(envPath, "utf8");
-  const re = new RegExp(`^${key}=(.+)$`, "m");
-  return text.match(re)?.[1]?.trim() ?? null;
 }
 
 function issuerFromPublishableKey(pk) {
@@ -41,13 +37,19 @@ function issuerFromPublishableKey(pk) {
   }
 }
 
-const pk = readEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY");
-const sk = readEnv("CLERK_SECRET_KEY");
-const issuer = readEnv("CLERK_JWT_ISSUER_DOMAIN");
+if (!existsSync(envPath)) {
+  fail(`Missing ${envLabel}`);
+  process.exit(1);
+}
 
-if (!pk) fail("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY missing in .env.local");
-if (!sk) fail("CLERK_SECRET_KEY missing in .env.local");
-if (!issuer) fail("CLERK_JWT_ISSUER_DOMAIN missing in .env.local");
+const env = parseEnvFile(envPath);
+const pk = env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? null;
+const sk = env.CLERK_SECRET_KEY ?? null;
+const issuer = env.CLERK_JWT_ISSUER_DOMAIN ?? null;
+
+if (!pk) fail(`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY missing in ${envLabel}`);
+if (!sk) fail(`CLERK_SECRET_KEY missing in ${envLabel}`);
+if (!issuer) fail(`CLERK_JWT_ISSUER_DOMAIN missing in ${envLabel}`);
 
 if (pk && sk) {
   const pkEnv = pk.startsWith("pk_test_") ? "test" : pk.startsWith("pk_live_") ? "live" : null;
@@ -59,6 +61,9 @@ if (pk && sk) {
   } else if (pkEnv && skEnv) {
     ok(`Both keys use Clerk ${pkEnv} environment`);
   }
+  if (isProd && pkEnv === "test") {
+    fail("Production env file must use pk_live_ / sk_live_ keys");
+  }
 }
 
 if (pk && issuer) {
@@ -68,16 +73,30 @@ if (pk && issuer) {
   } else if (pkIssuer !== issuer) {
     fail(
       `CLERK_JWT_ISSUER_DOMAIN (${issuer}) does not match publishable key (${pkIssuer}).\n` +
-      `  Re-copy both keys from the same Clerk app in the dashboard.`,
+        `  Re-copy both keys from the same Clerk app in the dashboard.`,
     );
   } else {
     ok(`Publishable key and issuer match (${issuer})`);
   }
 }
 
+const convexUrl = env.NEXT_PUBLIC_CONVEX_URL?.trim();
+if (isProd && convexUrl && convexUrl.includes("sdvedytech")) {
+  fail(`NEXT_PUBLIC_CONVEX_URL typo: use api.sdvedutech.in (not sdvedytech)`);
+} else if (isProd && convexUrl) {
+  ok(`Convex URL (${convexUrl})`);
+}
+
+const webhook = env.CLERK_WEBHOOK_SECRET?.trim();
+if (isProd && (!webhook || webhook === "whsec_xxx" || webhook.includes("xxx"))) {
+  fail("Set real CLERK_WEBHOOK_SECRET in .env.production (Clerk Dashboard → Webhooks → Signing secret)");
+} else if (isProd && webhook) {
+  ok("CLERK_WEBHOOK_SECRET present");
+}
+
 if (failed) {
-  console.error("\n[verify-clerk-keys] Fix .env.local, then restart `npm run dev`.\n");
+  console.error(`\n[verify-clerk-keys] Fix ${envLabel}, then re-run.\n`);
   process.exit(1);
 }
 
-console.log("\n[verify-clerk-keys] Clerk keys in .env.local are aligned.\n");
+console.log(`\n[verify-clerk-keys] Clerk keys in ${envLabel} are aligned.\n`);

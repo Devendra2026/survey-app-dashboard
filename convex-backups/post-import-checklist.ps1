@@ -7,7 +7,7 @@ Write-Host @"
      https://site.sdvedutech.in/clerk-webhook
      (or your CONVEX_SITE_URL + /clerk-webhook)
    - Events: user.created, user.updated, user.deleted, session.created
-   - Ensure CLERK_WEBHOOK_SECRET is set: npm run deploy:backend
+   - Ensure CLERK_WEBHOOK_SECRET is set: npm run sync:clerk:prod
 
 2. Frontend (Vercel / Dokploy)
    - NEXT_PUBLIC_CONVEX_URL=https://api.sdvedutech.in

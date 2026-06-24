@@ -47,12 +47,16 @@ Next.js dashboard for survey QC, analytics, masters, and users. **This repo owns
 
 ## Production
 
+See [docs/dokploy-production-deploy.md](docs/dokploy-production-deploy.md) and [docs/clerk-production-dashboard.md](docs/clerk-production-dashboard.md).
+
 ```bash
-npx convex deploy
-npx convex env set CLERK_JWT_ISSUER_DOMAIN "https://…" --prod
+npm run verify:clerk-production
+npm run sync:clerk:prod          # after CLERK_WEBHOOK_SECRET is set in .env.production
+npm run deploy:backend:prod
+npm run smoke:production
 ```
 
-Register Clerk webhook: `<CONVEX_SITE_URL>/clerk-webhook`.
+Register Clerk webhook: `<CONVEX_SITE_URL>/clerk-webhook` (e.g. `https://site.sdvedutech.in/clerk-webhook`).
 
 ## Google Maps (GIS)
 
