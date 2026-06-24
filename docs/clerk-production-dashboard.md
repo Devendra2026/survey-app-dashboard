@@ -8,6 +8,42 @@ Complete these steps on the **production** Clerk instance (`clerk.sdvedutech.in`
 - [ ] Custom domain `clerk.sdvedutech.in` has valid DNS + SSL
 - [ ] API keys copied: `pk_live_…`, `sk_live_…` → [`.env.production`](../.env.production) and [survey-app `.env.prod`](../../survey-app/.env.prod)
 
+### SSL / TLS troubleshooting (mobile "Sign-in could not start")
+
+If the fleet APK shows **Sign-in could not start** with Clerk host `clerk.sdvedutech.in`, the Clerk Frontend API is not reachable over HTTPS. The mobile app has **no CDN or Cloudflare dependency** — it only calls `https://clerk.sdvedutech.in` from the publishable key. Convex (`api.sdvedutech.in`) may still work; this is a **Clerk custom-domain / DNS** issue, not a wrong publishable key.
+
+**Verify from your machine** (must return `200`, not `000` or SSL error):
+
+```bash
+curl.exe -s -o NUL -w "%{http_code}" "https://clerk.sdvedutech.in/v1/client"
+```
+
+Or from survey-app:
+
+```bash
+cd ../survey-app && npm run verify:clerk-reachability
+```
+
+**Fix checklist:**
+
+1. **Clerk Dashboard** (production instance) → **Domains** / **Frontend API** → `clerk.sdvedutech.in` must show **Active** (not Pending or Failed). Re-run Verify if needed.
+2. **DNS** — CNAME for `clerk` (or `clerk.sdvedutech.in`) must point to Clerk's target (`frontend-api.clerk.services`). `nslookup clerk.sdvedutech.in` should resolve to Clerk's edge. Prefer **DNS only** (no HTTP proxy in front of Clerk) unless you know how to terminate TLS end-to-end.
+3. **If your DNS provider proxies traffic** (e.g. orange-cloud proxy) — SSL/TLS mode must be **Full** or **Full (strict)**, **not Flexible**. Flexible mode breaks TLS to Clerk and causes handshake failures on phones.
+4. Wait up to 24h for certificate provisioning after DNS changes.
+5. Once curl returns 200, force-close and reopen the mobile app (no APK rebuild needed if keys are already `pk_live_`).
+
+**No APK rebuild required** after SSL is fixed — the app already uses `pk_live_…` → `clerk.sdvedutech.in`.
+
+### Native applications (required for @clerk/expo on Android/iOS)
+
+The mobile SDK sends `x-mobile: 1` and `_is_native=1` on Clerk API requests. If Native API is disabled, `useAuth().isLoaded` may stay `false` on devices even when `curl` returns 200.
+
+1. **Clerk Dashboard** (production) → **Configure → Native applications**
+2. Enable **Native API** for this instance
+3. Register **Android** package name: `com.surveyapp.app` (from `survey-app/app.json`)
+4. Add SHA-256 certificate fingerprints for your EAS preview/production signing keys (EAS Dashboard → Project → Credentials)
+5. Rebuild the APK after adding fingerprints if Google/Apple native sign-in is used; email/password should work once Native API is enabled
+
 ## 2. Convex integration
 
 - [ ] **Integrations → Convex → Activate** on production instance
@@ -60,6 +96,7 @@ npm run verify:clerk-production
 
 cd ../survey-app
 npm run env:sync:preview
+npm run verify:clerk-reachability
 npm run verify:clerk-convex -- --prod
 ```
 

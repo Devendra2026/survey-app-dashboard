@@ -3,7 +3,7 @@
 import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
 import { qcActionBtn } from "@/components/qc/qc-action-styles";
 import { RoleGate } from "@/components/shared/role-gate";
-import { FloorsEditor } from "@/components/surveys/floors-editor";
+import { FloorsEditor, type FloorsEditorHandle } from "@/components/surveys/floors-editor";
 import { GpsCapturePanel } from "@/components/surveys/gps-capture";
 import { PhotoUploader } from "@/components/surveys/photo-uploader";
 import { SurveyForm, type SurveyFormHandle } from "@/components/surveys/survey-form";
@@ -97,7 +97,7 @@ export function SurveyEditor({
   const canEditSections = !!surveyId && !locked;
 
   const saveDetailsRef = useRef<SurveyFormHandle>(null);
-  const saveAreaFn = useRef<(() => Promise<boolean>) | null>(null);
+  const floorsEditorRef = useRef<FloorsEditorHandle>(null);
   const plotSqftDraftRef = useRef(0);
   const onPlotSqftChange = useCallback((value: number) => {
     plotSqftDraftRef.current = value;
@@ -117,7 +117,7 @@ export function SurveyEditor({
     const detailsSaved = await (saveDetailsRef.current?.save(areaPatch) ?? Promise.resolve(true));
     if (!detailsSaved) return false;
 
-    const areaValid = await (saveAreaFn.current?.() ?? Promise.resolve(true));
+    const areaValid = await (floorsEditorRef.current?.validateArea() ?? Promise.resolve(true));
     if (!areaValid) {
       setActiveTab("area");
       return false;
@@ -299,6 +299,7 @@ export function SurveyEditor({
         <TabsContent value="area" forceMount className={cn("mt-0", activeTab !== "area" && "hidden")}>
           {canEditSections && surveyId ? (
             <FloorsEditor
+              ref={floorsEditorRef}
               key={surveyId}
               surveyId={surveyId}
               plotSqft={survey?.plotSqft}
@@ -306,9 +307,6 @@ export function SurveyEditor({
               onDirty={onDirty}
               onFloorMutatingChange={setFloorMutating}
               conflictLinkVariant={conflictLinkVariant}
-              onRegisterSave={(fn) => {
-                saveAreaFn.current = fn;
-              }}
               onPlotSqftChange={onPlotSqftChange}
             />
           ) : (

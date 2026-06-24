@@ -57,5 +57,8 @@ export function applyConvexSelfHostedEnv(envFilePath) {
   const adminKey = parsed.CONVEX_SELF_HOSTED_ADMIN_KEY?.trim();
   if (url) process.env.CONVEX_SELF_HOSTED_URL = url;
   if (adminKey) process.env.CONVEX_SELF_HOSTED_ADMIN_KEY = adminKey;
+  if (url && adminKey) {
+    delete process.env.CONVEX_DEPLOYMENT;
+  }
   return { url, adminKey };
 }

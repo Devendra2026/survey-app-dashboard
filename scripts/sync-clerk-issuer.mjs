@@ -44,11 +44,13 @@ if (isProd) {
   }
 }
 
-console.log(`[sync-clerk-issuer] Setting Convex env to ${issuer} (from ${isProd ? ".env.production" : ".env.local"})`);
-execSync(`npx convex env set CLERK_JWT_ISSUER_DOMAIN "${issuer}"`, {
+const envFileName = isProd ? ".env.production" : ".env.local";
+const convexEnvFileFlag = `--env-file ${envFileName}`;
+
+console.log(`[sync-clerk-issuer] Setting Convex env to ${issuer} (from ${envFileName})`);
+execSync(`npx convex env set CLERK_JWT_ISSUER_DOMAIN "${issuer}" ${convexEnvFileFlag}`, {
   cwd: root,
   stdio: "inherit",
-  env: process.env,
 });
 
 const webhookSecret = env.CLERK_WEBHOOK_SECRET?.trim();
@@ -59,10 +61,9 @@ if (webhookSecret) {
     );
   } else {
     console.log("[sync-clerk-issuer] Setting CLERK_WEBHOOK_SECRET on Convex deployment");
-    execSync(`npx convex env set CLERK_WEBHOOK_SECRET "${webhookSecret}"`, {
+    execSync(`npx convex env set CLERK_WEBHOOK_SECRET "${webhookSecret}" ${convexEnvFileFlag}`, {
       cwd: root,
       stdio: "inherit",
-      env: process.env,
     });
   }
 } else {

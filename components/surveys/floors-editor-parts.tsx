@@ -1,5 +1,7 @@
 "use client";
 
+import { GlassCard, GlassCardHeader } from "@/components/design-system/glass-card";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -9,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatAreaSqft } from "@/lib/survey/area";
 import { labelFromOptions } from "@/lib/survey/detail-labels";
 import type { FloorRow } from "@/schema/surveys/index";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 export type FloorDraft = {
   clientFloorId: string;
@@ -21,12 +23,148 @@ export type FloorDraft = {
   areaSqft: number;
 };
 
-type FloorMasters = {
+export type FloorMasters = {
   floors?: { value: string; label: string }[];
   usageFactors?: { value: string; label: string }[];
   usageTypes?: { value: string; label: string }[];
   constructionTypes?: { value: string; label: string }[];
 };
+
+export function PlotAreaCard({
+  plotDraft,
+  savingPlot,
+  onPlotChange,
+  onSave,
+}: {
+  plotDraft: number;
+  savingPlot: boolean;
+  onPlotChange: (value: number) => void;
+  onSave: () => void;
+}) {
+  return (
+    <GlassCard padding="md">
+      <GlassCardHeader title="Plot area" description="Total plot size on ground (sq ft)." />
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-40 space-y-1.5">
+          <Label>Plot (sqft)</Label>
+          <Input type="number" value={plotDraft || ""} onChange={(e) => onPlotChange(Number(e.target.value))} />
+        </div>
+        <Button size="sm" disabled={savingPlot} onClick={onSave} className="cursor-pointer rounded-xl">
+          {savingPlot ? "Saving…" : "Save plot area"}
+        </Button>
+      </div>
+    </GlassCard>
+  );
+}
+
+export function PlinthAreaCard({ plinthSqft }: { plinthSqft: number }) {
+  return (
+    <GlassCard padding="md" variant="accent">
+      <GlassCardHeader title="Plinth area" description="Calculated from ground floor row." />
+      <p className="font-display text-2xl font-bold tabular-nums text-brand-navy dark:text-primary-foreground">
+        {formatAreaSqft(plinthSqft)}
+      </p>
+    </GlassCard>
+  );
+}
+
+export function BuiltUpFloorsSection({
+  floors,
+  builtUpFloors,
+  openLandFloors,
+  builtUpTotal,
+  floorMasters,
+  onAddFloor,
+  onEdit,
+  onRemove,
+}: {
+  floors: FloorRow[] | undefined;
+  builtUpFloors: FloorRow[];
+  openLandFloors: FloorRow[];
+  builtUpTotal: number;
+  floorMasters: FloorMasters;
+  onAddFloor: () => void;
+  onEdit: (f: FloorRow) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <GlassCard padding="md">
+      <GlassCardHeader
+        title="Built-up floors"
+        description="Ground floor, first floor, and other constructed levels."
+        action={
+          <Button size="sm" onClick={onAddFloor} className="cursor-pointer rounded-xl">
+            <Plus className="h-4 w-4" aria-hidden /> Add floor
+          </Button>
+        }
+      />
+      <div className="space-y-3">
+        {floors === undefined ? null : builtUpFloors.length === 0 ? (
+          <EmptyState
+            title={openLandFloors.length > 0 ? "No built-up floors" : "Built-up floor required"}
+            description={
+              openLandFloors.length > 0
+                ? "Vacant plots can submit with open land only. Add floors here if the property has construction."
+                : "Add at least one floor row — built-up floors or open land — with area greater than 0."
+            }
+          />
+        ) : (
+          <FloorTable floors={builtUpFloors} masters={floorMasters} onEdit={onEdit} onRemove={onRemove} />
+        )}
+        <div className="rounded-xl border border-brand-navy/15 bg-brand-navy/5 px-4 py-3 dark:border-primary/20 dark:bg-primary/10">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Total built-up area</p>
+          <p className="font-mono text-xl font-bold tabular-nums text-brand-navy dark:text-primary-foreground">
+            {formatAreaSqft(builtUpTotal)}
+          </p>
+          <p className="text-xs text-muted-foreground">Sum of all floor rows except open land.</p>
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
+export function OpenLandFloorsSection({
+  floors,
+  openLandFloors,
+  openLandTotal,
+  floorMasters,
+  onAddFloor,
+  onEdit,
+  onRemove,
+}: {
+  floors: FloorRow[] | undefined;
+  openLandFloors: FloorRow[];
+  openLandTotal: number;
+  floorMasters: FloorMasters;
+  onAddFloor: () => void;
+  onEdit: (f: FloorRow) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <GlassCard padding="md">
+      <GlassCardHeader
+        title="Open land area"
+        description="Vacant or undeveloped plot area — separate from built-up floors."
+        action={
+          <Button size="sm" variant="outline" onClick={onAddFloor} className="cursor-pointer rounded-xl">
+            <Plus className="h-4 w-4" aria-hidden /> Add open land
+          </Button>
+        }
+      />
+      <div className="space-y-3">
+        {floors === undefined ? null : openLandFloors.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No open land rows. Add one if part of the plot is vacant.</p>
+        ) : (
+          <FloorTable floors={openLandFloors} masters={floorMasters} onEdit={onEdit} onRemove={onRemove} />
+        )}
+        <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Total open land area</p>
+          <p className="font-mono text-xl font-bold tabular-nums">{formatAreaSqft(openLandTotal)}</p>
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
 
 export function FloorTable({
   floors,
