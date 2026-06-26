@@ -73,7 +73,7 @@ if (pk && issuer) {
   } else if (pkIssuer !== issuer) {
     fail(
       `CLERK_JWT_ISSUER_DOMAIN (${issuer}) does not match publishable key (${pkIssuer}).\n` +
-        `  Re-copy both keys from the same Clerk app in the dashboard.`,
+      `  Re-copy both keys from the same Clerk app in the dashboard.`,
     );
   } else {
     ok(`Publishable key and issuer match (${issuer})`);
@@ -83,6 +83,10 @@ if (pk && issuer) {
 const convexUrl = env.NEXT_PUBLIC_CONVEX_URL?.trim();
 if (isProd && convexUrl && convexUrl.includes("sdvedytech")) {
   fail(`NEXT_PUBLIC_CONVEX_URL typo: use api.sdvedutech.in (not sdvedytech)`);
+} else if (isProd && convexUrl && convexUrl.includes(".convex.cloud")) {
+  fail(
+    "NEXT_PUBLIC_CONVEX_URL points at Convex Cloud — use https://api.sdvedutech.in for self-hosted production",
+  );
 } else if (isProd && convexUrl) {
   ok(`Convex URL (${convexUrl})`);
 }
