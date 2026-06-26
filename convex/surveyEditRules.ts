@@ -56,7 +56,7 @@ export async function assertSurveyWritable(ctx: MutationCtx, me: Doc<"users">, s
     clientError("LOCKED", "Survey is in QC review — only QC staff can edit until a decision is made");
   }
 
-  // Draft / returned for correction — field surveyor or field supervisor.
+  // Draft / returned for correction — field surveyor or field supervisor & qc.review.
   if (survey.status === "draft") {
     const ownScope = await isOwnScopeSurveyor(ctx, me);
     if (ownScope && survey.surveyorId !== me._id) {

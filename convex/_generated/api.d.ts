@@ -54,6 +54,7 @@ import type * as taxationMasters from "../taxationMasters.js";
 import type * as tenancy from "../tenancy.js";
 import type * as tenants from "../tenants.js";
 import type * as users from "../users.js";
+import type * as webDashboard from "../webDashboard.js";
 
 import type {
   ApiFromModules,
@@ -108,6 +109,7 @@ declare const fullApi: ApiFromModules<{
   tenancy: typeof tenancy;
   tenants: typeof tenants;
   users: typeof users;
+  webDashboard: typeof webDashboard;
 }>;
 
 /**

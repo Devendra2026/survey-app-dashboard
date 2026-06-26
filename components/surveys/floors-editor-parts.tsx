@@ -166,7 +166,7 @@ export function OpenLandFloorsSection({
   );
 }
 
-export function FloorTable({
+function FloorTable({
   floors,
   masters,
   onEdit,

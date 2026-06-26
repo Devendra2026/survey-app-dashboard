@@ -84,3 +84,15 @@ export interface WardCoverageRow {
   approved: number;
   approvalRate: number;
 }
+
+/** Combined home dashboard payload from `webDashboard.homeBundle`. */
+export interface WebDashboardAnalytics {
+  breakdown: StatsBreakdown;
+  dailyTrend: DailyTrendPoint[];
+  wardCoverage: WardCoverageRow[];
+}
+
+export interface WebDashboardBundle {
+  counts: DashboardCounts;
+  analytics: WebDashboardAnalytics | null;
+}

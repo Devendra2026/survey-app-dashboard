@@ -7,24 +7,33 @@ import { ProductivitySection } from "@/components/dashboard/productivity-section
 import { ActivityFeed } from "@/components/design-system/activity-feed";
 import { ExecutiveHero, SectionHeader } from "@/components/design-system/executive-hero";
 import { FadeIn } from "@/components/design-system/motion";
-import { useDailyTrend, useDashboardCounts, useStatsBreakdown, useWardCoverage } from "@/hooks/analytics/useAnalytics";
-import { useSurveyList } from "@/hooks/surveys/useSurveys";
-import { useHasCapability } from "@/hooks/use-capability";
+import { useRecentActivity, useWebDashboardBundle } from "@/hooks/analytics/useAnalytics";
 import { buildActivityFeed } from "@/lib/activity-feed";
 import { can } from "@/lib/permissions";
 import { useCurrentUser } from "@/lib/session";
 import { ClipboardList, LayoutDashboard, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function DashboardPage() {
   const { user, role } = useCurrentUser();
-  const counts = useDashboardCounts();
-  const showAnalytics = useHasCapability("analytics.view");
-  const breakdown = useStatsBreakdown();
-  const trend = useDailyTrend(30);
-  const coverage = useWardCoverage();
-  const recentSurveys = useSurveyList({ limit: 50 });
+  const { counts, analytics } = useWebDashboardBundle(30);
+  const showAnalytics = analytics != null;
+  const breakdown = analytics?.breakdown;
+  const trend = analytics?.dailyTrend;
+  const coverage = analytics?.wardCoverage;
+
+  const [activityEnabled, setActivityEnabled] = useState(false);
+  useEffect(() => {
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(() => setActivityEnabled(true));
+      return () => cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(() => setActivityEnabled(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const recentSurveys = useRecentActivity(activityEnabled);
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
   const municipality = user?.municipality?.name;

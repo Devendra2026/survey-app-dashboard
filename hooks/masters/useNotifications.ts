@@ -5,14 +5,14 @@ import { api } from "@/convex/_generated/api";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { useMutation, useQuery } from "convex/react";
 
-export function useNotifications(limit = 30) {
+export function useNotifications(limit = 30, enabled = true) {
   const ready = useConvexAuthReady();
-  return useQuery(api.masters.listNotifications, ready ? { limit } : "skip");
+  return useQuery(api.masters.listNotifications, ready && enabled ? { limit } : "skip");
 }
 
-export function useUnreadCount() {
+export function useUnreadCount(enabled = true) {
   const ready = useConvexAuthReady();
-  return useQuery(api.masters.unreadCount, ready ? {} : "skip") ?? 0;
+  return useQuery(api.masters.unreadCount, ready && enabled ? {} : "skip") ?? 0;
 }
 
 export function useMarkRead() {

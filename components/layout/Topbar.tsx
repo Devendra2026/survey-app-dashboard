@@ -17,13 +17,24 @@ import { useMarkAllRead, useMarkRead, useNotifications, useUnreadCount } from "@
 import { fmtDate } from "@/lib/utils";
 import { Bell, Check, Menu, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export function Topbar() {
   const { toggleMobile } = useSidebar();
   const router = useRouter();
-  const unread = useUnreadCount();
-  const notifications = useNotifications(20);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  useEffect(() => {
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(() => setNotificationsEnabled(true));
+      return () => cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(() => setNotificationsEnabled(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const unread = useUnreadCount(notificationsEnabled);
+  const notifications = useNotifications(20, notificationsEnabled);
   const markAll = useMarkAllRead();
   const markRead = useMarkRead();
   const [search, setSearch] = useState("");
