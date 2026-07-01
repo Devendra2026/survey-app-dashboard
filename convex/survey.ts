@@ -406,10 +406,51 @@ export async function collectSurveysForListPaginated(
   let rows: Doc<"surveys">[] = [];
 
   if (args.qcStatus) {
-    rows = await ctx.db
-      .query("surveys")
-      .withIndex("by_qc_status", (q) => q.eq("qcStatus", args.qcStatus!))
-      .collect();
+    if (args.municipalityId) {
+      rows = await ctx.db
+        .query("surveys")
+        .withIndex("by_municipality_qc_status", (q) =>
+          q.eq("municipalityId", args.municipalityId!).eq("qcStatus", args.qcStatus!),
+        )
+        .collect();
+    } else if (args.districtId) {
+      rows = await ctx.db
+        .query("surveys")
+        .withIndex("by_district_qc_status", (q) => q.eq("districtId", args.districtId!).eq("qcStatus", args.qcStatus!))
+        .collect();
+    } else {
+      const scopedMunis =
+        scope.municipalities.length > 0
+          ? scope.municipalities.map((m) => m._id)
+          : access === "assigned" && me.municipalityId
+            ? [me.municipalityId]
+            : [...muniIds];
+      if (scopedMunis.length > 0) {
+        const batches = await Promise.all(
+          scopedMunis.map((municipalityId) =>
+            ctx.db
+              .query("surveys")
+              .withIndex("by_municipality_qc_status", (q) =>
+                q.eq("municipalityId", municipalityId).eq("qcStatus", args.qcStatus!),
+              )
+              .collect(),
+          ),
+        );
+        const seen = new Set<string>();
+        for (const batch of batches) {
+          for (const row of batch) {
+            if (seen.has(row._id)) continue;
+            seen.add(row._id);
+            rows.push(row);
+          }
+        }
+      } else {
+        rows = await ctx.db
+          .query("surveys")
+          .withIndex("by_qc_status", (q) => q.eq("qcStatus", args.qcStatus!))
+          .take(LIST_PAGINATED_SCOPE_LIMIT);
+      }
+    }
   } else if (access === "own") {
     rows = await ctx.db
       .query("surveys")

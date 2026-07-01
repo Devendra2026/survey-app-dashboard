@@ -5,11 +5,24 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import type { PhotoSlot } from "@/lib/domain";
 import { useMutation, useQuery } from "convex/react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 export function usePhotos(surveyId: string | undefined) {
   const ready = useConvexAuthReady();
-  return useQuery(api.photos.list, ready && surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip");
+  const listArgs = ready && surveyId ? { surveyId: surveyId as Id<"surveys"> } : "skip";
+  const photos = useQuery(api.photos.list, listArgs);
+
+  const photoIds = useMemo(() => photos?.map((p) => p._id) ?? [], [photos]);
+  const urlArgs = ready && photoIds.length > 0 ? { photoIds } : "skip";
+  const urls = useQuery(api.photos.getUrls, urlArgs);
+
+  return useMemo(() => {
+    if (photos === undefined) return undefined;
+    return photos.map((p) => ({
+      ...p,
+      url: urls?.[p._id] ?? null,
+    }));
+  }, [photos, urls]);
 }
 
 export function useRemovePhotoSlot() {

@@ -211,6 +211,8 @@ export default defineSchema({
     .index("by_district_status", ["districtId", "status"])
     .index("by_municipality_ward", ["municipalityId", "wardNo"])
     .index("by_municipality_status", ["municipalityId", "status"])
+    .index("by_municipality_qc_status", ["municipalityId", "qcStatus"])
+    .index("by_district_qc_status", ["districtId", "qcStatus"])
     .index("by_property_id", ["propertyId"]),
 
   /** floors — 1:N to a survey; ordered by `position`. */

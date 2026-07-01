@@ -279,7 +279,26 @@ export async function collectSurveysInFieldScope(ctx: QueryCtx, me: Doc<"users">
       }
       return await filterSurveysInScope(ctx, rows, me, muniIds);
     }
-    const rows = await ctx.db.query("surveys").collect();
+    // Fallback: batch by every municipality in tenant scope (never full-table scan).
+    const allMunis = [...muniIds];
+    if (allMunis.length === 0) return [];
+    const batches = await Promise.all(
+      allMunis.map((municipalityId) =>
+        ctx.db
+          .query("surveys")
+          .withIndex("by_municipality_status", (q) => q.eq("municipalityId", municipalityId))
+          .collect(),
+      ),
+    );
+    const seen = new Set<string>();
+    const rows: Doc<"surveys">[] = [];
+    for (const batch of batches) {
+      for (const row of batch) {
+        if (seen.has(row._id)) continue;
+        seen.add(row._id);
+        rows.push(row);
+      }
+    }
     return await filterSurveysInScope(ctx, rows, me, muniIds);
   }
 

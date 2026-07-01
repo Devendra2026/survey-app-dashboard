@@ -30,6 +30,7 @@ import type * as lib_propertyIdLookup from "../lib/propertyIdLookup.js";
 import type * as lib_qcWardStats from "../lib/qcWardStats.js";
 import type * as lib_surveyProgress from "../lib/surveyProgress.js";
 import type * as lib_surveySearch from "../lib/surveySearch.js";
+import type * as lib_surveyStatsAggregate from "../lib/surveyStatsAggregate.js";
 import type * as lib_surveyUniqueness from "../lib/surveyUniqueness.js";
 import type * as lib_surveyWardStats from "../lib/surveyWardStats.js";
 import type * as masterCatalog from "../masterCatalog.js";
@@ -85,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   "lib/qcWardStats": typeof lib_qcWardStats;
   "lib/surveyProgress": typeof lib_surveyProgress;
   "lib/surveySearch": typeof lib_surveySearch;
+  "lib/surveyStatsAggregate": typeof lib_surveyStatsAggregate;
   "lib/surveyUniqueness": typeof lib_surveyUniqueness;
   "lib/surveyWardStats": typeof lib_surveyWardStats;
   masterCatalog: typeof masterCatalog;

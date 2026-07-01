@@ -9,6 +9,14 @@ import { query, type QueryCtx } from "./_generated/server";
 import { hasCapability } from "./capabilities";
 import { collectSurveysInFieldScope, querySurveysInFieldScope } from "./fieldAccess";
 import { requireUser } from "./helpers";
+import {
+  buildGroupSurveyCounts,
+  computeDailyTrendFromSlice,
+  computeDashboardCountsFromSlice,
+  computeWardCoverageFromSlice,
+  countRowsFromSlice,
+  type SurveyStatsSlice,
+} from "./lib/surveyStatsAggregate";
 import { qcStatus, surveyStatus } from "./schema";
 import { resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
 
@@ -119,16 +127,18 @@ const wardCoverageRowShape = v.object({
   approvalRate: v.number(),
 });
 
+const analyticsBundleShape = v.union(
+  v.null(),
+  v.object({
+    breakdown: statsBreakdownShape,
+    dailyTrend: v.array(dailyTrendPointShape),
+    wardCoverage: v.array(wardCoverageRowShape),
+  }),
+);
+
 const homeBundleShape = v.object({
   counts: v.object(dashboardCountsShape),
-  analytics: v.union(
-    v.null(),
-    v.object({
-      breakdown: statsBreakdownShape,
-      dailyTrend: v.array(dailyTrendPointShape),
-      wardCoverage: v.array(wardCoverageRowShape),
-    }),
-  ),
+  analytics: analyticsBundleShape,
 });
 
 const EMPTY_COUNTS = {
@@ -151,46 +161,24 @@ type SurveyCounts = {
   rejected: number;
 };
 
-function countRows(rows: Doc<"surveys">[], todayStartMs: number | null): SurveyCounts {
-  return {
-    total: rows.length,
-    today: todayStartMs !== null ? rows.filter((r) => r._creationTime >= todayStartMs).length : 0,
-    drafts: rows.filter((r) => r.status === "draft").length,
-    submitted: rows.filter((r) => r.status === "submitted").length,
-    approved: rows.filter((r) => r.qcStatus === "approved").length,
-    rejected: rows.filter((r) => r.qcStatus === "rejected").length,
-  };
+function toStatsSlice(row: Doc<"surveys">): SurveyStatsSlice {
+  return row;
 }
 
-function computeDashboardCounts(rows: Doc<"surveys">[], todayMs: number | null) {
-  return {
-    total: rows.length,
-    today: todayMs !== null ? rows.filter((r) => r._creationTime >= todayMs).length : 0,
-    drafts: rows.filter((r) => r.status === "draft").length,
-    pending: rows.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length,
-    submittedToday:
-      todayMs !== null
-        ? rows.filter(
-            (r) =>
-              r.status === "submitted" &&
-              (r.submittedAt !== undefined ? r.submittedAt >= todayMs : r._creationTime >= todayMs),
-          ).length
-        : 0,
-    approved: rows.filter((r) => r.qcStatus === "approved").length,
-    submitted: rows.filter((r) => r.status === "submitted").length,
-    rejected: rows.filter((r) => r.qcStatus === "rejected").length,
-  };
+function countRows(rows: SurveyStatsSlice[], todayStartMs: number | null): SurveyCounts {
+  return countRowsFromSlice(rows, todayStartMs);
 }
 
-function groupCounts(rows: Doc<"surveys">[], keyFn: (row: Doc<"surveys">) => string): Map<string, Doc<"surveys">[]> {
-  const groups = new Map<string, Doc<"surveys">[]>();
-  for (const row of rows) {
-    const key = keyFn(row);
-    const bucket = groups.get(key);
-    if (bucket) bucket.push(row);
-    else groups.set(key, [row]);
-  }
-  return groups;
+function computeDashboardCounts(rows: SurveyStatsSlice[], todayMs: number | null) {
+  return computeDashboardCountsFromSlice(rows, todayMs);
+}
+
+function groupCounts(
+  rows: SurveyStatsSlice[],
+  keyFn: (row: SurveyStatsSlice) => string,
+  todayMs: number | null,
+): Map<string, SurveyCounts> {
+  return buildGroupSurveyCounts(rows, keyFn, todayMs);
 }
 
 function filterActiveUsersInScope(
@@ -205,9 +193,15 @@ function filterActiveUsersInScope(
   });
 }
 
-function dayKey(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function startOfDayMs(nowMs: number): number {
+  const d = new Date(nowMs);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+async function loadScopedSurveyRows(ctx: QueryCtx, me: Doc<"users">): Promise<SurveyStatsSlice[]> {
+  const rows = await collectSurveysInFieldScope(ctx, me);
+  return rows.map(toStatsSlice);
 }
 
 /** Pick the cheaper QC decision load strategy based on scope size. */
@@ -258,43 +252,49 @@ async function loadScopedQcDecisionsByReviewer(
   return byReviewer;
 }
 
-async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, rows: Doc<"surveys">[], todayStartMs: number | null) {
+async function computeStatsBreakdown(
+  ctx: QueryCtx,
+  me: Doc<"users">,
+  rows: SurveyStatsSlice[],
+  todayStartMs: number | null,
+) {
   const scope = await resolveTenantScope(ctx, me);
   const districtIds = tenantDistrictIds(scope);
   const muniIds = tenantMunicipalityIds(scope);
   const districtMap = new Map(scope.districts.map((d) => [d._id, d]));
   const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
 
-  const byDistrictGroups = groupCounts(rows, (r) => r.districtId);
+  const byDistrictGroups = groupCounts(rows, (r) => r.districtId, todayStartMs);
   const byDistrict = [...byDistrictGroups.entries()]
-    .map(([districtId, group]) => {
+    .map(([districtId, counts]) => {
       const d = districtMap.get(districtId as Id<"districts">);
       return {
         districtId: districtId as Id<"districts">,
         code: d?.code ?? "—",
         name: d?.name ?? "Unknown district",
-        ...countRows(group, todayStartMs),
+        ...counts,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const byUlbGroups = groupCounts(rows, (r) => r.municipalityId);
+  const byUlbGroups = groupCounts(rows, (r) => r.municipalityId, todayStartMs);
   const byUlb = [...byUlbGroups.entries()]
-    .map(([municipalityId, group]) => {
+    .map(([municipalityId, counts]) => {
       const m = muniMap.get(municipalityId as Id<"municipalities">);
       const d = m ? districtMap.get(m.districtId) : undefined;
+      const sampleDistrictId = rows.find((r) => r.municipalityId === municipalityId)?.districtId;
       return {
         municipalityId: municipalityId as Id<"municipalities">,
         code: m?.code ?? "—",
         name: m?.name ?? "Unknown ULB",
-        districtId: m?.districtId ?? group[0]!.districtId,
+        districtId: m?.districtId ?? sampleDistrictId ?? (municipalityId as Id<"districts">),
         districtName: d?.name ?? "—",
-        ...countRows(group, todayStartMs),
+        ...counts,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const bySurveyorGroups = groupCounts(rows, (r) => r.surveyorId);
+  const bySurveyorGroups = groupCounts(rows, (r) => r.surveyorId, todayStartMs);
 
   const activeSurveyors = filterActiveUsersInScope(
     await ctx.db
@@ -307,7 +307,7 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, rows: Doc<
 
   const bySurveyor = activeSurveyors
     .map((u) => {
-      const group = bySurveyorGroups.get(u._id) ?? [];
+      const counts = bySurveyorGroups.get(u._id) ?? countRows([], todayStartMs);
       const muni = u.municipalityId ? muniMap.get(u.municipalityId) : undefined;
       const dist = u.districtId ? districtMap.get(u.districtId) : muni ? districtMap.get(muni.districtId) : undefined;
       return {
@@ -317,7 +317,7 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, rows: Doc<
         municipalityName: muni?.name ?? null,
         districtName: dist?.name ?? null,
         status: "active" as const,
-        ...countRows(group, todayStartMs),
+        ...counts,
       };
     })
     .sort((a, b) => b.approved + b.submitted - (a.approved + a.submitted));
@@ -378,62 +378,68 @@ async function computeStatsBreakdown(ctx: QueryCtx, me: Doc<"users">, rows: Doc<
   };
 }
 
-function computeDailyTrend(rows: Doc<"surveys">[], days: number, nowMs: number) {
-  const start = new Date(nowMs);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - (days - 1));
-  const startMs = start.getTime();
-
-  type Bucket = { created: number; submitted: number; approved: number; rejected: number };
-  const buckets = new Map<string, Bucket>();
-  for (let i = 0; i < days; i++) {
-    const d = new Date(startMs);
-    d.setDate(d.getDate() + i);
-    buckets.set(dayKey(d.getTime()), { created: 0, submitted: 0, approved: 0, rejected: 0 });
-  }
-
-  for (const r of rows) {
-    if (r._creationTime >= startMs) {
-      const b = buckets.get(dayKey(r._creationTime));
-      if (b) b.created += 1;
-    }
-    if (r.submittedAt && r.submittedAt >= startMs) {
-      const b = buckets.get(dayKey(r.submittedAt));
-      if (b) {
-        b.submitted += 1;
-        if (r.qcStatus === "approved") b.approved += 1;
-        else if (r.qcStatus === "rejected") b.rejected += 1;
-      }
-    }
-  }
-
-  return [...buckets.entries()].map(([date, b]) => ({ date, ...b }));
+function computeDailyTrend(rows: SurveyStatsSlice[], days: number, nowMs: number) {
+  return computeDailyTrendFromSlice(rows, days, nowMs);
 }
 
-function computeWardCoverage(
-  rows: Doc<"surveys">[],
-  muniMap: Map<Id<"municipalities">, Doc<"municipalities">>,
+function computeWardCoverage(rows: SurveyStatsSlice[], muniMap: Map<Id<"municipalities">, Doc<"municipalities">>) {
+  const muniNames = new Map([...muniMap.entries()].map(([id, m]) => [id, m.name]));
+  return computeWardCoverageFromSlice(rows, muniNames);
+}
+
+async function buildAnalyticsBundle(
+  ctx: QueryCtx,
+  me: Doc<"users">,
+  rows: SurveyStatsSlice[],
+  todayMs: number,
+  trendDays: number,
+  nowMs: number,
 ) {
-  const groups = new Map<
-    string,
-    { municipalityId: Id<"municipalities">; wardNo: string; total: number; approved: number }
-  >();
-  for (const r of rows) {
-    const key = `${r.municipalityId}::${r.wardNo}`;
-    const g = groups.get(key) ?? { municipalityId: r.municipalityId, wardNo: r.wardNo, total: 0, approved: 0 };
-    g.total += 1;
-    if (r.qcStatus === "approved") g.approved += 1;
-    groups.set(key, g);
-  }
+  const canViewAnalytics = await hasCapability(ctx, me, "analytics.view");
+  if (!canViewAnalytics) return null;
 
-  return [...groups.values()]
-    .map((g) => ({
-      ...g,
-      municipalityName: muniMap.get(g.municipalityId)?.name ?? "—",
-      approvalRate: g.total > 0 ? Math.round((g.approved / g.total) * 100) : 0,
-    }))
-    .sort((a, b) => b.total - a.total);
+  const days = Math.min(Math.max(trendDays, 1), 180);
+  const scope = await resolveTenantScope(ctx, me);
+  const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
+
+  const [breakdown, dailyTrend, wardCoverage] = await Promise.all([
+    computeStatsBreakdown(ctx, me, rows, todayMs),
+    Promise.resolve(computeDailyTrend(rows, days, nowMs)),
+    Promise.resolve(computeWardCoverage(rows, muniMap)),
+  ]);
+
+  return { breakdown, dailyTrend, wardCoverage };
 }
+
+/** Fast KPI counts for the web home dashboard. */
+export const counts = query({
+  args: { nowMs: v.number() },
+  returns: v.object(dashboardCountsShape),
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx, { allowPending: true });
+    if (me.status !== "active") return EMPTY_COUNTS;
+
+    const rows = await loadScopedSurveyRows(ctx, me);
+    return computeDashboardCounts(rows, startOfDayMs(args.nowMs));
+  },
+});
+
+/** Charts and breakdown tables — capability-gated, separate subscription. */
+export const analyticsBundle = query({
+  args: {
+    nowMs: v.number(),
+    trendDays: v.optional(v.number()),
+  },
+  returns: analyticsBundleShape,
+  handler: async (ctx, args) => {
+    const me = await requireUser(ctx, { allowPending: true });
+    if (me.status !== "active") return null;
+
+    const rows = await loadScopedSurveyRows(ctx, me);
+    const todayMs = startOfDayMs(args.nowMs);
+    return buildAnalyticsBundle(ctx, me, rows, todayMs, args.trendDays ?? 30, args.nowMs);
+  },
+});
 
 /**
  * Single-pass home dashboard bundle for the web app.
@@ -452,35 +458,12 @@ export const homeBundle = query({
       return { counts: EMPTY_COUNTS, analytics: null };
     }
 
-    const rows = await collectSurveysInFieldScope(ctx, me);
-
-    const todayMs = (() => {
-      const d = new Date(args.nowMs);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
-    })();
-
+    const rows = await loadScopedSurveyRows(ctx, me);
+    const todayMs = startOfDayMs(args.nowMs);
     const counts = computeDashboardCounts(rows, todayMs);
+    const analytics = await buildAnalyticsBundle(ctx, me, rows, todayMs, args.trendDays ?? 30, args.nowMs);
 
-    const canViewAnalytics = await hasCapability(ctx, me, "analytics.view");
-    if (!canViewAnalytics) {
-      return { counts, analytics: null };
-    }
-
-    const days = Math.min(Math.max(args.trendDays ?? 30, 1), 180);
-    const scope = await resolveTenantScope(ctx, me);
-    const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
-
-    const [breakdown, dailyTrend, wardCoverage] = await Promise.all([
-      computeStatsBreakdown(ctx, me, rows, todayMs),
-      Promise.resolve(computeDailyTrend(rows, days, args.nowMs)),
-      Promise.resolve(computeWardCoverage(rows, muniMap)),
-    ]);
-
-    return {
-      counts,
-      analytics: { breakdown, dailyTrend, wardCoverage },
-    };
+    return { counts, analytics };
   },
 });
 

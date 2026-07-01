@@ -6,10 +6,27 @@ import { useHasCapability } from "@/hooks/use-capability";
 import { useClientNowMs } from "@/hooks/use-client-now";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import type { DashboardCounts, WebDashboardAnalytics } from "@/schema/analytics";
-import { useQuery, useQuery_experimental } from "convex/react";
+import { type Preloaded, usePreloadedQuery, useQuery } from "convex/react";
 import { useMemo } from "react";
 
-/** Single-query home dashboard bundle (web only) — one scoped survey scan. */
+/** KPI counts hydrated from a server `preloadQuery` payload. */
+export function useDashboardCounts(preloaded: Preloaded<typeof api.webDashboard.counts>) {
+  return usePreloadedQuery(preloaded);
+}
+
+/** Analytics bundle for charts — separate subscription from KPI counts. */
+export function useDashboardAnalytics(trendDays = 30) {
+  const ready = useConvexAuthReady();
+  const nowMs = useClientNowMs();
+  const queryArgs = useMemo((): "skip" | { nowMs: number; trendDays: number } => {
+    if (!ready || !Number.isFinite(nowMs)) return "skip";
+    return { nowMs, trendDays };
+  }, [ready, nowMs, trendDays]);
+
+  return useQuery(api.webDashboard.analyticsBundle, queryArgs) as WebDashboardAnalytics | null | undefined;
+}
+
+/** @deprecated Prefer useDashboardCounts + useDashboardAnalytics on the web dashboard. */
 export function useWebDashboardBundle(trendDays = 30) {
   const ready = useConvexAuthReady();
   const nowMs = useClientNowMs();
@@ -18,42 +35,23 @@ export function useWebDashboardBundle(trendDays = 30) {
     return { nowMs, trendDays };
   }, [ready, nowMs, trendDays]);
 
-  const bundleState = useQuery_experimental({
-    query: api.webDashboard.homeBundle,
-    args: queryArgs,
-  });
-
-  const useFallback = bundleState.status === "error";
-  const fallbackArgs = useMemo((): "skip" | { nowMs: number } => {
-    if (!useFallback || !ready || !Number.isFinite(nowMs)) return "skip";
-    return { nowMs };
-  }, [useFallback, ready, nowMs]);
-
-  const fallbackCounts = useQuery(api.masters.dashboardCounts, fallbackArgs);
-
-  const bundle = bundleState.status === "success" ? bundleState.data : undefined;
-  const counts = bundle?.counts ?? (useFallback ? (fallbackCounts as DashboardCounts | undefined) : undefined);
+  const bundle = useQuery(api.webDashboard.homeBundle, queryArgs);
+  const counts = bundle?.counts as DashboardCounts | undefined;
+  const analytics = bundle?.analytics as WebDashboardAnalytics | null | undefined;
 
   return {
     counts,
-    analytics: bundle?.analytics as WebDashboardAnalytics | null | undefined,
-    isLoading: bundleState.status === "pending" || (useFallback && fallbackCounts === undefined),
-    error: bundleState.status === "error" ? bundleState.error : null,
-    analyticsUnavailable: useFallback,
+    analytics,
+    isLoading: bundle === undefined,
+    error: null,
+    analyticsUnavailable: false,
   };
 }
 
 /** Lightweight activity feed rows for the home dashboard (web only). */
 export function useRecentActivity(enabled = true) {
   const ready = useConvexAuthReady();
-  const activityState = useQuery_experimental({
-    query: api.webDashboard.recentActivity,
-    args: ready && enabled ? {} : "skip",
-  });
-
-  if (activityState.status === "success") return activityState.data;
-  if (activityState.status === "error") return [];
-  return undefined;
+  return useQuery(api.webDashboard.recentActivity, ready && enabled ? {} : "skip");
 }
 
 export function useStatsBreakdown(filters: { districtId?: string; municipalityId?: string; surveyorId?: string } = {}) {

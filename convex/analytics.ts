@@ -10,6 +10,7 @@ import { query, type QueryCtx } from "./_generated/server";
 import { requireCapability } from "./capabilities";
 import { collectSurveysInFieldScope } from "./fieldAccess";
 import { clientError, requireUser } from "./helpers";
+import { buildGroupSurveyCounts, countRowsFromSlice, type SurveyStatsSlice } from "./lib/surveyStatsAggregate";
 import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
 
 export const surveyCountsShape = {
@@ -50,14 +51,7 @@ export type SurveyCounts = {
 };
 
 function countRows(rows: Doc<"surveys">[], todayStartMs: number | null): SurveyCounts {
-  return {
-    total: rows.length,
-    today: todayStartMs !== null ? rows.filter((r) => r._creationTime >= todayStartMs).length : 0,
-    drafts: rows.filter((r) => r.status === "draft").length,
-    submitted: rows.filter((r) => r.status === "submitted").length,
-    approved: rows.filter((r) => r.qcStatus === "approved").length,
-    rejected: rows.filter((r) => r.qcStatus === "rejected").length,
-  };
+  return countRowsFromSlice(rows, todayStartMs);
 }
 
 /** Load every survey row visible to admin, supervisor, or QC within tenant scope. */
@@ -89,15 +83,12 @@ async function assertSurveyorInScope(
   clientError("FORBIDDEN", "This surveyor is outside your assigned scope");
 }
 
-function groupCounts(rows: Doc<"surveys">[], keyFn: (row: Doc<"surveys">) => string): Map<string, Doc<"surveys">[]> {
-  const groups = new Map<string, Doc<"surveys">[]>();
-  for (const row of rows) {
-    const key = keyFn(row);
-    const bucket = groups.get(key);
-    if (bucket) bucket.push(row);
-    else groups.set(key, [row]);
-  }
-  return groups;
+function groupCounts(
+  rows: Doc<"surveys">[],
+  keyFn: (row: SurveyStatsSlice) => string,
+  todayMs: number | null,
+): Map<string, SurveyCounts> {
+  return buildGroupSurveyCounts(rows, keyFn, todayMs);
 }
 
 function filterActiveUsersInScope(
@@ -224,36 +215,37 @@ export const surveyStatsBreakdown = query({
     const districtMap = new Map(scope.districts.map((d) => [d._id, d]));
     const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
 
-    const byDistrictGroups = groupCounts(rows, (r) => r.districtId);
+    const byDistrictGroups = groupCounts(rows, (r) => r.districtId, todayStartMs);
     const byDistrict = [...byDistrictGroups.entries()]
-      .map(([districtId, group]) => {
+      .map(([districtId, counts]) => {
         const d = districtMap.get(districtId as Id<"districts">);
         return {
           districtId: districtId as Id<"districts">,
           code: d?.code ?? "—",
           name: d?.name ?? "Unknown district",
-          ...countRows(group, todayStartMs),
+          ...counts,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    const byUlbGroups = groupCounts(rows, (r) => r.municipalityId);
+    const byUlbGroups = groupCounts(rows, (r) => r.municipalityId, todayStartMs);
     const byUlb = [...byUlbGroups.entries()]
-      .map(([municipalityId, group]) => {
+      .map(([municipalityId, counts]) => {
         const m = muniMap.get(municipalityId as Id<"municipalities">);
         const d = m ? districtMap.get(m.districtId) : undefined;
+        const sampleDistrictId = rows.find((r) => r.municipalityId === municipalityId)?.districtId;
         return {
           municipalityId: municipalityId as Id<"municipalities">,
           code: m?.code ?? "—",
           name: m?.name ?? "Unknown ULB",
-          districtId: m?.districtId ?? group[0]!.districtId,
+          districtId: m?.districtId ?? sampleDistrictId ?? (municipalityId as Id<"districts">),
           districtName: d?.name ?? "—",
-          ...countRows(group, todayStartMs),
+          ...counts,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    const bySurveyorGroups = groupCounts(rows, (r) => r.surveyorId);
+    const bySurveyorGroups = groupCounts(rows, (r) => r.surveyorId, todayStartMs);
 
     const activeSurveyors = filterActiveUsersInScope(
       await ctx.db
@@ -269,7 +261,7 @@ export const surveyStatsBreakdown = query({
 
     const bySurveyor = activeSurveyors
       .map((u) => {
-        const group = bySurveyorGroups.get(u._id) ?? [];
+        const counts = bySurveyorGroups.get(u._id) ?? countRows([], todayStartMs);
         const muni = u.municipalityId ? muniMap.get(u.municipalityId) : undefined;
         const dist = u.districtId ? districtMap.get(u.districtId) : muni ? districtMap.get(muni.districtId) : undefined;
         return {
@@ -279,7 +271,7 @@ export const surveyStatsBreakdown = query({
           municipalityName: muni?.name ?? null,
           districtName: dist?.name ?? null,
           status: "active" as const,
-          ...countRows(group, todayStartMs),
+          ...counts,
         };
       })
       .sort((a, b) => b.approved + b.submitted - (a.approved + a.submitted));

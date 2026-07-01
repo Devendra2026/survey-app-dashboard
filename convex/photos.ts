@@ -332,12 +332,43 @@ export const list = query({
       .query("photos")
       .withIndex("by_survey", (q) => q.eq("surveyId", args.surveyId))
       .collect();
-    return await Promise.all(
-      rows.map(async (p) => ({
-        ...p,
-        url: await ctx.storage.getUrl(p.storageId),
-      })),
+    return rows.map((p) => ({
+      _id: p._id,
+      surveyId: p.surveyId,
+      slot: p.slot,
+      storageId: p.storageId,
+      sizeKb: p.sizeKb,
+      width: p.width,
+      height: p.height,
+      capturedAt: p.capturedAt,
+      uploadedBy: p.uploadedBy,
+    }));
+  },
+});
+
+/** Resolve signed storage URLs for photos the client is ready to display. */
+export const getUrls = query({
+  args: { photoIds: v.array(v.id("photos")) },
+  handler: async (ctx, args) => {
+    if (args.photoIds.length === 0) return {};
+
+    const me = await requireUser(ctx);
+    const entries = await Promise.all(
+      args.photoIds.map(async (photoId) => {
+        const photo = await ctx.db.get(photoId);
+        if (!photo) return [photoId, null] as const;
+        const survey = await ctx.db.get(photo.surveyId);
+        if (!survey) return [photoId, null] as const;
+        try {
+          await assertCanAccessSurvey(ctx, me, survey);
+        } catch {
+          return [photoId, null] as const;
+        }
+        return [photoId, await ctx.storage.getUrl(photo.storageId)] as const;
+      }),
     );
+
+    return Object.fromEntries(entries) as Record<string, string | null>;
   },
 });
 
