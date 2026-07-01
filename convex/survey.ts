@@ -946,9 +946,10 @@ export const upsert = mutation({
 export const setGps = mutation({
   args: { id: v.id("surveys"), gps: gpsCapture },
   handler: async (ctx, args) => {
-    const [me, survey] = await Promise.all([requireUser(ctx), ctx.db.get(args.id)]);
+    const me = await requireUser(ctx);
+    const [survey, ownScope] = await Promise.all([ctx.db.get(args.id), isOwnScopeSurveyor(ctx, me)]);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
-    if (survey.surveyorId !== me._id && me.role === "surveyor") {
+    if (ownScope && survey.surveyorId !== me._id) {
       clientError("FORBIDDEN", "Not your survey");
     }
     await assertMunicipalityInScope(ctx, me, survey.municipalityId);

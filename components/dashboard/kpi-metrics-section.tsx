@@ -28,7 +28,7 @@ export function KpiMetricsSection({ counts }: { counts: DashboardCounts | undefi
             <MetricCard
               label="Today's Total Survey"
               value={counts.today}
-              hint={`${counts.submittedToday.toLocaleString()} submitted today · ${counts.submitted.toLocaleString()} total submitted`}
+              hint={`${(counts.submittedToday ?? 0).toLocaleString()} submitted today · ${(counts.submitted ?? 0).toLocaleString()} total submitted`}
               icon={CalendarDays}
               tone="info"
             />

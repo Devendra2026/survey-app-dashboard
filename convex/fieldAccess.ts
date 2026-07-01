@@ -13,12 +13,10 @@ export type FieldSurveyAccess = "own" | "assigned" | "admin" | "none";
 
 /**
  * True when the user syncs drafts by `localId` under their own `surveyorId`.
- * Intentionally separate from `fieldSurveyAccess` so list visibility (assigned vs
- * own) does not block draft creation for misconfigured or mixed-capability roles.
+ * Matches `fieldSurveyAccess` === "own" so read scope and write ownership stay aligned.
  */
 export async function isOwnScopeSurveyor(ctx: QueryCtx, user: Doc<"users">): Promise<boolean> {
-  if (user.role === "surveyor") return true;
-  return await hasCapability(ctx, user, "surveys.viewOwn");
+  return (await fieldSurveyAccess(ctx, user)) === "own";
 }
 
 /**

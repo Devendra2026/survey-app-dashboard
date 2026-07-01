@@ -16,20 +16,25 @@ export function OrganizationSection({ breakdown }: { breakdown: StatsBreakdown |
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <MetricCard
             label="Active Surveyors"
-            value={breakdown.filterOptions.surveyors.length}
+            value={breakdown.filterOptions?.surveyors?.length ?? 0}
             icon={Users}
             tone="default"
           />
           <MetricCard
             label="Active QC Supervisor"
-            value={breakdown.filterOptions.qcSupervisors.length}
+            value={breakdown.filterOptions?.qcSupervisors?.length ?? 0}
             icon={ShieldCheck}
             tone="warning"
           />
-          <MetricCard label="District" value={breakdown.filterOptions.districts.length} icon={MapPin} tone="info" />
+          <MetricCard
+            label="District"
+            value={breakdown.filterOptions?.districts?.length ?? 0}
+            icon={MapPin}
+            tone="info"
+          />
           <MetricCard
             label="Municipalities"
-            value={breakdown.filterOptions.municipalities.length}
+            value={breakdown.filterOptions?.municipalities?.length ?? 0}
             icon={Building2}
             tone="info"
           />

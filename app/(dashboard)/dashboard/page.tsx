@@ -11,14 +11,14 @@ import { useRecentActivity, useWebDashboardBundle } from "@/hooks/analytics/useA
 import { buildActivityFeed } from "@/lib/activity-feed";
 import { can } from "@/lib/permissions";
 import { useCurrentUser } from "@/lib/session";
-import { ClipboardList, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ClipboardList, LayoutDashboard, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 export default function DashboardPage() {
   const { user, role } = useCurrentUser();
-  const { counts, analytics } = useWebDashboardBundle(30);
-  const showAnalytics = analytics != null;
+  const { counts, analytics, analyticsUnavailable } = useWebDashboardBundle(30);
+  const showAnalytics = analytics != null && analytics.breakdown != null;
   const breakdown = analytics?.breakdown;
   const trend = analytics?.dailyTrend;
   const coverage = analytics?.wardCoverage;
@@ -79,6 +79,19 @@ export default function DashboardPage() {
         />
       </FadeIn>
 
+      {analyticsUnavailable && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-100"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>
+            Analytics could not be loaded from the server. KPI counts are shown from a fallback query; charts and
+            coverage are hidden until the backend is updated. Contact your administrator if this persists.
+          </p>
+        </div>
+      )}
+
       <KpiMetricsSection counts={counts} />
 
       {showAnalytics && (
@@ -100,7 +113,7 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4">
               <MunicipalityPerformanceCard
-                items={breakdown?.byUlb.map((m) => ({
+                items={breakdown?.byUlb?.map((m) => ({
                   id: m.municipalityId,
                   name: m.name,
                   approved: m.approved,

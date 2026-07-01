@@ -11,7 +11,7 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireCapability } from "./capabilities";
-import { assertCanAccessSurvey, fieldSurveyAccess } from "./fieldAccess";
+import { assertCanAccessSurvey, fieldSurveyAccess, isOwnScopeSurveyor } from "./fieldAccess";
 import { assertCanReadWard, clientError, mapTruthyById, requireUser, writeAudit } from "./helpers";
 import { computeQcWardAggregates } from "./lib/qcWardStats";
 import { normalizeParcelKey, resolvePropertyId } from "./propertyId";
@@ -287,11 +287,12 @@ export const addRemark = mutation({
     const survey = await ctx.db.get(args.surveyId);
     if (!survey) clientError("NOT_FOUND", "Survey not found");
 
-    // Surveyors can only write on their own surveys; supervisors/admins on any
-    if (me.role === "surveyor" && survey.surveyorId !== me._id) {
+    const ownScope = await isOwnScopeSurveyor(ctx, me);
+    // Own-scope field users can only write on their surveys; supervisors/admins on any in scope.
+    if (ownScope && survey.surveyorId !== me._id) {
       clientError("FORBIDDEN", "Not your survey");
     }
-    if (me.role !== "surveyor") {
+    if (!ownScope) {
       assertCanReadWard(me, survey.municipalityId, survey.wardNo);
     }
 
@@ -305,7 +306,7 @@ export const addRemark = mutation({
     });
 
     // Notify the other party
-    const recipientId = me.role === "surveyor" ? null : survey.surveyorId;
+    const recipientId = ownScope ? null : survey.surveyorId;
     if (recipientId) {
       await ctx.db.insert("notifications", {
         userId: recipientId,

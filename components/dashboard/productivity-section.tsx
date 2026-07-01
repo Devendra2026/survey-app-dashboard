@@ -25,7 +25,7 @@ export function ProductivitySection({
         </FadeIn>
         <FadeIn delay={0.05}>
           <SurveyorProductivityChart
-            data={breakdown?.bySurveyor.map((s) => ({
+            data={breakdown?.bySurveyor?.map((s) => ({
               name: s.name,
               approved: s.approved,
               submitted: s.submitted,
@@ -36,7 +36,7 @@ export function ProductivitySection({
         </FadeIn>
         <FadeIn delay={0.1}>
           <QcSupervisorProductivityChart
-            data={breakdown?.byQcSupervisor.map((s) => ({
+            data={breakdown?.byQcSupervisor?.map((s) => ({
               name: s.name,
               approved: s.approved,
               rejected: s.rejected,
