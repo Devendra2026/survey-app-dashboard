@@ -94,6 +94,118 @@ export async function loadLiveScopedSurveyRows(ctx: QueryCtx, me: Doc<"users">):
   return loadBoundedScopedSurveyRows(ctx, me);
 }
 
+/** True when KPIs must be computed from ward-filtered live rows (stats tables are municipality-wide). */
+function userRequiresWardScopedSurveyCounts(me: Doc<"users">): boolean {
+  if (me.role === "admin" || me.role === "supervisor") return false;
+  return me.wardAssignments.length > 0;
+}
+
+type DashboardCountPart = {
+  total: number;
+  today: number;
+  drafts: number;
+  pending: number;
+  submittedToday: number;
+  approved: number;
+  submitted: number;
+  rejected: number;
+};
+
+function emptyDashboardCountPart(): DashboardCountPart {
+  return {
+    total: 0,
+    today: 0,
+    drafts: 0,
+    pending: 0,
+    submittedToday: 0,
+    approved: 0,
+    submitted: 0,
+    rejected: 0,
+  };
+}
+
+function mergeDashboardCountParts(parts: DashboardCountPart[]): DashboardCounts {
+  return parts.reduce(
+    (acc, part) => ({
+      total: acc.total + part.total,
+      today: acc.today + part.today,
+      drafts: acc.drafts + part.drafts,
+      pending: acc.pending + part.pending,
+      submittedToday: acc.submittedToday + part.submittedToday,
+      approved: acc.approved + part.approved,
+      submitted: acc.submitted + part.submitted,
+      rejected: acc.rejected + part.rejected,
+    }),
+    emptyDashboardCountPart(),
+  );
+}
+
+function liveSnapshotToDashboardPart(
+  live: MunicipalityStatsRollup & { todayCreated: number; submittedToday: number },
+): DashboardCountPart {
+  return {
+    total: live.total,
+    today: live.todayCreated,
+    drafts: live.drafts,
+    pending: live.qcPending,
+    submittedToday: live.submittedToday,
+    approved: live.qcApproved,
+    submitted: live.submitted,
+    rejected: live.qcRejected,
+  };
+}
+
+async function loadMunicipalityDashboardCounts(
+  ctx: QueryCtx,
+  me: Doc<"users">,
+  municipalityId: Id<"municipalities">,
+  todayMs: number,
+  wardScoped: boolean,
+): Promise<DashboardCountPart> {
+  if (wardScoped) {
+    const live = await computeLiveMunicipalitySnapshot(ctx, me, municipalityId, todayMs);
+    return liveSnapshotToDashboardPart(live);
+  }
+
+  const statsRow = await ctx.db
+    .query("surveyMunicipalityStats")
+    .withIndex("by_municipality", (q) => q.eq("municipalityId", municipalityId))
+    .unique();
+
+  if (statsRow) {
+    const part: DashboardCountPart = {
+      total: statsRow.total,
+      today: 0,
+      drafts: statsRow.drafts,
+      pending: statsRow.qcPending,
+      submittedToday: 0,
+      approved: statsRow.qcApproved,
+      submitted: statsRow.submitted,
+      rejected: statsRow.qcRejected,
+    };
+
+    const dateKey = formatDateKey(todayMs);
+    const dailyRow = await ctx.db
+      .query("surveyDailyStats")
+      .withIndex("by_municipality_date", (q) => q.eq("municipalityId", municipalityId).eq("dateKey", dateKey))
+      .unique();
+
+    if (dailyRow) {
+      part.today = dailyRow.created;
+      part.submittedToday = dailyRow.submitted;
+    } else {
+      const today = await computeTodayMetricsForMunicipality(ctx, me, municipalityId, todayMs);
+      part.today = today.created;
+      part.submittedToday = today.submitted;
+    }
+
+    return part;
+  }
+
+  const live = await computeLiveMunicipalitySnapshot(ctx, me, municipalityId, todayMs);
+  return liveSnapshotToDashboardPart(live);
+}
+
 /** Home dashboard KPIs: accurate per-municipality stats with live fallback for gaps. */
 export async function loadDashboardCountsForHome(
   ctx: QueryCtx,
@@ -102,16 +214,7 @@ export async function loadDashboardCountsForHome(
 ): Promise<DashboardCounts> {
   const access = await fieldSurveyAccess(ctx, me);
   if (access === "none" || me.status !== "active") {
-    return {
-      total: 0,
-      today: 0,
-      drafts: 0,
-      pending: 0,
-      submittedToday: 0,
-      approved: 0,
-      submitted: 0,
-      rejected: 0,
-    };
+    return emptyDashboardCountPart();
   }
 
   if (access === "own") {
@@ -126,74 +229,16 @@ export async function loadDashboardCountsForHome(
 
   const scopedMuniIds = await resolveDashboardMunicipalityIds(ctx, me);
   if (scopedMuniIds.length === 0) {
-    return {
-      total: 0,
-      today: 0,
-      drafts: 0,
-      pending: 0,
-      submittedToday: 0,
-      approved: 0,
-      submitted: 0,
-      rejected: 0,
-    };
+    return emptyDashboardCountPart();
   }
 
-  const dateKey = formatDateKey(todayMs);
-  const bucket = {
-    total: 0,
-    today: 0,
-    drafts: 0,
-    pending: 0,
-    submittedToday: 0,
-    approved: 0,
-    submitted: 0,
-    rejected: 0,
-  };
+  const wardScoped = userRequiresWardScopedSurveyCounts(me);
+  const parts: DashboardCountPart[] = [];
+  for (const municipalityId of scopedMuniIds) {
+    parts.push(await loadMunicipalityDashboardCounts(ctx, me, municipalityId, todayMs, wardScoped));
+  }
 
-  await Promise.all(
-    scopedMuniIds.map(async (municipalityId) => {
-      const statsRow = await ctx.db
-        .query("surveyMunicipalityStats")
-        .withIndex("by_municipality", (q) => q.eq("municipalityId", municipalityId))
-        .unique();
-
-      if (statsRow) {
-        bucket.total += statsRow.total;
-        bucket.drafts += statsRow.drafts;
-        bucket.submitted += statsRow.submitted;
-        bucket.approved += statsRow.qcApproved;
-        bucket.rejected += statsRow.qcRejected;
-        bucket.pending += statsRow.qcPending;
-
-        const dailyRow = await ctx.db
-          .query("surveyDailyStats")
-          .withIndex("by_municipality_date", (q) => q.eq("municipalityId", municipalityId).eq("dateKey", dateKey))
-          .unique();
-
-        if (dailyRow) {
-          bucket.today += dailyRow.created;
-          bucket.submittedToday += dailyRow.submitted;
-        } else {
-          const today = await computeTodayMetricsForMunicipality(ctx, me, municipalityId, todayMs);
-          bucket.today += today.created;
-          bucket.submittedToday += today.submitted;
-        }
-        return;
-      }
-
-      const live = await computeLiveMunicipalitySnapshot(ctx, me, municipalityId, todayMs);
-      bucket.total += live.total;
-      bucket.drafts += live.drafts;
-      bucket.submitted += live.submitted;
-      bucket.approved += live.qcApproved;
-      bucket.rejected += live.qcRejected;
-      bucket.pending += live.qcPending;
-      bucket.today += live.todayCreated;
-      bucket.submittedToday += live.submittedToday;
-    }),
-  );
-
-  return bucket;
+  return mergeDashboardCountParts(parts);
 }
 
 /** Accurate dashboard KPI counts from live survey rows in tenant scope. */
@@ -693,14 +738,17 @@ async function loadMunicipalityStatsRollupsResilient(
   me: Doc<"users">,
   scopedMuniIds: Id<"municipalities">[],
 ): Promise<MunicipalityStatsRollup[]> {
-  return Promise.all(
-    scopedMuniIds.map(async (municipalityId) => {
+  const wardScoped = userRequiresWardScopedSurveyCounts(me);
+  const rollups: MunicipalityStatsRollup[] = [];
+
+  for (const municipalityId of scopedMuniIds) {
+    if (!wardScoped) {
       const row = await ctx.db
         .query("surveyMunicipalityStats")
         .withIndex("by_municipality", (q) => q.eq("municipalityId", municipalityId))
         .unique();
       if (row) {
-        return {
+        rollups.push({
           municipalityId: row.municipalityId,
           total: row.total,
           drafts: row.drafts,
@@ -708,25 +756,29 @@ async function loadMunicipalityStatsRollupsResilient(
           qcApproved: row.qcApproved,
           qcRejected: row.qcRejected,
           qcPending: row.qcPending,
-        };
+        });
+        continue;
       }
-      const live = await computeLiveMunicipalitySnapshot(
-        ctx,
-        me,
-        municipalityId,
-        startOfDayMsFromKey(formatDateKey(Date.now())),
-      );
-      return {
-        municipalityId: live.municipalityId,
-        total: live.total,
-        drafts: live.drafts,
-        submitted: live.submitted,
-        qcApproved: live.qcApproved,
-        qcRejected: live.qcRejected,
-        qcPending: live.qcPending,
-      };
-    }),
-  );
+    }
+
+    const live = await computeLiveMunicipalitySnapshot(
+      ctx,
+      me,
+      municipalityId,
+      startOfDayMsFromKey(formatDateKey(Date.now())),
+    );
+    rollups.push({
+      municipalityId: live.municipalityId,
+      total: live.total,
+      drafts: live.drafts,
+      submitted: live.submitted,
+      qcApproved: live.qcApproved,
+      qcRejected: live.qcRejected,
+      qcPending: live.qcPending,
+    });
+  }
+
+  return rollups;
 }
 
 /** Municipality ids visible for stats rollups, optionally narrowed by district / ULB filters. */
@@ -806,6 +858,13 @@ export async function loadScopeStatsSummary(
   }
 
   for (let index = 0; index < scopedMuniIds.length; index++) {
+    if (userRequiresWardScopedSurveyCounts(me)) {
+      const today = await computeTodayMetricsForMunicipality(ctx, me, scopedMuniIds[index]!, todayMs);
+      totals.todayCreated += today.created;
+      totals.submittedToday += today.submitted;
+      continue;
+    }
+
     const row = dailyStats[index];
     if (row) {
       totals.todayCreated += row.created;
