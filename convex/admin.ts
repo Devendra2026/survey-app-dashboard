@@ -349,7 +349,7 @@ export const listUsers = query({
     } else if (args.status) {
       q = ctx.db.query("users").withIndex("by_status", (qb) => qb.eq("status", args.status!));
     } else if (args.role) {
-      q = ctx.db.query("users").filter((q) => q.eq(q.field("role"), args.role!));
+      q = ctx.db.query("users").withIndex("by_role_status", (qb) => qb.eq("role", args.role!));
     } else {
       q = ctx.db.query("users");
     }

@@ -220,7 +220,6 @@ export const list = query({
 
     const scope = await resolveTenantScope(ctx, me);
     const districtIds = tenantDistrictIds(scope);
-    const muniIds = tenantMunicipalityIds(scope);
     const access = await fieldSurveyAccess(ctx, me);
 
     if (args.municipalityId) {
@@ -312,7 +311,6 @@ function applySurveyListFilters(
   },
   me: Doc<"users">,
   muniIds: Set<Id<"municipalities">>,
-  access: Awaited<ReturnType<typeof fieldSurveyAccess>>,
 ): Doc<"surveys">[] {
   let filtered = rows.filter((r) => muniIds.has(r.municipalityId) && canReadWard(me, r.municipalityId, r.wardNo));
   if (args.districtId) filtered = filtered.filter((r) => r.districtId === args.districtId);
@@ -358,12 +356,12 @@ async function querySurveysByMunicipality(
     return ctx.db
       .query("surveys")
       .withIndex("by_municipality_status", (q) => q.eq("municipalityId", municipalityId).eq("status", status))
-      .collect();
+      .take(LIST_PAGINATED_SCOPE_LIMIT);
   }
   return ctx.db
     .query("surveys")
     .withIndex("by_municipality_status", (q) => q.eq("municipalityId", municipalityId))
-    .collect();
+    .take(LIST_PAGINATED_SCOPE_LIMIT);
 }
 
 async function querySurveysByDistrict(
@@ -375,12 +373,12 @@ async function querySurveysByDistrict(
     return ctx.db
       .query("surveys")
       .withIndex("by_district_status", (q) => q.eq("districtId", districtId).eq("status", status))
-      .collect();
+      .take(LIST_PAGINATED_SCOPE_LIMIT);
   }
   return ctx.db
     .query("surveys")
     .withIndex("by_district_status", (q) => q.eq("districtId", districtId))
-    .collect();
+    .take(LIST_PAGINATED_SCOPE_LIMIT);
 }
 
 export type SurveyListFilterArgs = {
@@ -413,12 +411,12 @@ export async function collectSurveysForListPaginated(
         .withIndex("by_municipality_qc_status", (q) =>
           q.eq("municipalityId", args.municipalityId!).eq("qcStatus", args.qcStatus!),
         )
-        .collect();
+        .take(LIST_PAGINATED_SCOPE_LIMIT);
     } else if (args.districtId) {
       rows = await ctx.db
         .query("surveys")
         .withIndex("by_district_qc_status", (q) => q.eq("districtId", args.districtId!).eq("qcStatus", args.qcStatus!))
-        .collect();
+        .take(LIST_PAGINATED_SCOPE_LIMIT);
     } else {
       const scopedMunis =
         scope.municipalities.length > 0
@@ -434,7 +432,7 @@ export async function collectSurveysForListPaginated(
               .withIndex("by_municipality_qc_status", (q) =>
                 q.eq("municipalityId", municipalityId).eq("qcStatus", args.qcStatus!),
               )
-              .collect(),
+              .take(LIST_PAGINATED_SCOPE_LIMIT),
           ),
         );
         const seen = new Set<string>();
@@ -491,7 +489,7 @@ export async function collectSurveysForListPaginated(
     rows = await collectSurveysInFieldScope(ctx, me);
   }
 
-  return applySurveyListFilters(rows, args, me, muniIds, access);
+  return applySurveyListFilters(rows, args, me, muniIds);
 }
 
 /** Cursor-paginated survey list sorted by ward then parcel ascending. */
@@ -532,8 +530,8 @@ export const listPaginated = query({
       filtered = filterSurveysBySearch(withNames, args.searchTerm, searchCodes);
     }
 
-    const scopeTruncated = filtered.length > LIST_PAGINATED_SCOPE_LIMIT;
-    if (scopeTruncated) {
+    const scopeTruncated = filtered.length >= LIST_PAGINATED_SCOPE_LIMIT;
+    if (filtered.length > LIST_PAGINATED_SCOPE_LIMIT) {
       filtered = filtered.slice(0, LIST_PAGINATED_SCOPE_LIMIT);
     }
 
@@ -641,7 +639,25 @@ export const commandCenterStats = query({
       return d.getTime();
     })();
 
-    const completionSum = filtered.reduce((sum, r) => sum + (r.completionPct ?? 0), 0);
+    let drafts = 0;
+    let submitted = 0;
+    let submittedToday = 0;
+    let qcApproved = 0;
+    let qcPending = 0;
+    let qcRejected = 0;
+    let completionSum = 0;
+    for (const row of filtered) {
+      completionSum += row.completionPct ?? 0;
+      if (row.status === "draft") drafts += 1;
+      if (row.status === "submitted") {
+        submitted += 1;
+        const submittedTs = row.submittedAt ?? row._creationTime;
+        if (submittedTs >= todayMs) submittedToday += 1;
+      }
+      if (row.qcStatus === "approved") qcApproved += 1;
+      if (row.qcStatus === "pending" && row.status === "submitted") qcPending += 1;
+      if (row.qcStatus === "rejected") qcRejected += 1;
+    }
     const surveyCompletionPct = filtered.length > 0 ? Math.round(completionSum / filtered.length) : 0;
 
     const wardAggregates = computeSurveyWardAggregates(filtered);
@@ -669,16 +685,12 @@ export const commandCenterStats = query({
 
     return {
       total: filtered.length,
-      drafts: filtered.filter((r) => r.status === "draft").length,
-      submitted: filtered.filter((r) => r.status === "submitted").length,
-      submittedToday: filtered.filter(
-        (r) =>
-          r.status === "submitted" &&
-          (r.submittedAt !== undefined ? r.submittedAt >= todayMs : r._creationTime >= todayMs),
-      ).length,
-      qcApproved: filtered.filter((r) => r.qcStatus === "approved").length,
-      qcPending: filtered.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length,
-      qcRejected: filtered.filter((r) => r.qcStatus === "rejected").length,
+      drafts,
+      submitted,
+      submittedToday,
+      qcApproved,
+      qcPending,
+      qcRejected,
       surveyCompletionPct,
       wardStats,
     };
@@ -1411,7 +1423,9 @@ export function normalizeOwnerFields<
 export function stripLocalId<T extends { localId: string; id?: Id<"surveys">; surveyorId?: Id<"users"> }>(
   args: T,
 ): Omit<T, "localId" | "id"> {
-  const { localId: _l, id: _id, ...rest } = args;
+  const { localId, id, ...rest } = args;
+  void localId;
+  void id;
   return rest;
 }
 
@@ -1477,7 +1491,11 @@ export function mergeDraftArgs(
         city: muni.name,
       };
 
-  const { localId: _l, municipalityId: _m, clientUpdatedAt: _c, id: _id, ...fields } = patch;
+  const { localId, municipalityId, clientUpdatedAt, id, ...fields } = patch;
+  void localId;
+  void municipalityId;
+  void clientUpdatedAt;
+  void id;
   return { ...base, ...pickDefined(fields) };
 }
 

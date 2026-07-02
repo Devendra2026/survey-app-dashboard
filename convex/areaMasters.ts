@@ -50,8 +50,8 @@ export function normalizeFloorFields(input: { usageFactor?: string; usageType?: 
   usageFactor: string;
   usageType: string;
 } {
-  let usageFactor = (input.usageFactor ?? "").trim();
-  let usageType = (input.usageType ?? "").trim();
+  const usageFactor = (input.usageFactor ?? "").trim();
+  const usageType = (input.usageType ?? "").trim();
   if (!usageFactor && USAGE_FACTOR_SET.has(usageType)) {
     return { usageFactor: usageType, usageType: "" };
   }

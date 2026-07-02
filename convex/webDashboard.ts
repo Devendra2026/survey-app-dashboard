@@ -7,8 +7,8 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { hasCapability } from "./capabilities";
-import { collectSurveysInFieldScope, querySurveysInFieldScope } from "./fieldAccess";
-import { requireUser } from "./helpers";
+import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
+import { canReadWard, requireUser } from "./helpers";
 import { loadDashboardCountsFromStats } from "./lib/surveyScopeStats";
 import {
   buildGroupSurveyCounts,
@@ -20,6 +20,67 @@ import {
 } from "./lib/surveyStatsAggregate";
 import { qcStatus, surveyStatus } from "./schema";
 import { resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
+
+const MS_PER_DAY = 86_400_000;
+const DASHBOARD_ANALYTICS_SURVEY_CAP = 1200;
+const DASHBOARD_COUNTS_SURVEY_CAP = 1800;
+const DASHBOARD_QC_DECISIONS_PER_REVIEWER_CAP = 400;
+const DASHBOARD_ANALYTICS_WINDOW_BUFFER_DAYS = 14;
+
+function surveyTimestamp(row: SurveyStatsSlice): number {
+  return row.submittedAt ?? row._creationTime;
+}
+
+function dedupeRows(rows: SurveyStatsSlice[]): SurveyStatsSlice[] {
+  const seen = new Set<string>();
+  const deduped: SurveyStatsSlice[] = [];
+  for (const row of rows) {
+    if (seen.has(row._id)) continue;
+    seen.add(row._id);
+    deduped.push(row);
+  }
+  return deduped;
+}
+
+async function loadBoundedSurveyRows(
+  ctx: QueryCtx,
+  me: Doc<"users">,
+  nowMs: number,
+  trendDays: number,
+  cap: number,
+): Promise<SurveyStatsSlice[]> {
+  const access = await fieldSurveyAccess(ctx, me);
+  if (access === "none") return [];
+
+  const scope = await resolveTenantScope(ctx, me);
+  const muniIds = tenantMunicipalityIds(scope);
+  const districtIds = tenantDistrictIds(scope);
+  const days = Math.min(Math.max(trendDays, 1), 180);
+  const fromMs = nowMs - (days + DASHBOARD_ANALYTICS_WINDOW_BUFFER_DAYS) * MS_PER_DAY;
+
+  const baseRows = await querySurveysInFieldScope(ctx, me, {
+    limit: cap,
+  });
+  const scopedRows = dedupeRows(baseRows)
+    .filter((row) => {
+      if (!muniIds.has(row.municipalityId)) return false;
+      if (access !== "admin" && districtIds.size > 0 && !districtIds.has(row.districtId)) return false;
+      if (surveyTimestamp(row) < fromMs) return false;
+      return canReadWard(me, row.municipalityId, row.wardNo);
+    })
+    .sort((a, b) => surveyTimestamp(b) - surveyTimestamp(a))
+    .slice(0, cap);
+  return scopedRows;
+}
+
+function toStatsRows(rows: Doc<"surveys">[]): SurveyStatsSlice[] {
+  return rows.map(toStatsSlice);
+}
+
+function boundedSurveySet(rows: SurveyStatsSlice[], cap: number): SurveyStatsSlice[] {
+  if (rows.length <= cap) return rows;
+  return rows.slice(0, cap);
+}
 
 const surveyCountsShape = {
   total: v.number(),
@@ -201,8 +262,8 @@ function startOfDayMs(nowMs: number): number {
 }
 
 async function loadScopedSurveyRows(ctx: QueryCtx, me: Doc<"users">): Promise<SurveyStatsSlice[]> {
-  const rows = await collectSurveysInFieldScope(ctx, me);
-  return rows.map(toStatsSlice);
+  const rows = await querySurveysInFieldScope(ctx, me, { limit: DASHBOARD_COUNTS_SURVEY_CAP });
+  return boundedSurveySet(toStatsRows(rows), DASHBOARD_COUNTS_SURVEY_CAP);
 }
 
 /** Pick the cheaper QC decision load strategy based on scope size. */
@@ -210,6 +271,7 @@ async function loadScopedQcDecisionsByReviewer(
   ctx: QueryCtx,
   scopedSurveyIds: Set<Id<"surveys">>,
   activeQcSupervisors: Doc<"users">[],
+  fromMs: number,
 ): Promise<Map<Id<"users">, Doc<"qcDecisions">[]>> {
   const byReviewer = new Map<Id<"users">, Doc<"qcDecisions">[]>();
   for (const u of activeQcSupervisors) {
@@ -220,34 +282,20 @@ async function loadScopedQcDecisionsByReviewer(
     return byReviewer;
   }
 
-  if (scopedSurveyIds.size <= activeQcSupervisors.length) {
-    const allDecisions: Doc<"qcDecisions">[] = [];
-    await Promise.all(
-      [...scopedSurveyIds].map(async (surveyId) => {
-        const decisions = await ctx.db
-          .query("qcDecisions")
-          .withIndex("by_survey", (q) => q.eq("surveyId", surveyId))
-          .collect();
-        allDecisions.push(...decisions);
-      }),
-    );
-    for (const d of allDecisions) {
-      const bucket = byReviewer.get(d.reviewerId);
-      if (bucket) bucket.push(d);
-    }
-    return byReviewer;
-  }
-
+  // Query by reviewer in bounded windows to avoid per-survey fan-out reads.
   await Promise.all(
-    activeQcSupervisors.map(async (u) => {
+    activeQcSupervisors.map(async (reviewer) => {
       const decisions = await ctx.db
         .query("qcDecisions")
-        .withIndex("by_reviewer", (q) => q.eq("reviewerId", u._id))
-        .collect();
-      byReviewer.set(
-        u._id,
-        decisions.filter((d) => scopedSurveyIds.has(d.surveyId)),
-      );
+        .withIndex("by_reviewer", (q) => q.eq("reviewerId", reviewer._id))
+        .order("desc")
+        .take(DASHBOARD_QC_DECISIONS_PER_REVIEWER_CAP);
+      for (const decision of decisions) {
+        if (!scopedSurveyIds.has(decision.surveyId)) continue;
+        if (decision._creationTime < fromMs) continue;
+        const bucket = byReviewer.get(decision.reviewerId);
+        if (bucket) bucket.push(decision);
+      }
     }),
   );
   return byReviewer;
@@ -258,6 +306,7 @@ async function computeStatsBreakdown(
   me: Doc<"users">,
   rows: SurveyStatsSlice[],
   todayStartMs: number | null,
+  fromMs: number,
 ) {
   const scope = await resolveTenantScope(ctx, me);
   const districtIds = tenantDistrictIds(scope);
@@ -333,13 +382,17 @@ async function computeStatsBreakdown(
   );
 
   const scopedSurveyIds = new Set(rows.map((r) => r._id));
-  const decisionsByReviewer = await loadScopedQcDecisionsByReviewer(ctx, scopedSurveyIds, activeQcSupervisors);
+  const decisionsByReviewer = await loadScopedQcDecisionsByReviewer(ctx, scopedSurveyIds, activeQcSupervisors, fromMs);
 
   const byQcSupervisor = activeQcSupervisors
     .map((u) => {
       const scoped = decisionsByReviewer.get(u._id) ?? [];
-      const approved = scoped.filter((d) => d.decision === "approve").length;
-      const rejected = scoped.filter((d) => d.decision === "reject").length;
+      let approved = 0;
+      let rejected = 0;
+      for (const decision of scoped) {
+        if (decision.decision === "approve") approved += 1;
+        if (decision.decision === "reject") rejected += 1;
+      }
       return {
         reviewerId: u._id,
         name: u.name,
@@ -400,11 +453,12 @@ async function buildAnalyticsBundle(
   if (!canViewAnalytics) return null;
 
   const days = Math.min(Math.max(trendDays, 1), 180);
+  const analyticsFromMs = nowMs - (days + DASHBOARD_ANALYTICS_WINDOW_BUFFER_DAYS) * MS_PER_DAY;
   const scope = await resolveTenantScope(ctx, me);
   const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
 
   const [breakdown, dailyTrend, wardCoverage] = await Promise.all([
-    computeStatsBreakdown(ctx, me, rows, todayMs),
+    computeStatsBreakdown(ctx, me, rows, todayMs, analyticsFromMs),
     Promise.resolve(computeDailyTrend(rows, days, nowMs)),
     Promise.resolve(computeWardCoverage(rows, muniMap)),
   ]);
@@ -463,10 +517,14 @@ export const homeBundle = query({
       return { counts: EMPTY_COUNTS, analytics: null };
     }
 
-    const rows = await loadScopedSurveyRows(ctx, me);
     const todayMs = startOfDayMs(args.nowMs);
-    const counts = (await loadDashboardCountsFromStats(ctx, me, todayMs)) ?? computeDashboardCounts(rows, todayMs);
-    const analytics = await buildAnalyticsBundle(ctx, me, rows, todayMs, args.trendDays ?? 30, args.nowMs);
+    const trendDays = args.trendDays ?? 30;
+    const fastCounts = await loadDashboardCountsFromStats(ctx, me, todayMs);
+    const analyticsRows = await loadBoundedSurveyRows(ctx, me, args.nowMs, trendDays, DASHBOARD_ANALYTICS_SURVEY_CAP);
+    const counts =
+      fastCounts ??
+      computeDashboardCounts(analyticsRows.length > 0 ? analyticsRows : await loadScopedSurveyRows(ctx, me), todayMs);
+    const analytics = await buildAnalyticsBundle(ctx, me, analyticsRows, todayMs, trendDays, args.nowMs);
 
     return { counts, analytics };
   },

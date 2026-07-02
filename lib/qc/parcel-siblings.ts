@@ -127,13 +127,20 @@ export function buildParcelSiblingIndex(rows: ParcelSiblingRow[]): ParcelSibling
     const hasConflict = detectParcelConflict(group.rows);
     const ownerCount = distinctOwnerCount(group.rows);
     const hasDifferentOwners = ownerCount >= 2;
+    const siblingsById = new Map<string, ParcelSiblingRow[]>();
+    for (const member of group.rows) {
+      siblingsById.set(member._id, []);
+    }
+    for (const member of group.rows) {
+      for (const other of group.rows) {
+        if (member._id === other._id) continue;
+        siblingsById.get(member._id)?.push(other);
+      }
+    }
     for (const row of group.rows) {
       countByRowId.set(row._id, group.count);
       ownerCountByRowId.set(row._id, ownerCount);
-      siblingsByRowId.set(
-        row._id,
-        group.rows.filter((s) => s._id !== row._id),
-      );
+      siblingsByRowId.set(row._id, siblingsById.get(row._id) ?? []);
       if (hasConflict) conflictRowIds.add(row._id);
       if (hasDifferentOwners) differentOwnerRowIds.add(row._id);
     }

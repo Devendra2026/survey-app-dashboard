@@ -1,6 +1,4 @@
 "use client";
-
-import { ChartCardSkeleton } from "@/app/(dashboard)/dashboard/skeletons";
 import {
   QcSupervisorProductivityChart,
   SurveyorProductivityChart,
@@ -9,7 +7,6 @@ import {
 import { SectionHeader } from "@/components/design-system/executive-hero";
 import { FadeIn } from "@/components/design-system/motion";
 import type { DailyTrendPoint, StatsBreakdown } from "@/schema/analytics";
-import { Suspense } from "react";
 
 export function ProductivitySection({
   breakdown,
@@ -23,34 +20,28 @@ export function ProductivitySection({
       <SectionHeader title="Productivity Analytics" description="30-day trends and team performance" className="mb-4" />
       <div className="grid gap-4 lg:grid-cols-2">
         <FadeIn>
-          <Suspense fallback={<ChartCardSkeleton />}>
-            <TrendChart data={trend} title="Daily Survey & Approval Trend" />
-          </Suspense>
+          <TrendChart data={trend} title="Daily Survey & Approval Trend" />
         </FadeIn>
         <FadeIn delay={0.05}>
-          <Suspense fallback={<ChartCardSkeleton />}>
-            <SurveyorProductivityChart
-              data={breakdown?.bySurveyor?.map((s) => ({
-                name: s.name,
-                approved: s.approved,
-                submitted: s.submitted,
-                drafts: s.drafts,
-              }))}
-              title="Surveyor Productivity"
-            />
-          </Suspense>
+          <SurveyorProductivityChart
+            data={breakdown?.bySurveyor?.map((s) => ({
+              name: s.name,
+              approved: s.approved,
+              submitted: s.submitted,
+              drafts: s.drafts,
+            }))}
+            title="Surveyor Productivity"
+          />
         </FadeIn>
         <FadeIn delay={0.1}>
-          <Suspense fallback={<ChartCardSkeleton />}>
-            <QcSupervisorProductivityChart
-              data={breakdown?.byQcSupervisor?.map((s) => ({
-                name: s.name,
-                approved: s.approved,
-                rejected: s.rejected,
-              }))}
-              title="QC Supervisor Productivity"
-            />
-          </Suspense>
+          <QcSupervisorProductivityChart
+            data={breakdown?.byQcSupervisor?.map((s) => ({
+              name: s.name,
+              approved: s.approved,
+              rejected: s.rejected,
+            }))}
+            title="QC Supervisor Productivity"
+          />
         </FadeIn>
       </div>
     </section>

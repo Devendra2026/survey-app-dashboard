@@ -253,11 +253,13 @@ export async function querySurveysInFieldScope(
       ? await ctx.db
           .query("surveys")
           .withIndex("by_municipality_status", (q) => q.eq("municipalityId", muniId).eq("status", args.status!))
-          .collect()
+          .order("desc")
+          .take(take)
       : await ctx.db
           .query("surveys")
           .withIndex("by_municipality_status", (q) => q.eq("municipalityId", muniId))
-          .collect();
+          .order("desc")
+          .take(take);
   } else {
     const districtKey =
       args.districtId ?? (scope.districts.length === 1 ? scope.districts[0]!._id : (me.districtId ?? undefined));

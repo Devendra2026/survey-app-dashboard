@@ -7,8 +7,9 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters";
 import { useQcWorkScope } from "@/hooks/qc/useQcWorkScope";
 import { searchQcRegistry, useSurveyList, useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
-import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { useClientNowMs } from "@/hooks/use-client-now";
+import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { activeParcelSiblingPool, buildParcelSiblingIndex, filterParcelSharedRows } from "@/lib/qc/parcel-siblings";
 import { computeQcWardStats, enrichServerWardStats, type QcWardRow } from "@/lib/qc/ward-stats";
 import { sanitizeQcWorkScope, type QcWorkScope } from "@/lib/qc/work-scope";
@@ -120,7 +121,8 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
 
   const tabFilters = useMemo(() => qcTabToListFilters(activeTab), [activeTab]);
 
-  const registrySearchTerm = registrySearch.trim() || undefined;
+  const debouncedRegistrySearch = useDebouncedValue(registrySearch, 100);
+  const registrySearchTerm = debouncedRegistrySearch.trim() || undefined;
 
   const serverStats = useConvexQuery(
     api.qc.commandCenterStats,
@@ -136,7 +138,11 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
       : "skip",
   );
 
-  const aggregateSurveys = useSurveyList(scopeReady ? { ...scopeFilters, limit: QC_AGGREGATE_LIMIT } : {});
+  const needsAggregateSurveys = mode === "command" || activeTab === "parcelShared" || serverStats === undefined;
+  const aggregateSurveys = useSurveyList(
+    scopeReady && needsAggregateSurveys ? { ...scopeFilters, limit: QC_AGGREGATE_LIMIT } : {},
+    scopeReady && needsAggregateSurveys,
+  );
 
   const paginated = useSurveyListPaginated(
     { ...scopeFilters, ...tabFilters, fromMs: fromDateMs, toMs: toDateMs, searchTerm: registrySearchTerm },
@@ -157,7 +163,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
     let filtered =
       mode === "registry"
         ? ([...rows] as SurveyRow[])
-        : (searchQcRegistry(rows as SurveyRow[], registrySearch, ulbCodes) as SurveyRow[]);
+        : (searchQcRegistry(rows as SurveyRow[], debouncedRegistrySearch, ulbCodes) as SurveyRow[]);
     if (mode === "registry" && activeTab === "all") {
       filtered = filtered.filter((r) => r.status !== "draft" || r.qcStatus !== "pending");
     }
@@ -169,7 +175,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
       filtered = filtered.filter((r) => sharedIds.has(r._id));
     }
     return filtered;
-  }, [mode, paginated.surveys, aggregateSurveys, registrySearch, activeTab, ulbCodes]);
+  }, [mode, paginated.surveys, aggregateSurveys, debouncedRegistrySearch, activeTab, ulbCodes]);
 
   const filteredByDate = useMemo(() => {
     const base = aggregateSurveys ?? [];
@@ -229,7 +235,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
       return enrichServerWardStats(serverStats.wardStats, wardLabels);
     }
     return computeQcWardStats(filteredByDate, wardLabels);
-  }, [serverStats?.wardStats, filteredByDate, wardLabels]);
+  }, [serverStats, filteredByDate, wardLabels]);
 
   const rejectedCount = stats.rejected;
 

@@ -20,15 +20,17 @@ export function isValidIndianOwnerMobile(value: string): boolean {
 }
 
 /** @deprecated Use `isValidIndianOwnerMobile`. */
-export function isAcceptedOwnerMobile(mobile: string, _relationship?: string): boolean {
+export function isAcceptedOwnerMobile(mobile: string, relationship?: string): boolean {
+  void relationship;
   return isValidIndianOwnerMobile(mobile);
 }
 
 /** Primary contact from owner rows — first valid Indian mobile only. */
 export function primaryOwnerMobileFromOwners(
   owners: { mobileNo?: string }[] | undefined,
-  _relationship?: string,
+  relationship?: string,
 ): string | undefined {
+  void relationship;
   if (!owners?.length) return undefined;
   for (const o of owners) {
     const m = o.mobileNo?.trim();

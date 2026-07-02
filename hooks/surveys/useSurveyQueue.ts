@@ -8,7 +8,9 @@ import { useMasters, useWardsForMunicipality } from "@/hooks/masters/useMasters"
 import { useSurveyWorkScope } from "@/hooks/surveys/useSurveyWorkScope";
 import { useSurveyList, useSurveyListPaginated } from "@/hooks/surveys/useSurveys";
 import { useHasCapability } from "@/hooks/use-capability";
+import { useClientNowMs } from "@/hooks/use-client-now";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { QcStatus, SurveyStatus } from "@/lib/domain";
 import { sanitizeSurveyWorkScope, type SurveyWorkScope } from "@/lib/survey/work-scope";
 import { surveyTabToListFilters } from "@/lib/surveys/survey-list-filters";
@@ -18,7 +20,6 @@ import {
   type SurveyWardRow,
   type SurveyWardSourceRow,
 } from "@/lib/surveys/ward-stats";
-import { useClientNowMs } from "@/hooks/use-client-now";
 import { useQuery as useConvexQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -125,7 +126,8 @@ export function useSurveyQueue(options: UseSurveyQueueOptions = {}) {
   );
 
   const tabFilters = useMemo(() => surveyTabToListFilters(activeTab), [activeTab]);
-  const surveyorSearchTerm = surveyorSearch.trim() || undefined;
+  const debouncedSurveyorSearch = useDebouncedValue(surveyorSearch, 100);
+  const surveyorSearchTerm = debouncedSurveyorSearch.trim() || undefined;
 
   const serverStats = useConvexQuery(
     api.survey.commandCenterStats,
@@ -198,7 +200,7 @@ export function useSurveyQueue(options: UseSurveyQueueOptions = {}) {
       return enrichServerSurveyWardStats(serverStats.wardStats, wardLabels);
     }
     return computeSurveyWardStats((aggregateSurveys ?? []) as SurveyWardSourceRow[], wardLabels);
-  }, [serverStats?.wardStats, aggregateSurveys, wardLabels]);
+  }, [serverStats, aggregateSurveys, wardLabels]);
 
   const filteredCount = mode === "registry" ? (paginated.totalCount ?? filteredByTab.length) : filteredByTab.length;
 

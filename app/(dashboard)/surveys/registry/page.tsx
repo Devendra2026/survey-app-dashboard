@@ -16,6 +16,16 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 
+function RegistryLoadingFallback() {
+  return (
+    <div className="space-y-4">
+      <div className="h-8 w-52 animate-pulse rounded-md bg-muted" />
+      <div className="h-20 w-full animate-pulse rounded-xl bg-muted" />
+      <div className="h-80 w-full animate-pulse rounded-xl bg-muted" />
+    </div>
+  );
+}
+
 function SurveyRegistryContent() {
   const searchParams = useSearchParams();
   const wardFromUrl = searchParams.get("wardNo") ?? undefined;
@@ -143,7 +153,7 @@ export default function SurveyRegistryPage() {
       deniedDescription="The Surveys module is for field surveyors and supervisors. QC staff should use the QC Portal."
       redirectTo="/qc"
     >
-      <Suspense fallback={null}>
+      <Suspense fallback={<RegistryLoadingFallback />}>
         <SurveyRegistryContent />
       </Suspense>
     </RoleGate>
