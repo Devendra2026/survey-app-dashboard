@@ -55,11 +55,13 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
   const nowMs = useClientNowMs();
 
   const queryScope = useMemo(() => {
-    if (!masters) return {} as QcWorkScope;
-    return sanitizeQcWorkScope(scope, {
-      municipalityIds: new Set(masters.ulbs.map((u) => u._id)),
-      districtIds: new Set(masters.districts.map((d) => d._id)),
-    });
+    if (masters) {
+      return sanitizeQcWorkScope(scope, {
+        municipalityIds: new Set(masters.ulbs.map((u) => u._id)),
+        districtIds: new Set(masters.districts.map((d) => d._id)),
+      });
+    }
+    return scope;
   }, [scope, masters]);
 
   const ulbCodes = useMemo(() => (masters ? buildUlbCodeMap(masters.ulbs) : undefined), [masters]);
@@ -121,7 +123,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
 
   const tabFilters = useMemo(() => qcTabToListFilters(activeTab), [activeTab]);
 
-  const debouncedRegistrySearch = useDebouncedValue(registrySearch, 100);
+  const debouncedRegistrySearch = useDebouncedValue(registrySearch, 300);
   const registrySearchTerm = debouncedRegistrySearch.trim() || undefined;
 
   const serverStats = useConvexQuery(
@@ -138,7 +140,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
       : "skip",
   );
 
-  const needsAggregateSurveys = mode === "command" || activeTab === "parcelShared" || serverStats === undefined;
+  const needsAggregateSurveys = mode === "command" || (mode === "registry" && activeTab === "parcelShared");
   const aggregateSurveys = useSurveyList(
     scopeReady && needsAggregateSurveys ? { ...scopeFilters, limit: QC_AGGREGATE_LIMIT } : {},
     scopeReady && needsAggregateSurveys,
@@ -152,7 +154,7 @@ export function useQcQueue(options: UseQcQueueOptions = {}) {
 
   const isLoading =
     mode === "registry"
-      ? paginated.isLoading || (scopeReady && serverStats === undefined)
+      ? paginated.isLoading
       : scopeReady
         ? serverStats === undefined || aggregateSurveys === undefined
         : aggregateSurveys === undefined;

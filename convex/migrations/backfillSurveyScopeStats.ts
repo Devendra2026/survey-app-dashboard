@@ -7,7 +7,8 @@ const BATCH_SIZE = 100;
 
 /**
  * Backfill denormalized survey scope stats from existing survey rows.
- * Run once: `npx convex run migrations/backfillSurveyScopeStats:run`
+ * Run once with reset: `npx convex run migrations/backfillSurveyScopeStats:run '{"reset": true}'`
+ * Re-running without reset will double-count — always pass reset: true when rebuilding.
  */
 export const run = internalMutation({
   args: {

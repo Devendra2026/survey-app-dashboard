@@ -63,12 +63,9 @@ function addRowToSurveyCounts(bucket: MutableSurveyCounts, row: SurveyStatsSlice
 function addRowToDashboardCounts(bucket: MutableDashboardCounts, row: SurveyStatsSlice, todayMs: number | null) {
   addRowToSurveyCounts(bucket, row, todayMs);
   if (row.qcStatus === "pending" && row.status === "submitted") bucket.pending += 1;
-  if (
-    todayMs !== null &&
-    row.status === "submitted" &&
-    (row.submittedAt !== undefined ? row.submittedAt >= todayMs : row._creationTime >= todayMs)
-  ) {
-    bucket.submittedToday += 1;
+  if (todayMs !== null && row.status !== "draft") {
+    const submittedTs = row.submittedAt ?? row._creationTime;
+    if (submittedTs >= todayMs) bucket.submittedToday += 1;
   }
 }
 

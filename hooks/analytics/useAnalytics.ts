@@ -8,8 +8,13 @@ import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
 import { type Preloaded, usePreloadedQuery, useQuery } from "convex/react";
 import { useMemo } from "react";
 
-/** Home dashboard bundle (KPIs + analytics) hydrated from a server `preloadQuery` payload. */
-export function useDashboardHome(preloaded: Preloaded<typeof api.webDashboard.homeBundle>) {
+/** Home dashboard KPI counts hydrated from a server `preloadQuery` payload. */
+export function useDashboardCounts(preloaded: Preloaded<typeof api.webDashboard.counts>) {
+  return usePreloadedQuery(preloaded);
+}
+
+/** Home dashboard analytics hydrated from a server `preloadQuery` payload. */
+export function useDashboardAnalytics(preloaded: Preloaded<typeof api.webDashboard.analyticsBundle>) {
   return usePreloadedQuery(preloaded);
 }
 

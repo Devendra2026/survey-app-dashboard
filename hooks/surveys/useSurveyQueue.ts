@@ -61,11 +61,13 @@ export function useSurveyQueue(options: UseSurveyQueueOptions = {}) {
   const nowMs = useClientNowMs();
 
   const queryScope = useMemo(() => {
-    if (!masters) return {} as SurveyWorkScope;
-    return sanitizeSurveyWorkScope(scope, {
-      municipalityIds: new Set(masters.ulbs.map((u) => u._id)),
-      districtIds: new Set(masters.districts.map((d) => d._id)),
-    });
+    if (masters) {
+      return sanitizeSurveyWorkScope(scope, {
+        municipalityIds: new Set(masters.ulbs.map((u) => u._id)),
+        districtIds: new Set(masters.districts.map((d) => d._id)),
+      });
+    }
+    return scope;
   }, [scope, masters]);
 
   const [dateFilters, setDateFilters] = useState<DateFilterState>({});
@@ -126,7 +128,7 @@ export function useSurveyQueue(options: UseSurveyQueueOptions = {}) {
   );
 
   const tabFilters = useMemo(() => surveyTabToListFilters(activeTab), [activeTab]);
-  const debouncedSurveyorSearch = useDebouncedValue(surveyorSearch, 100);
+  const debouncedSurveyorSearch = useDebouncedValue(surveyorSearch, 300);
   const surveyorSearchTerm = debouncedSurveyorSearch.trim() || undefined;
 
   const serverStats = useConvexQuery(
@@ -165,7 +167,7 @@ export function useSurveyQueue(options: UseSurveyQueueOptions = {}) {
 
   const isLoading =
     mode === "registry"
-      ? paginated.isLoading || (scopeReady && serverStats === undefined)
+      ? paginated.isLoading
       : scopeReady
         ? serverStats === undefined && aggregateSurveys === undefined
         : false;

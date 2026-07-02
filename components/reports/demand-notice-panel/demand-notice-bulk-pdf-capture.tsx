@@ -36,8 +36,16 @@ function bulkPdfJobKey(job: DemandNoticeBulkPdfJob): string {
 }
 
 /** Remount via key when job changes — resets capture state without an effect. */
-export function DemandNoticeBulkPdfCapture(props: DemandNoticeBulkPdfCaptureProps) {
-  return <DemandNoticeBulkPdfCaptureRun key={bulkPdfJobKey(props.job)} {...props} />;
+export function DemandNoticeBulkPdfCapture({ job, onProgress, onComplete, onError }: DemandNoticeBulkPdfCaptureProps) {
+  return (
+    <DemandNoticeBulkPdfCaptureRun
+      key={bulkPdfJobKey(job)}
+      job={job}
+      onProgress={onProgress}
+      onComplete={onComplete}
+      onError={onError}
+    />
+  );
 }
 
 async function finalizeBulkPdf(
@@ -128,11 +136,12 @@ function DemandNoticeBulkPdfCaptureRun({ job, onProgress, onComplete, onError }:
 
   return (
     <div
+      key={payload.propertyId}
       ref={mountRef}
       className={`demand-notice demand-notice-bulk-pdf-capture ${demandNoticeFontClassName} pointer-events-none fixed top-0 -left-3000 z-[-1] w-[210mm] bg-white`}
       aria-hidden
     >
-      <DemandNoticeDocument key={payload.propertyId} {...payload} />
+      <DemandNoticeDocument {...payload} />
     </div>
   );
 }

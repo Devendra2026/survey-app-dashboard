@@ -14,11 +14,13 @@ import { requireCapability } from "./capabilities";
 import { assertCanAccessSurvey, fieldSurveyAccess, isOwnScopeSurveyor } from "./fieldAccess";
 import { assertCanReadWard, clientError, mapTruthyById, requireUser, writeAudit } from "./helpers";
 import { computeQcWardAggregates } from "./lib/qcWardStats";
-import { recordSurveyStatsUpdate } from "./lib/surveyScopeStats";
+import { loadScopeStatsSummary, recordSurveyStatsUpdate } from "./lib/surveyScopeStats";
 import { normalizeParcelKey, resolvePropertyId } from "./propertyId";
 import { qcStatus, surveyStatus } from "./schema";
 import { collectSurveysForListPaginated } from "./survey";
 import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
+
+const COMMAND_CENTER_WARD_SCAN_LIMIT = 2500;
 
 const wardStatsEntryShape = {
   wardNo: v.string(),
@@ -71,6 +73,14 @@ export const commandCenterStats = query({
       clientError("FORBIDDEN", "This district is outside your assigned scope");
     }
 
+    const todayMs = (() => {
+      const d = new Date(args.nowMs);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    })();
+
+    const useStatsFastPath = !args.wardNo && args.fromMs === undefined && args.toMs === undefined;
+
     const rows = await collectSurveysForListPaginated(
       ctx,
       me,
@@ -82,6 +92,7 @@ export const commandCenterStats = query({
       scope,
       muniIds,
       access,
+      COMMAND_CENTER_WARD_SCAN_LIMIT,
     );
 
     const inDateRange = (submittedAt: number | undefined, creationTime: number) => {
@@ -92,19 +103,33 @@ export const commandCenterStats = query({
     };
 
     const filtered = rows.filter((r) => inDateRange(r.submittedAt, r._creationTime));
+    const wardStats = computeQcWardAggregates(filtered);
 
-    const todayMs = (() => {
-      const d = new Date(args.nowMs);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
-    })();
+    if (useStatsFastPath) {
+      const summary = await loadScopeStatsSummary(ctx, me, todayMs, {
+        districtId: args.districtId,
+        municipalityId: args.municipalityId,
+      });
+      if (summary) {
+        const decided = summary.qcPending + summary.qcApproved + summary.qcRejected;
+        return {
+          pending: summary.qcPending,
+          approved: summary.qcApproved,
+          rejected: summary.qcRejected,
+          drafts: summary.drafts,
+          submittedToday: summary.submittedToday,
+          submitted: summary.submitted,
+          qcCompletionPct: decided > 0 ? Math.round((summary.qcApproved / decided) * 100) : 0,
+          wardStats,
+        };
+      }
+    }
 
     const pending = filtered.filter((r) => r.qcStatus === "pending" && r.status === "submitted").length;
     const approved = filtered.filter((r) => r.qcStatus === "approved").length;
     const rejected = filtered.filter((r) => r.qcStatus === "rejected").length;
     const decided = pending + approved + rejected;
     const qcCompletionPct = decided > 0 ? Math.round((approved / decided) * 100) : 0;
-    const wardStats = computeQcWardAggregates(filtered);
 
     return {
       pending,

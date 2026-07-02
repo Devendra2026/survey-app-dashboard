@@ -83,5 +83,5 @@ export function useSurveyWorkScope() {
     });
   }, []);
 
-  return { scope, setScope, patchScope, scopeReady: masters !== undefined };
+  return { scope, setScope, patchScope, scopeReady: user !== undefined };
 }

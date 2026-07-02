@@ -15,9 +15,14 @@ async function preloadConvexQuery<Query extends FunctionReference<"query">>(quer
   return preloadQuery(query, args, { ...convexOptions, token: token ?? undefined });
 }
 
-/** Deduped per-request preload for the home dashboard bundle (KPIs + analytics). */
-export const preloadDashboardHome = cache(async (nowMs: number, trendDays = 30) => {
-  return preloadConvexQuery(api.webDashboard.homeBundle, { nowMs, trendDays });
+/** Deduped per-request preload for dashboard KPI counts only. */
+export const preloadDashboardCounts = cache(async (nowMs: number) => {
+  return preloadConvexQuery(api.webDashboard.counts, { nowMs });
+});
+
+/** Deduped per-request preload for dashboard analytics charts. */
+export const preloadDashboardAnalytics = cache(async (nowMs: number, trendDays = 30) => {
+  return preloadConvexQuery(api.webDashboard.analyticsBundle, { nowMs, trendDays });
 });
 
 /** Deduped per-request preload for the home activity feed. */

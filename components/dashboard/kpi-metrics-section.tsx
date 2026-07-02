@@ -26,9 +26,9 @@ export function KpiMetricsSection({ counts }: { counts: DashboardCounts | undefi
           </StaggerItem>
           <StaggerItem>
             <MetricCard
-              label="Today's Total Survey"
+              label="Created Today"
               value={counts.today}
-              hint={`${(counts.submittedToday ?? 0).toLocaleString()} submitted today · ${(counts.submitted ?? 0).toLocaleString()} total submitted`}
+              hint={`${(counts.submittedToday ?? 0).toLocaleString()} submitted today · ${(counts.pending ?? 0).toLocaleString()} pending QC · ${(counts.approved ?? 0).toLocaleString()} QC approved`}
               icon={CalendarDays}
               tone="info"
             />

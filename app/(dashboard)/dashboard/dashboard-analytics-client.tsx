@@ -5,17 +5,11 @@ import { OrganizationSection } from "@/components/dashboard/organization-section
 import { ProductivitySection } from "@/components/dashboard/productivity-section";
 import { SectionHeader } from "@/components/design-system/executive-hero";
 import { api } from "@/convex/_generated/api";
-import { useDashboardHome } from "@/hooks/analytics/useAnalytics";
+import { useDashboardAnalytics } from "@/hooks/analytics/useAnalytics";
+import type { WebDashboardAnalytics } from "@/schema/analytics";
 import type { Preloaded } from "convex/react";
 
-export function DashboardAnalyticsClient({
-  preloadedHome,
-}: {
-  preloadedHome: Preloaded<typeof api.webDashboard.homeBundle>;
-}) {
-  const home = useDashboardHome(preloadedHome);
-  const analytics = home?.analytics;
-
+export function DashboardAnalyticsView({ analytics }: { analytics: WebDashboardAnalytics | null | undefined }) {
   if (!analytics) return null;
 
   const { breakdown, dailyTrend, wardCoverage } = analytics;
@@ -50,4 +44,13 @@ export function DashboardAnalyticsClient({
       </section>
     </>
   );
+}
+
+export function DashboardAnalyticsClient({
+  preloadedAnalytics,
+}: {
+  preloadedAnalytics: Preloaded<typeof api.webDashboard.analyticsBundle>;
+}) {
+  const analytics = useDashboardAnalytics(preloadedAnalytics);
+  return <DashboardAnalyticsView analytics={analytics} />;
 }

@@ -8,10 +8,14 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { requireCapability } from "./capabilities";
-import { collectSurveysInFieldScope } from "./fieldAccess";
+import { querySurveysInFieldScope } from "./fieldAccess";
 import { clientError, requireUser } from "./helpers";
+import { loadAnalyticsBreakdownFromStats } from "./lib/surveyScopeStats";
 import { buildGroupSurveyCounts, countRowsFromSlice, type SurveyStatsSlice } from "./lib/surveyStatsAggregate";
 import { assertMunicipalityInScope, resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
+
+const ANALYTICS_SURVEYOR_SLICE_LIMIT = 2000;
+const ANALYTICS_QC_DECISIONS_PER_REVIEWER_CAP = 400;
 
 export const surveyCountsShape = {
   total: v.number(),
@@ -54,9 +58,22 @@ function countRows(rows: Doc<"surveys">[], todayStartMs: number | null): SurveyC
   return countRowsFromSlice(rows, todayStartMs);
 }
 
-/** Load every survey row visible to admin, supervisor, or QC within tenant scope. */
-async function loadScopedSurveys(ctx: QueryCtx, me: Doc<"users">): Promise<Doc<"surveys">[]> {
-  return collectSurveysInFieldScope(ctx, me);
+/** Load a bounded survey slice for per-surveyor analytics (avoids full-table collect). */
+async function loadBoundedSurveysForAnalytics(
+  ctx: QueryCtx,
+  me: Doc<"users">,
+  filters: {
+    districtId?: Id<"districts">;
+    municipalityId?: Id<"municipalities">;
+    surveyorId?: Id<"users">;
+  },
+): Promise<Doc<"surveys">[]> {
+  return querySurveysInFieldScope(ctx, me, {
+    districtId: filters.districtId,
+    municipalityId: filters.municipalityId,
+    surveyorId: filters.surveyorId,
+    limit: ANALYTICS_SURVEYOR_SLICE_LIMIT,
+  });
 }
 
 async function assertDistrictInScope(
@@ -184,7 +201,31 @@ export const surveyStatsBreakdown = query({
     const districtIds = tenantDistrictIds(scope);
     const muniIds = tenantMunicipalityIds(scope);
 
-    let rows = await loadScopedSurveys(ctx, me);
+    const todayStartMs =
+      args.nowMs !== undefined
+        ? (() => {
+            const d = new Date(args.nowMs);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+          })()
+        : null;
+
+    const districtMap = new Map(scope.districts.map((d) => [d._id, d]));
+    const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
+
+    const statsBreakdown =
+      !args.surveyorId && todayStartMs !== null
+        ? await loadAnalyticsBreakdownFromStats(ctx, me, todayStartMs, scope, {
+            districtId: args.districtId,
+            municipalityId: args.municipalityId,
+          })
+        : null;
+
+    let rows = await loadBoundedSurveysForAnalytics(ctx, me, {
+      districtId: args.districtId,
+      municipalityId: args.municipalityId,
+      surveyorId: args.surveyorId,
+    });
 
     if (args.districtId) {
       await assertDistrictInScope(me, args.districtId, districtIds);
@@ -203,47 +244,43 @@ export const surveyStatsBreakdown = query({
       rows = rows.filter((r) => r.surveyorId === args.surveyorId);
     }
 
-    const todayStartMs =
-      args.nowMs !== undefined
-        ? (() => {
-            const d = new Date(args.nowMs);
-            d.setHours(0, 0, 0, 0);
-            return d.getTime();
-          })()
-        : null;
+    const byDistrict =
+      statsBreakdown?.byDistrict ??
+      (() => {
+        const byDistrictGroups = groupCounts(rows, (r) => r.districtId, todayStartMs);
+        return [...byDistrictGroups.entries()]
+          .map(([districtId, counts]) => {
+            const d = districtMap.get(districtId as Id<"districts">);
+            return {
+              districtId: districtId as Id<"districts">,
+              code: d?.code ?? "—",
+              name: d?.name ?? "Unknown district",
+              ...counts,
+            };
+          })
+          .sort((a, b) => a.name.localeCompare(b.name));
+      })();
 
-    const districtMap = new Map(scope.districts.map((d) => [d._id, d]));
-    const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
-
-    const byDistrictGroups = groupCounts(rows, (r) => r.districtId, todayStartMs);
-    const byDistrict = [...byDistrictGroups.entries()]
-      .map(([districtId, counts]) => {
-        const d = districtMap.get(districtId as Id<"districts">);
-        return {
-          districtId: districtId as Id<"districts">,
-          code: d?.code ?? "—",
-          name: d?.name ?? "Unknown district",
-          ...counts,
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    const byUlbGroups = groupCounts(rows, (r) => r.municipalityId, todayStartMs);
-    const byUlb = [...byUlbGroups.entries()]
-      .map(([municipalityId, counts]) => {
-        const m = muniMap.get(municipalityId as Id<"municipalities">);
-        const d = m ? districtMap.get(m.districtId) : undefined;
-        const sampleDistrictId = rows.find((r) => r.municipalityId === municipalityId)?.districtId;
-        return {
-          municipalityId: municipalityId as Id<"municipalities">,
-          code: m?.code ?? "—",
-          name: m?.name ?? "Unknown ULB",
-          districtId: m?.districtId ?? sampleDistrictId ?? (municipalityId as Id<"districts">),
-          districtName: d?.name ?? "—",
-          ...counts,
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const byUlb =
+      statsBreakdown?.byUlb ??
+      (() => {
+        const byUlbGroups = groupCounts(rows, (r) => r.municipalityId, todayStartMs);
+        return [...byUlbGroups.entries()]
+          .map(([municipalityId, counts]) => {
+            const m = muniMap.get(municipalityId as Id<"municipalities">);
+            const d = m ? districtMap.get(m.districtId) : undefined;
+            const sampleDistrictId = rows.find((r) => r.municipalityId === municipalityId)?.districtId;
+            return {
+              municipalityId: municipalityId as Id<"municipalities">,
+              code: m?.code ?? "—",
+              name: m?.name ?? "Unknown ULB",
+              districtId: m?.districtId ?? sampleDistrictId ?? (municipalityId as Id<"districts">),
+              districtName: d?.name ?? "—",
+              ...counts,
+            };
+          })
+          .sort((a, b) => a.name.localeCompare(b.name));
+      })();
 
     const bySurveyorGroups = groupCounts(rows, (r) => r.surveyorId, todayStartMs);
 
@@ -294,7 +331,8 @@ export const surveyStatsBreakdown = query({
         const decisions = await ctx.db
           .query("qcDecisions")
           .withIndex("by_reviewer", (q) => q.eq("reviewerId", u._id))
-          .collect();
+          .order("desc")
+          .take(ANALYTICS_QC_DECISIONS_PER_REVIEWER_CAP);
         const scoped = decisions.filter((d) => scopedSurveyIds.has(d.surveyId));
         const approved = scoped.filter((d) => d.decision === "approve").length;
         const rejected = scoped.filter((d) => d.decision === "reject").length;
@@ -315,7 +353,7 @@ export const surveyStatsBreakdown = query({
     );
 
     return {
-      summary: countRows(rows, todayStartMs),
+      summary: statsBreakdown?.summary ?? countRows(rows, todayStartMs),
       byDistrict,
       byUlb,
       bySurveyor,

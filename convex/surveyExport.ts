@@ -10,6 +10,7 @@ import { hasCapability, requireCapability } from "./capabilities";
 import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
 import { assertCanReadWard, clientError, mapTruthyById, requireUser, writeAudit } from "./helpers";
 import { lookupSurveyByPropertyId } from "./lib/propertyIdLookup";
+import { recordSurveyStatsInsert, recordSurveyStatsUpdate } from "./lib/surveyScopeStats";
 import { comparePropertyIds, resolvePropertyId } from "./propertyId";
 import { gpsCapture, photoSlot, qcStatus, sanitationType, surveyOwnerEntry, surveyStatus, waterSource } from "./schema";
 import {
@@ -435,6 +436,8 @@ export const importExcelBundle = mutation({
             serverVersion: existing.serverVersion + 1,
             clientUpdatedAt: Date.now(),
           });
+          const updatedSurvey = await ctx.db.get(existing._id);
+          if (updatedSurvey) await recordSurveyStatsUpdate(ctx, existing, updatedSurvey);
           updated++;
           registerPropertyIdMapping(propertyIdToSurveyId, existing._id, normalized.propertyId, pid);
         } else {
@@ -447,6 +450,8 @@ export const importExcelBundle = mutation({
             serverVersion: 1,
             clientUpdatedAt: Date.now(),
           } as Doc<"surveys">);
+          const createdSurvey = await ctx.db.get(newId);
+          if (createdSurvey) await recordSurveyStatsInsert(ctx, createdSurvey);
           created++;
           registerPropertyIdMapping(propertyIdToSurveyId, newId, normalized.propertyId, pid);
         }

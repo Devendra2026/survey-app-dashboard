@@ -7,13 +7,15 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { hasCapability } from "./capabilities";
-import { fieldSurveyAccess, querySurveysInFieldScope } from "./fieldAccess";
-import { canReadWard, requireUser } from "./helpers";
-import { loadDashboardCountsFromStats } from "./lib/surveyScopeStats";
+import { querySurveysInFieldScope } from "./fieldAccess";
+import { requireUser } from "./helpers";
+import {
+  loadAnalyticsBreakdownFromStats,
+  loadDashboardCountsForHome,
+  loadDashboardDailyTrend,
+} from "./lib/surveyScopeStats";
 import {
   buildGroupSurveyCounts,
-  computeDailyTrendFromSlice,
-  computeDashboardCountsFromSlice,
   computeWardCoverageFromSlice,
   countRowsFromSlice,
   type SurveyStatsSlice,
@@ -22,65 +24,9 @@ import { qcStatus, surveyStatus } from "./schema";
 import { resolveTenantScope, tenantDistrictIds, tenantMunicipalityIds } from "./tenancy";
 
 const MS_PER_DAY = 86_400_000;
-const DASHBOARD_ANALYTICS_SURVEY_CAP = 1200;
-const DASHBOARD_COUNTS_SURVEY_CAP = 1800;
 const DASHBOARD_QC_DECISIONS_PER_REVIEWER_CAP = 400;
 const DASHBOARD_ANALYTICS_WINDOW_BUFFER_DAYS = 14;
-
-function surveyTimestamp(row: SurveyStatsSlice): number {
-  return row.submittedAt ?? row._creationTime;
-}
-
-function dedupeRows(rows: SurveyStatsSlice[]): SurveyStatsSlice[] {
-  const seen = new Set<string>();
-  const deduped: SurveyStatsSlice[] = [];
-  for (const row of rows) {
-    if (seen.has(row._id)) continue;
-    seen.add(row._id);
-    deduped.push(row);
-  }
-  return deduped;
-}
-
-async function loadBoundedSurveyRows(
-  ctx: QueryCtx,
-  me: Doc<"users">,
-  nowMs: number,
-  trendDays: number,
-  cap: number,
-): Promise<SurveyStatsSlice[]> {
-  const access = await fieldSurveyAccess(ctx, me);
-  if (access === "none") return [];
-
-  const scope = await resolveTenantScope(ctx, me);
-  const muniIds = tenantMunicipalityIds(scope);
-  const districtIds = tenantDistrictIds(scope);
-  const days = Math.min(Math.max(trendDays, 1), 180);
-  const fromMs = nowMs - (days + DASHBOARD_ANALYTICS_WINDOW_BUFFER_DAYS) * MS_PER_DAY;
-
-  const baseRows = await querySurveysInFieldScope(ctx, me, {
-    limit: cap,
-  });
-  const scopedRows = dedupeRows(baseRows)
-    .filter((row) => {
-      if (!muniIds.has(row.municipalityId)) return false;
-      if (access !== "admin" && districtIds.size > 0 && !districtIds.has(row.districtId)) return false;
-      if (surveyTimestamp(row) < fromMs) return false;
-      return canReadWard(me, row.municipalityId, row.wardNo);
-    })
-    .sort((a, b) => surveyTimestamp(b) - surveyTimestamp(a))
-    .slice(0, cap);
-  return scopedRows;
-}
-
-function toStatsRows(rows: Doc<"surveys">[]): SurveyStatsSlice[] {
-  return rows.map(toStatsSlice);
-}
-
-function boundedSurveySet(rows: SurveyStatsSlice[], cap: number): SurveyStatsSlice[] {
-  if (rows.length <= cap) return rows;
-  return rows.slice(0, cap);
-}
+const DASHBOARD_SURVEYOR_SLICE_LIMIT = 2000;
 
 const surveyCountsShape = {
   total: v.number(),
@@ -223,16 +169,8 @@ type SurveyCounts = {
   rejected: number;
 };
 
-function toStatsSlice(row: Doc<"surveys">): SurveyStatsSlice {
-  return row;
-}
-
 function countRows(rows: SurveyStatsSlice[], todayStartMs: number | null): SurveyCounts {
   return countRowsFromSlice(rows, todayStartMs);
-}
-
-function computeDashboardCounts(rows: SurveyStatsSlice[], todayMs: number | null) {
-  return computeDashboardCountsFromSlice(rows, todayMs);
 }
 
 function groupCounts(
@@ -259,11 +197,6 @@ function startOfDayMs(nowMs: number): number {
   const d = new Date(nowMs);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
-}
-
-async function loadScopedSurveyRows(ctx: QueryCtx, me: Doc<"users">): Promise<SurveyStatsSlice[]> {
-  const rows = await querySurveysInFieldScope(ctx, me, { limit: DASHBOARD_COUNTS_SURVEY_CAP });
-  return boundedSurveySet(toStatsRows(rows), DASHBOARD_COUNTS_SURVEY_CAP);
 }
 
 /** Pick the cheaper QC decision load strategy based on scope size. */
@@ -301,50 +234,59 @@ async function loadScopedQcDecisionsByReviewer(
   return byReviewer;
 }
 
-async function computeStatsBreakdown(
+async function buildDashboardBreakdown(
   ctx: QueryCtx,
   me: Doc<"users">,
-  rows: SurveyStatsSlice[],
-  todayStartMs: number | null,
+  statsBreakdown: Awaited<ReturnType<typeof loadAnalyticsBreakdownFromStats>>,
+  surveyorRows: SurveyStatsSlice[],
+  todayStartMs: number,
   fromMs: number,
+  scope: Awaited<ReturnType<typeof resolveTenantScope>>,
 ) {
-  const scope = await resolveTenantScope(ctx, me);
   const districtIds = tenantDistrictIds(scope);
   const muniIds = tenantMunicipalityIds(scope);
   const districtMap = new Map(scope.districts.map((d) => [d._id, d]));
   const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
 
-  const byDistrictGroups = groupCounts(rows, (r) => r.districtId, todayStartMs);
-  const byDistrict = [...byDistrictGroups.entries()]
-    .map(([districtId, counts]) => {
-      const d = districtMap.get(districtId as Id<"districts">);
-      return {
-        districtId: districtId as Id<"districts">,
-        code: d?.code ?? "—",
-        name: d?.name ?? "Unknown district",
-        ...counts,
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const byDistrict =
+    statsBreakdown?.byDistrict ??
+    (() => {
+      const byDistrictGroups = groupCounts(surveyorRows, (r) => r.districtId, todayStartMs);
+      return [...byDistrictGroups.entries()]
+        .map(([districtId, counts]) => {
+          const d = districtMap.get(districtId as Id<"districts">);
+          return {
+            districtId: districtId as Id<"districts">,
+            code: d?.code ?? "—",
+            name: d?.name ?? "Unknown district",
+            ...counts,
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    })();
 
-  const byUlbGroups = groupCounts(rows, (r) => r.municipalityId, todayStartMs);
-  const byUlb = [...byUlbGroups.entries()]
-    .map(([municipalityId, counts]) => {
-      const m = muniMap.get(municipalityId as Id<"municipalities">);
-      const d = m ? districtMap.get(m.districtId) : undefined;
-      const sampleDistrictId = rows.find((r) => r.municipalityId === municipalityId)?.districtId;
-      return {
-        municipalityId: municipalityId as Id<"municipalities">,
-        code: m?.code ?? "—",
-        name: m?.name ?? "Unknown ULB",
-        districtId: m?.districtId ?? sampleDistrictId ?? (municipalityId as Id<"districts">),
-        districtName: d?.name ?? "—",
-        ...counts,
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const byUlb =
+    statsBreakdown?.byUlb ??
+    (() => {
+      const byUlbGroups = groupCounts(surveyorRows, (r) => r.municipalityId, todayStartMs);
+      return [...byUlbGroups.entries()]
+        .map(([municipalityId, counts]) => {
+          const m = muniMap.get(municipalityId as Id<"municipalities">);
+          const d = m ? districtMap.get(m.districtId) : undefined;
+          const sampleDistrictId = surveyorRows.find((r) => r.municipalityId === municipalityId)?.districtId;
+          return {
+            municipalityId: municipalityId as Id<"municipalities">,
+            code: m?.code ?? "—",
+            name: m?.name ?? "Unknown ULB",
+            districtId: m?.districtId ?? sampleDistrictId ?? (municipalityId as Id<"districts">),
+            districtName: d?.name ?? "—",
+            ...counts,
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    })();
 
-  const bySurveyorGroups = groupCounts(rows, (r) => r.surveyorId, todayStartMs);
+  const bySurveyorGroups = groupCounts(surveyorRows, (r) => r.surveyorId, todayStartMs);
 
   const activeSurveyors = filterActiveUsersInScope(
     await ctx.db
@@ -381,7 +323,7 @@ async function computeStatsBreakdown(
     districtIds,
   );
 
-  const scopedSurveyIds = new Set(rows.map((r) => r._id));
+  const scopedSurveyIds = new Set(surveyorRows.map((r) => r._id));
   const decisionsByReviewer = await loadScopedQcDecisionsByReviewer(ctx, scopedSurveyIds, activeQcSupervisors, fromMs);
 
   const byQcSupervisor = activeQcSupervisors
@@ -405,7 +347,7 @@ async function computeStatsBreakdown(
     .sort((a, b) => b.total - a.total);
 
   return {
-    summary: countRows(rows, todayStartMs),
+    summary: statsBreakdown?.summary ?? countRows(surveyorRows, todayStartMs),
     byDistrict,
     byUlb,
     bySurveyor,
@@ -432,19 +374,18 @@ async function computeStatsBreakdown(
   };
 }
 
-function computeDailyTrend(rows: SurveyStatsSlice[], days: number, nowMs: number) {
-  return computeDailyTrendFromSlice(rows, days, nowMs);
-}
-
 function computeWardCoverage(rows: SurveyStatsSlice[], muniMap: Map<Id<"municipalities">, Doc<"municipalities">>) {
   const muniNames = new Map([...muniMap.entries()].map(([id, m]) => [id, m.name]));
   return computeWardCoverageFromSlice(rows, muniNames);
 }
 
+function toSurveyorSliceRows(rows: Doc<"surveys">[]): SurveyStatsSlice[] {
+  return rows;
+}
+
 async function buildAnalyticsBundle(
   ctx: QueryCtx,
   me: Doc<"users">,
-  rows: SurveyStatsSlice[],
   todayMs: number,
   trendDays: number,
   nowMs: number,
@@ -457,16 +398,22 @@ async function buildAnalyticsBundle(
   const scope = await resolveTenantScope(ctx, me);
   const muniMap = new Map(scope.municipalities.map((m) => [m._id, m]));
 
+  const [statsBreakdown, surveyorSurveyRows] = await Promise.all([
+    loadAnalyticsBreakdownFromStats(ctx, me, todayMs, scope),
+    querySurveysInFieldScope(ctx, me, { limit: DASHBOARD_SURVEYOR_SLICE_LIMIT }),
+  ]);
+  const surveyorRows = toSurveyorSliceRows(surveyorSurveyRows);
+
   const [breakdown, dailyTrend, wardCoverage] = await Promise.all([
-    computeStatsBreakdown(ctx, me, rows, todayMs, analyticsFromMs),
-    Promise.resolve(computeDailyTrend(rows, days, nowMs)),
-    Promise.resolve(computeWardCoverage(rows, muniMap)),
+    buildDashboardBreakdown(ctx, me, statsBreakdown, surveyorRows, todayMs, analyticsFromMs, scope),
+    loadDashboardDailyTrend(ctx, me, days, nowMs),
+    Promise.resolve(computeWardCoverage(surveyorRows, muniMap)),
   ]);
 
   return { breakdown, dailyTrend, wardCoverage };
 }
 
-/** Fast KPI counts for the web home dashboard. */
+/** Accurate KPI counts for the web home dashboard (stats tables when backfilled). */
 export const counts = query({
   args: { nowMs: v.number() },
   returns: v.object(dashboardCountsShape),
@@ -475,11 +422,7 @@ export const counts = query({
     if (me.status !== "active") return EMPTY_COUNTS;
 
     const todayMs = startOfDayMs(args.nowMs);
-    const fastCounts = await loadDashboardCountsFromStats(ctx, me, todayMs);
-    if (fastCounts) return fastCounts;
-
-    const rows = await loadScopedSurveyRows(ctx, me);
-    return computeDashboardCounts(rows, todayMs);
+    return loadDashboardCountsForHome(ctx, me, todayMs);
   },
 });
 
@@ -494,9 +437,8 @@ export const analyticsBundle = query({
     const me = await requireUser(ctx, { allowPending: true });
     if (me.status !== "active") return null;
 
-    const rows = await loadScopedSurveyRows(ctx, me);
     const todayMs = startOfDayMs(args.nowMs);
-    return buildAnalyticsBundle(ctx, me, rows, todayMs, args.trendDays ?? 30, args.nowMs);
+    return buildAnalyticsBundle(ctx, me, todayMs, args.trendDays ?? 30, args.nowMs);
   },
 });
 
@@ -519,12 +461,8 @@ export const homeBundle = query({
 
     const todayMs = startOfDayMs(args.nowMs);
     const trendDays = args.trendDays ?? 30;
-    const fastCounts = await loadDashboardCountsFromStats(ctx, me, todayMs);
-    const analyticsRows = await loadBoundedSurveyRows(ctx, me, args.nowMs, trendDays, DASHBOARD_ANALYTICS_SURVEY_CAP);
-    const counts =
-      fastCounts ??
-      computeDashboardCounts(analyticsRows.length > 0 ? analyticsRows : await loadScopedSurveyRows(ctx, me), todayMs);
-    const analytics = await buildAnalyticsBundle(ctx, me, analyticsRows, todayMs, trendDays, args.nowMs);
+    const counts = await loadDashboardCountsForHome(ctx, me, todayMs);
+    const analytics = await buildAnalyticsBundle(ctx, me, todayMs, trendDays, args.nowMs);
 
     return { counts, analytics };
   },

@@ -99,5 +99,5 @@ export function useQcWorkScope(activeSurvey?: ActiveSurvey | null) {
     });
   }, []);
 
-  return { scope, setScope, patchScope, scopeReady: masters !== undefined };
+  return { scope, setScope, patchScope, scopeReady: user !== undefined };
 }

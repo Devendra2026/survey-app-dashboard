@@ -16,7 +16,6 @@ import { hasCapability, requireCapability } from "./capabilities";
 import {
   assertCanAccessSurvey,
   canInsertSurveyDraft,
-  collectSurveysInFieldScope,
   fieldSurveyAccess,
   isOwnScopeSurveyor,
   querySurveysInFieldScope,
@@ -28,8 +27,15 @@ import {
   computeSurveyCompletionPercent,
   refreshSurveyCompletionPct,
 } from "./lib/surveyProgress";
-import { recordSurveyStatsInsert, recordSurveyStatsRemove, recordSurveyStatsUpdate } from "./lib/surveyScopeStats";
-import { filterSurveysBySearch } from "./lib/surveySearch";
+import {
+  loadScopeStatsSummary,
+  recordSurveyStatsInsert,
+  recordSurveyStatsRemove,
+  recordSurveyStatsUpdate,
+  resolveListTotalFromStats,
+  scopeStatsFastPathEligible,
+} from "./lib/surveyScopeStats";
+import { matchesSurveySearch } from "./lib/surveySearch";
 import { assertUniqueSurveySlot, surveyIdentifyingSlotChanged } from "./lib/surveyUniqueness";
 import { computeSurveyWardAggregates } from "./lib/surveyWardStats";
 import { isValidIndianOwnerMobile, normalizeOwners, primaryOwnerMobile, validateOwnerSection } from "./ownerRules";
@@ -70,16 +76,40 @@ async function enrichSurveyorNames(
   ctx: QueryCtx,
   rows: Doc<"surveys">[],
 ): Promise<Array<Doc<"surveys"> & { surveyorName?: string }>> {
-  const surveyorIds = [...new Set(rows.map((r) => r.surveyorId))];
-  const surveyors = await Promise.all(surveyorIds.map((id) => ctx.db.get(id)));
-  const nameById = new Map<Id<"users">, string>();
-  for (const s of surveyors) {
-    if (s) nameById.set(s._id, s.name);
-  }
+  const nameById = await loadSurveyorNameMap(ctx, rows);
   return rows.map((row) => ({
     ...row,
     surveyorName: nameById.get(row.surveyorId),
   }));
+}
+
+async function loadSurveyorNameMap(ctx: QueryCtx, rows: Doc<"surveys">[]): Promise<Map<Id<"users">, string>> {
+  const surveyorIds = [...new Set(rows.map((r) => r.surveyorId))];
+  const surveyors = await Promise.all(surveyorIds.map((id) => ctx.db.get("users", id)));
+  const nameById = new Map<Id<"users">, string>();
+  for (const s of surveyors) {
+    if (s) nameById.set(s._id, s.name);
+  }
+  return nameById;
+}
+
+async function filterRowsBySearchTerm(
+  ctx: QueryCtx,
+  rows: Doc<"surveys">[],
+  searchTerm: string,
+): Promise<Doc<"surveys">[]> {
+  const searchCodes = await loadMunicipalityCodes(
+    ctx,
+    rows.map((r) => r.municipalityId),
+  );
+  const nameById = await loadSurveyorNameMap(ctx, rows);
+  return rows.filter((row) =>
+    matchesSurveySearch(
+      { ...row, surveyorName: nameById.get(row.surveyorId) },
+      searchTerm,
+      searchCodes.get(row.municipalityId) ?? "",
+    ),
+  );
 }
 
 /* ────────────────────────── shared input validator ────────────────────────── */
@@ -340,6 +370,7 @@ function applySurveyListFilters(
 
 /** Max rows loaded before in-memory filter + manual pagination (matches export scope). */
 const LIST_PAGINATED_SCOPE_LIMIT = 5000;
+const COMMAND_CENTER_WARD_SCAN_LIMIT = 2500;
 
 function parseListOffset(cursor: string | null | undefined): number {
   if (!cursor) return 0;
@@ -351,34 +382,36 @@ async function querySurveysByMunicipality(
   ctx: QueryCtx,
   municipalityId: Id<"municipalities">,
   status?: Doc<"surveys">["status"],
+  maxRows = LIST_PAGINATED_SCOPE_LIMIT,
 ): Promise<Doc<"surveys">[]> {
   if (status) {
     return ctx.db
       .query("surveys")
       .withIndex("by_municipality_status", (q) => q.eq("municipalityId", municipalityId).eq("status", status))
-      .take(LIST_PAGINATED_SCOPE_LIMIT);
+      .take(maxRows);
   }
   return ctx.db
     .query("surveys")
     .withIndex("by_municipality_status", (q) => q.eq("municipalityId", municipalityId))
-    .take(LIST_PAGINATED_SCOPE_LIMIT);
+    .take(maxRows);
 }
 
 async function querySurveysByDistrict(
   ctx: QueryCtx,
   districtId: Id<"districts">,
   status?: Doc<"surveys">["status"],
+  maxRows = LIST_PAGINATED_SCOPE_LIMIT,
 ): Promise<Doc<"surveys">[]> {
   if (status) {
     return ctx.db
       .query("surveys")
       .withIndex("by_district_status", (q) => q.eq("districtId", districtId).eq("status", status))
-      .take(LIST_PAGINATED_SCOPE_LIMIT);
+      .take(maxRows);
   }
   return ctx.db
     .query("surveys")
     .withIndex("by_district_status", (q) => q.eq("districtId", districtId))
-    .take(LIST_PAGINATED_SCOPE_LIMIT);
+    .take(maxRows);
 }
 
 export type SurveyListFilterArgs = {
@@ -393,7 +426,7 @@ export type SurveyListFilterArgs = {
   toMs?: number;
 };
 
-/** Load all rows matching list filters using indexes, then scope + filter in memory. */
+/** Load rows matching list filters using indexes, then scope + filter in memory. */
 export async function collectSurveysForListPaginated(
   ctx: QueryCtx,
   me: Doc<"users">,
@@ -401,6 +434,7 @@ export async function collectSurveysForListPaginated(
   scope: Awaited<ReturnType<typeof resolveTenantScope>>,
   muniIds: Set<Id<"municipalities">>,
   access: Awaited<ReturnType<typeof fieldSurveyAccess>>,
+  maxRows = LIST_PAGINATED_SCOPE_LIMIT,
 ): Promise<Doc<"surveys">[]> {
   let rows: Doc<"surveys">[] = [];
 
@@ -411,12 +445,12 @@ export async function collectSurveysForListPaginated(
         .withIndex("by_municipality_qc_status", (q) =>
           q.eq("municipalityId", args.municipalityId!).eq("qcStatus", args.qcStatus!),
         )
-        .take(LIST_PAGINATED_SCOPE_LIMIT);
+        .take(maxRows);
     } else if (args.districtId) {
       rows = await ctx.db
         .query("surveys")
         .withIndex("by_district_qc_status", (q) => q.eq("districtId", args.districtId!).eq("qcStatus", args.qcStatus!))
-        .take(LIST_PAGINATED_SCOPE_LIMIT);
+        .take(maxRows);
     } else {
       const scopedMunis =
         scope.municipalities.length > 0
@@ -425,6 +459,7 @@ export async function collectSurveysForListPaginated(
             ? [me.municipalityId]
             : [...muniIds];
       if (scopedMunis.length > 0) {
+        const perMuniCap = Math.max(50, Math.ceil(maxRows / scopedMunis.length));
         const batches = await Promise.all(
           scopedMunis.map((municipalityId) =>
             ctx.db
@@ -432,7 +467,7 @@ export async function collectSurveysForListPaginated(
               .withIndex("by_municipality_qc_status", (q) =>
                 q.eq("municipalityId", municipalityId).eq("qcStatus", args.qcStatus!),
               )
-              .take(LIST_PAGINATED_SCOPE_LIMIT),
+              .take(perMuniCap),
           ),
         );
         const seen = new Set<string>();
@@ -447,7 +482,7 @@ export async function collectSurveysForListPaginated(
         rows = await ctx.db
           .query("surveys")
           .withIndex("by_qc_status", (q) => q.eq("qcStatus", args.qcStatus!))
-          .take(LIST_PAGINATED_SCOPE_LIMIT);
+          .take(maxRows);
       }
     }
   } else if (access === "own") {
@@ -455,22 +490,28 @@ export async function collectSurveysForListPaginated(
       .query("surveys")
       .withIndex("by_surveyor", (q) => q.eq("surveyorId", me._id))
       .order("desc")
-      .take(LIST_PAGINATED_SCOPE_LIMIT);
+      .take(maxRows);
+  } else if (args.wardNo && args.municipalityId) {
+    rows = await ctx.db
+      .query("surveys")
+      .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", args.municipalityId!).eq("wardNo", args.wardNo!))
+      .take(maxRows);
   } else if (args.municipalityId) {
-    rows = await querySurveysByMunicipality(ctx, args.municipalityId, args.status);
+    rows = await querySurveysByMunicipality(ctx, args.municipalityId, args.status, maxRows);
   } else if (args.districtId) {
-    rows = await querySurveysByDistrict(ctx, args.districtId, args.status);
+    rows = await querySurveysByDistrict(ctx, args.districtId, args.status, maxRows);
   } else if (args.surveyorId) {
     rows = await ctx.db
       .query("surveys")
       .withIndex("by_surveyor", (q) => q.eq("surveyorId", args.surveyorId!))
       .order("desc")
-      .take(LIST_PAGINATED_SCOPE_LIMIT);
+      .take(maxRows);
   } else if (access === "assigned") {
     const scopedMunis = scope.municipalities.map((m) => m._id);
     if (scopedMunis.length > 1) {
+      const perMuniCap = Math.max(50, Math.ceil(maxRows / scopedMunis.length));
       const batches = await Promise.all(
-        scopedMunis.map((municipalityId) => querySurveysByMunicipality(ctx, municipalityId, args.status)),
+        scopedMunis.map((municipalityId) => querySurveysByMunicipality(ctx, municipalityId, args.status, perMuniCap)),
       );
       const seen = new Set<string>();
       for (const batch of batches) {
@@ -481,12 +522,33 @@ export async function collectSurveysForListPaginated(
         }
       }
     } else if (scopedMunis.length === 1) {
-      rows = await querySurveysByMunicipality(ctx, scopedMunis[0]!, args.status);
+      rows = await querySurveysByMunicipality(ctx, scopedMunis[0]!, args.status, maxRows);
     } else if (scope.districts.length === 1) {
-      rows = await querySurveysByDistrict(ctx, scope.districts[0]!._id, args.status);
+      rows = await querySurveysByDistrict(ctx, scope.districts[0]!._id, args.status, maxRows);
     }
   } else {
-    rows = await collectSurveysInFieldScope(ctx, me);
+    const scopedMunis =
+      scope.municipalities.length > 0
+        ? scope.municipalities.map((m) => m._id)
+        : access === "admin"
+          ? [...muniIds]
+          : me.municipalityId
+            ? [me.municipalityId]
+            : [];
+    if (scopedMunis.length > 0) {
+      const perMuniCap = Math.max(50, Math.ceil(maxRows / scopedMunis.length));
+      const batches = await Promise.all(
+        scopedMunis.map((municipalityId) => querySurveysByMunicipality(ctx, municipalityId, args.status, perMuniCap)),
+      );
+      const seen = new Set<string>();
+      for (const batch of batches) {
+        for (const row of batch) {
+          if (seen.has(row._id)) continue;
+          seen.add(row._id);
+          rows.push(row);
+        }
+      }
+    }
   }
 
   return applySurveyListFilters(rows, args, me, muniIds);
@@ -519,25 +581,34 @@ export const listPaginated = query({
       clientError("FORBIDDEN", "This district is outside your assigned scope");
     }
 
-    let filtered = await collectSurveysForListPaginated(ctx, me, args, scope, muniIds, access);
-
-    if (args.searchTerm?.trim()) {
-      const withNames = await enrichSurveyorNames(ctx, filtered);
-      const searchCodes = await loadMunicipalityCodes(
-        ctx,
-        withNames.map((r) => r.municipalityId),
-      );
-      filtered = filterSurveysBySearch(withNames, args.searchTerm, searchCodes);
-    }
-
-    const scopeTruncated = filtered.length >= LIST_PAGINATED_SCOPE_LIMIT;
-    if (filtered.length > LIST_PAGINATED_SCOPE_LIMIT) {
-      filtered = filtered.slice(0, LIST_PAGINATED_SCOPE_LIMIT);
-    }
-
-    const totalCount = filtered.length;
     const offset = parseListOffset(args.paginationOpts.cursor);
     const numItems = args.paginationOpts.numItems;
+    const statsTotal = scopeStatsFastPathEligible(args)
+      ? await resolveListTotalFromStats(ctx, me, {
+          districtId: args.districtId,
+          municipalityId: args.municipalityId,
+          status: args.status,
+          qcStatus: args.qcStatus,
+        })
+      : null;
+    const scanLimit =
+      statsTotal !== null
+        ? Math.min(LIST_PAGINATED_SCOPE_LIMIT, Math.max(statsTotal, offset + numItems + 50))
+        : LIST_PAGINATED_SCOPE_LIMIT;
+
+    let filtered = await collectSurveysForListPaginated(ctx, me, args, scope, muniIds, access, scanLimit);
+
+    if (args.searchTerm?.trim()) {
+      filtered = await filterRowsBySearchTerm(ctx, filtered, args.searchTerm);
+    }
+
+    const scopeTruncated =
+      statsTotal === null ? filtered.length >= scanLimit : statsTotal > scanLimit && filtered.length >= scanLimit;
+    if (filtered.length > scanLimit) {
+      filtered = filtered.slice(0, scanLimit);
+    }
+
+    const totalCount = statsTotal ?? filtered.length;
     const pageRows = filtered.slice(offset, offset + numItems);
     const nextOffset = offset + numItems;
 
@@ -546,12 +617,13 @@ export const listPaginated = query({
       pageRows.map((r) => r.municipalityId),
     );
     const enriched = enrichSurveyPropertyIds(pageRows, codes);
-    const page = await enrichSurveyorNames(ctx, enriched);
+    const named = await enrichSurveyorNames(ctx, enriched);
+    const page = named;
 
     return {
       page,
-      continueCursor: nextOffset < filtered.length ? String(nextOffset) : null,
-      isDone: nextOffset >= filtered.length,
+      continueCursor: nextOffset < totalCount ? String(nextOffset) : null,
+      isDone: nextOffset >= totalCount,
       totalCount,
       scopeTruncated,
     };
@@ -609,19 +681,31 @@ export const commandCenterStats = query({
       clientError("FORBIDDEN", "This district is outside your assigned scope");
     }
 
+    const todayMs = (() => {
+      const d = new Date(args.nowMs);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    })();
+
+    const listArgs = {
+      districtId: args.districtId,
+      municipalityId: args.municipalityId,
+      wardNo: args.wardNo,
+      status: args.status,
+      qcStatus: args.qcStatus,
+    };
+
+    const useStatsFastPath =
+      !args.wardNo && args.fromMs === undefined && args.toMs === undefined && !args.status && !args.qcStatus;
+
     const rows = await collectSurveysForListPaginated(
       ctx,
       me,
-      {
-        districtId: args.districtId,
-        municipalityId: args.municipalityId,
-        wardNo: args.wardNo,
-        status: args.status,
-        qcStatus: args.qcStatus,
-      },
+      listArgs,
       scope,
       muniIds,
       access,
+      COMMAND_CENTER_WARD_SCAN_LIMIT,
     );
 
     const inDateRange = (submittedAt: number | undefined, creationTime: number) => {
@@ -632,33 +716,6 @@ export const commandCenterStats = query({
     };
 
     const filtered = rows.filter((r) => inDateRange(r.submittedAt, r._creationTime));
-
-    const todayMs = (() => {
-      const d = new Date(args.nowMs);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
-    })();
-
-    let drafts = 0;
-    let submitted = 0;
-    let submittedToday = 0;
-    let qcApproved = 0;
-    let qcPending = 0;
-    let qcRejected = 0;
-    let completionSum = 0;
-    for (const row of filtered) {
-      completionSum += row.completionPct ?? 0;
-      if (row.status === "draft") drafts += 1;
-      if (row.status === "submitted") {
-        submitted += 1;
-        const submittedTs = row.submittedAt ?? row._creationTime;
-        if (submittedTs >= todayMs) submittedToday += 1;
-      }
-      if (row.qcStatus === "approved") qcApproved += 1;
-      if (row.qcStatus === "pending" && row.status === "submitted") qcPending += 1;
-      if (row.qcStatus === "rejected") qcRejected += 1;
-    }
-    const surveyCompletionPct = filtered.length > 0 ? Math.round(completionSum / filtered.length) : 0;
 
     const wardAggregates = computeSurveyWardAggregates(filtered);
     const allSurveyorIds = [...new Set(wardAggregates.flatMap((w) => w.activeSurveyorIds))];
@@ -682,6 +739,48 @@ export const commandCenterStats = query({
         activeSurveyorNames: names.slice(0, 5),
       };
     });
+
+    if (useStatsFastPath) {
+      const summary = await loadScopeStatsSummary(ctx, me, todayMs, {
+        districtId: args.districtId,
+        municipalityId: args.municipalityId,
+      });
+      if (summary) {
+        const completionSum = filtered.reduce((sum, row) => sum + (row.completionPct ?? 0), 0);
+        return {
+          total: summary.total,
+          drafts: summary.drafts,
+          submitted: summary.submitted,
+          submittedToday: summary.submittedToday,
+          qcApproved: summary.qcApproved,
+          qcPending: summary.qcPending,
+          qcRejected: summary.qcRejected,
+          surveyCompletionPct: filtered.length > 0 ? Math.round(completionSum / filtered.length) : 0,
+          wardStats,
+        };
+      }
+    }
+
+    let drafts = 0;
+    let submitted = 0;
+    let submittedToday = 0;
+    let qcApproved = 0;
+    let qcPending = 0;
+    let qcRejected = 0;
+    let completionSum = 0;
+    for (const row of filtered) {
+      completionSum += row.completionPct ?? 0;
+      if (row.status === "draft") drafts += 1;
+      if (row.status === "submitted") {
+        submitted += 1;
+        const submittedTs = row.submittedAt ?? row._creationTime;
+        if (submittedTs >= todayMs) submittedToday += 1;
+      }
+      if (row.qcStatus === "approved") qcApproved += 1;
+      if (row.qcStatus === "pending" && row.status === "submitted") qcPending += 1;
+      if (row.qcStatus === "rejected") qcRejected += 1;
+    }
+    const surveyCompletionPct = filtered.length > 0 ? Math.round(completionSum / filtered.length) : 0;
 
     return {
       total: filtered.length,

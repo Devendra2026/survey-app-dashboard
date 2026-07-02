@@ -2,14 +2,14 @@
 
 import { KpiMetricsSection } from "@/components/dashboard/kpi-metrics-section";
 import { api } from "@/convex/_generated/api";
-import { useDashboardHome } from "@/hooks/analytics/useAnalytics";
+import { useDashboardCounts } from "@/hooks/analytics/useAnalytics";
 import type { Preloaded } from "convex/react";
 
 export function DashboardKpisClient({
-  preloadedHome,
+  preloadedCounts,
 }: {
-  preloadedHome: Preloaded<typeof api.webDashboard.homeBundle>;
+  preloadedCounts: Preloaded<typeof api.webDashboard.counts>;
 }) {
-  const home = useDashboardHome(preloadedHome);
-  return <KpiMetricsSection counts={home?.counts} />;
+  const counts = useDashboardCounts(preloadedCounts);
+  return <KpiMetricsSection counts={counts} />;
 }
