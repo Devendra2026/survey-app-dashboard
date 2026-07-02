@@ -173,6 +173,20 @@ async function loadMunicipalityDashboardCounts(
     .unique();
 
   if (statsRow) {
+    const rollup: MunicipalityStatsRollup = {
+      municipalityId: statsRow.municipalityId,
+      total: statsRow.total,
+      drafts: statsRow.drafts,
+      submitted: statsRow.submitted,
+      qcApproved: statsRow.qcApproved,
+      qcRejected: statsRow.qcRejected,
+      qcPending: statsRow.qcPending,
+    };
+
+    if (!municipalityStatsRowLooksConsistent(rollup)) {
+      const live = await computeLiveMunicipalitySnapshot(ctx, me, municipalityId, todayMs);
+      return liveSnapshotToDashboardPart(live);
+    }
     const part: DashboardCountPart = {
       total: statsRow.total,
       today: 0,
@@ -624,6 +638,15 @@ export type MunicipalityStatsRollup = {
   qcPending: number;
 };
 
+/** True when denormalized municipality stats satisfy dashboard invariants. */
+export function municipalityStatsRowLooksConsistent(row: MunicipalityStatsRollup): boolean {
+  const statusSum = row.drafts + row.qcPending + row.qcApproved + row.qcRejected;
+  if (row.total < statusSum) return false;
+  if (row.drafts > row.total) return false;
+  if (row.submitted > row.total) return false;
+  return true;
+}
+
 export type ScopeStatsSummary = MunicipalityStatsRollup & {
   submittedToday: number;
   todayCreated: number;
@@ -636,6 +659,7 @@ export function scopeStatsFastPathEligible(filters: {
   toMs?: number;
   status?: Doc<"surveys">["status"];
   qcStatus?: Doc<"surveys">["qcStatus"];
+  qcStatuses?: Doc<"surveys">["qcStatus"][];
   surveyorId?: Id<"users">;
   searchTerm?: string;
 }): boolean {
@@ -643,6 +667,7 @@ export function scopeStatsFastPathEligible(filters: {
   if (filters.fromMs !== undefined || filters.toMs !== undefined) return false;
   if (filters.surveyorId) return false;
   if (filters.searchTerm?.trim()) return false;
+  if (filters.qcStatuses && filters.qcStatuses.length > 0) return false;
   return true;
 }
 
@@ -748,7 +773,7 @@ async function loadMunicipalityStatsRollupsResilient(
         .withIndex("by_municipality", (q) => q.eq("municipalityId", municipalityId))
         .unique();
       if (row) {
-        rollups.push({
+        const rollup: MunicipalityStatsRollup = {
           municipalityId: row.municipalityId,
           total: row.total,
           drafts: row.drafts,
@@ -756,8 +781,11 @@ async function loadMunicipalityStatsRollupsResilient(
           qcApproved: row.qcApproved,
           qcRejected: row.qcRejected,
           qcPending: row.qcPending,
-        });
-        continue;
+        };
+        if (municipalityStatsRowLooksConsistent(rollup)) {
+          rollups.push(rollup);
+          continue;
+        }
       }
     }
 

@@ -26,6 +26,12 @@ describe("canReadWard", () => {
     expect(canReadWard(user, muniA, "5")).toBe(false);
   });
 
+  it("matches ward numbers numerically (05 vs 5)", () => {
+    const user = { role: "surveyor", wardAssignments: ["5"] };
+    expect(canReadWard(user, muniA, "05")).toBe(true);
+    expect(canReadWard(user, muniA, "005")).toBe(true);
+  });
+
   it("does not bypass ward check when municipality differs (collision-safe)", () => {
     const user = { role: "surveyor", wardAssignments: ["3"] };
     expect(canReadWard(user, muniB, "3")).toBe(true);

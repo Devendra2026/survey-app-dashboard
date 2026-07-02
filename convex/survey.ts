@@ -492,10 +492,8 @@ export async function collectSurveysForListPaginated(
       .order("desc")
       .take(maxRows);
   } else if (args.wardNo && args.municipalityId) {
-    rows = await ctx.db
-      .query("surveys")
-      .withIndex("by_municipality_ward", (q) => q.eq("municipalityId", args.municipalityId!).eq("wardNo", args.wardNo!))
-      .take(maxRows);
+    // Load by municipality; wardNumbersMatch in applySurveyListFilters handles 5 vs 05 vs 005.
+    rows = await querySurveysByMunicipality(ctx, args.municipalityId, args.status, maxRows);
   } else if (args.municipalityId) {
     rows = await querySurveysByMunicipality(ctx, args.municipalityId, args.status, maxRows);
   } else if (args.districtId) {

@@ -37,6 +37,7 @@ import type * as lib_surveyUniqueness from "../lib/surveyUniqueness.js";
 import type * as lib_surveyWardStats from "../lib/surveyWardStats.js";
 import type * as masterCatalog from "../masterCatalog.js";
 import type * as masters from "../masters.js";
+import type * as migrations_auditSurveyScopeStats from "../migrations/auditSurveyScopeStats.js";
 import type * as migrations_backfillPropertyIds from "../migrations/backfillPropertyIds.js";
 import type * as migrations_backfillSurveyScopeStats from "../migrations/backfillSurveyScopeStats.js";
 import type * as ownerConstants from "../ownerConstants.js";
@@ -96,6 +97,7 @@ declare const fullApi: ApiFromModules<{
   "lib/surveyWardStats": typeof lib_surveyWardStats;
   masterCatalog: typeof masterCatalog;
   masters: typeof masters;
+  "migrations/auditSurveyScopeStats": typeof migrations_auditSurveyScopeStats;
   "migrations/backfillPropertyIds": typeof migrations_backfillPropertyIds;
   "migrations/backfillSurveyScopeStats": typeof migrations_backfillSurveyScopeStats;
   ownerConstants: typeof ownerConstants;
