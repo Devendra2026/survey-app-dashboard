@@ -3,16 +3,15 @@
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  const [showDebug, setShowDebug] = useState(process.env.NODE_ENV === "development");
+  const searchParams = useSearchParams();
+  const showDebug = process.env.NODE_ENV === "development" || searchParams.get("debug") === "1";
 
   useEffect(() => {
     console.error(error);
-    if (window.location.search.includes("debug=1")) {
-      setShowDebug(true);
-    }
   }, [error]);
 
   return (

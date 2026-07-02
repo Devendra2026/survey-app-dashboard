@@ -6,5 +6,5 @@ export default async function DashboardPage() {
   const nowMs = Date.now();
   const preloadedCounts = await preloadConvexQuery(api.webDashboard.counts, { nowMs });
 
-  return <DashboardPageClient preloadedCounts={preloadedCounts} nowMs={nowMs} />;
+  return <DashboardPageClient preloadedCounts={preloadedCounts} />;
 }

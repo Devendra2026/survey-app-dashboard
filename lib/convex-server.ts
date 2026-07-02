@@ -1,4 +1,3 @@
-import { api } from "@/convex/_generated/api";
 import { auth } from "@clerk/nextjs/server";
 import { preloadQuery } from "convex/nextjs";
 import type { FunctionReference } from "convex/server";
@@ -13,5 +12,3 @@ export async function preloadConvexQuery<Query extends FunctionReference<"query"
   const token = await getToken({ template: "convex" });
   return preloadQuery(query, args, { ...convexOptions, token: token ?? undefined });
 }
-
-export { api };

@@ -5,7 +5,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useHasCapability } from "@/hooks/use-capability";
 import { useClientNowMs } from "@/hooks/use-client-now";
 import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
-import type { DashboardCounts, WebDashboardAnalytics } from "@/schema/analytics";
+import type { WebDashboardAnalytics } from "@/schema/analytics";
 import { type Preloaded, usePreloadedQuery, useQuery } from "convex/react";
 import { useMemo } from "react";
 
@@ -24,28 +24,6 @@ export function useDashboardAnalytics(trendDays = 30) {
   }, [ready, nowMs, trendDays]);
 
   return useQuery(api.webDashboard.analyticsBundle, queryArgs) as WebDashboardAnalytics | null | undefined;
-}
-
-/** @deprecated Prefer useDashboardCounts + useDashboardAnalytics on the web dashboard. */
-export function useWebDashboardBundle(trendDays = 30) {
-  const ready = useConvexAuthReady();
-  const nowMs = useClientNowMs();
-  const queryArgs = useMemo((): "skip" | { nowMs: number; trendDays: number } => {
-    if (!ready || !Number.isFinite(nowMs)) return "skip";
-    return { nowMs, trendDays };
-  }, [ready, nowMs, trendDays]);
-
-  const bundle = useQuery(api.webDashboard.homeBundle, queryArgs);
-  const counts = bundle?.counts as DashboardCounts | undefined;
-  const analytics = bundle?.analytics as WebDashboardAnalytics | null | undefined;
-
-  return {
-    counts,
-    analytics,
-    isLoading: bundle === undefined,
-    error: null,
-    analyticsUnavailable: false,
-  };
 }
 
 /** Lightweight activity feed rows for the home dashboard (web only). */

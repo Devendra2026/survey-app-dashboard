@@ -9,11 +9,11 @@ import { ExecutiveHero, SectionHeader } from "@/components/design-system/executi
 import { FadeIn } from "@/components/design-system/motion";
 import { CardsSkeleton } from "@/components/shared/loading";
 import { api } from "@/convex/_generated/api";
-import { useConvexAuthReady } from "@/hooks/use-convex-auth-ready";
+import { useDashboardAnalytics, useDashboardCounts, useRecentActivity } from "@/hooks/analytics/useAnalytics";
 import { buildActivityFeed } from "@/lib/activity-feed";
 import { can } from "@/lib/permissions";
 import { useCurrentUser } from "@/lib/session";
-import { type Preloaded, usePreloadedQuery, useQuery } from "convex/react";
+import type { Preloaded } from "convex/react";
 import { ClipboardList, LayoutDashboard, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { Suspense, useMemo } from "react";
@@ -37,9 +37,8 @@ function ActivitySkeleton() {
   );
 }
 
-function DashboardAnalytics({ nowMs }: { nowMs: number }) {
-  const ready = useConvexAuthReady();
-  const analytics = useQuery(api.webDashboard.analyticsBundle, ready ? { nowMs, trendDays: 30 } : "skip");
+function DashboardAnalytics() {
+  const analytics = useDashboardAnalytics(30);
 
   if (analytics === undefined) return <ChartsSkeleton />;
   if (analytics === null) return null;
@@ -81,8 +80,7 @@ function DashboardAnalytics({ nowMs }: { nowMs: number }) {
 }
 
 function DashboardActivity() {
-  const ready = useConvexAuthReady();
-  const recentSurveys = useQuery(api.webDashboard.recentActivity, ready ? {} : "skip");
+  const recentSurveys = useRecentActivity();
 
   const activity = useMemo(
     () => (recentSurveys ? buildActivityFeed(recentSurveys as Parameters<typeof buildActivityFeed>[0]) : []),
@@ -94,13 +92,11 @@ function DashboardActivity() {
 
 export function DashboardPageClient({
   preloadedCounts,
-  nowMs,
 }: {
   preloadedCounts: Preloaded<typeof api.webDashboard.counts>;
-  nowMs: number;
 }) {
   const { user, role } = useCurrentUser();
-  const counts = usePreloadedQuery(preloadedCounts);
+  const counts = useDashboardCounts(preloadedCounts);
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
   const municipality = user?.municipality?.name;
@@ -147,7 +143,7 @@ export function DashboardPageClient({
 
       {showAnalyticsShell && (
         <Suspense fallback={<ChartsSkeleton />}>
-          <DashboardAnalytics nowMs={nowMs} />
+          <DashboardAnalytics />
         </Suspense>
       )}
 
