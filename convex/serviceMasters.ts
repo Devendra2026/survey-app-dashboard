@@ -3,6 +3,7 @@
  */
 import { v } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
+import { loadActiveMastersByCategory } from "./lib/mastersLoad";
 
 export type MasterOption = { value: string; label: string };
 
@@ -175,7 +176,7 @@ export async function seedServiceMasters(ctx: MutationCtx) {
     ),
   ]);
 
-  const legacySolidWaste = (await ctx.db.query("masters").collect()).filter((m) => m.category === "solid_waste_type");
+  const legacySolidWaste = await loadActiveMastersByCategory(ctx, "solid_waste_type");
   await Promise.all(
     legacySolidWaste.map(async (row) => {
       if (row.isActive) await ctx.db.patch(row._id, { isActive: false });

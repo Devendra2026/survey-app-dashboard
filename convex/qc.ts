@@ -14,6 +14,7 @@ import { requireCapability } from "./capabilities";
 import { assertCanAccessSurvey, fieldSurveyAccess, isOwnScopeSurveyor } from "./fieldAccess";
 import { assertCanReadWard, clientError, mapTruthyById, requireUser, writeAudit } from "./helpers";
 import { computeQcWardAggregates } from "./lib/qcWardStats";
+import { recordSurveyStatsUpdate } from "./lib/surveyScopeStats";
 import { normalizeParcelKey, resolvePropertyId } from "./propertyId";
 import { qcStatus, surveyStatus } from "./schema";
 import { collectSurveysForListPaginated } from "./survey";
@@ -389,6 +390,9 @@ export const decide = mutation({
       }),
     ]);
 
+    const decided = await ctx.db.get(args.surveyId);
+    if (decided) await recordSurveyStatsUpdate(ctx, survey, decided);
+
     // If there's a comment, persist it as a remark too so the thread is complete.
     if (args.comment && args.comment.trim().length > 0) {
       await ctx.db.insert("qcRemarks", {
@@ -452,5 +456,7 @@ export const reopen = mutation({
         metadata: { reason: args.reason },
       }),
     ]);
+    const reopened = await ctx.db.get(args.surveyId);
+    if (reopened) await recordSurveyStatsUpdate(ctx, survey, reopened);
   },
 });

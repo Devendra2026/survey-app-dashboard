@@ -9,6 +9,7 @@ import { mutation, query } from "./_generated/server";
 import { CONSTRUCTION_TYPES, FLOOR_NAMES, FLOOR_USAGE_FACTORS, FLOOR_USAGE_TYPES } from "./areaMasters";
 import { collectSurveysInFieldScope } from "./fieldAccess";
 import { filterWardsForUser, requireUser } from "./helpers";
+import { loadActiveMastersByCategories } from "./lib/mastersLoad";
 import { RESPONDENT_RELATIONSHIPS } from "./ownerConstants";
 import { mergeMasterOptions, SANITATION_TYPES, WATER_SOURCES } from "./serviceMasters";
 import {
@@ -46,8 +47,8 @@ const MASTER_BUNDLE_CATEGORIES = [
 
 async function loadActiveMastersByCategory(ctx: QueryCtx): Promise<Record<string, Option[]>> {
   const categorySet = new Set<string>(MASTER_BUNDLE_CATEGORIES);
-  const rows = (await ctx.db.query("masters").collect()).filter(
-    (m) => m.isActive !== false && categorySet.has(m.category),
+  const rows = (await loadActiveMastersByCategories(ctx, MASTER_BUNDLE_CATEGORIES)).filter((m) =>
+    categorySet.has(m.category),
   );
   rows.sort((a, b) => a.category.localeCompare(b.category) || a.position - b.position);
 

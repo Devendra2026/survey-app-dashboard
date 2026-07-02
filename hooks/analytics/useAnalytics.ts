@@ -9,12 +9,17 @@ import type { WebDashboardAnalytics } from "@/schema/analytics";
 import { type Preloaded, usePreloadedQuery, useQuery } from "convex/react";
 import { useMemo } from "react";
 
-/** KPI counts hydrated from a server `preloadQuery` payload. */
+/** Home dashboard bundle (KPIs + analytics) hydrated from a server `preloadQuery` payload. */
+export function useDashboardHome(preloaded: Preloaded<typeof api.webDashboard.homeBundle>) {
+  return usePreloadedQuery(preloaded);
+}
+
+/** @deprecated Use `useDashboardHome` on the home page. */
 export function useDashboardCounts(preloaded: Preloaded<typeof api.webDashboard.counts>) {
   return usePreloadedQuery(preloaded);
 }
 
-/** Analytics bundle for charts — separate subscription from KPI counts. */
+/** @deprecated Use `useDashboardHome` on the home page. */
 export function useDashboardAnalytics(trendDays = 30) {
   const ready = useConvexAuthReady();
   const nowMs = useClientNowMs();
@@ -26,7 +31,12 @@ export function useDashboardAnalytics(trendDays = 30) {
   return useQuery(api.webDashboard.analyticsBundle, queryArgs) as WebDashboardAnalytics | null | undefined;
 }
 
-/** Lightweight activity feed rows for the home dashboard (web only). */
+/** Activity feed hydrated from a server `preloadQuery` payload. */
+export function usePreloadedRecentActivity(preloaded: Preloaded<typeof api.webDashboard.recentActivity>) {
+  return usePreloadedQuery(preloaded);
+}
+
+/** Lightweight activity feed rows — client-only fetch (non-home pages). */
 export function useRecentActivity(enabled = true) {
   const ready = useConvexAuthReady();
   return useQuery(api.webDashboard.recentActivity, ready && enabled ? {} : "skip");

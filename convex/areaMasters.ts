@@ -2,6 +2,7 @@
  * Area-detail step — floor numbers, usage factor/type, construction, and plot/plinth rules.
  */
 import type { MutationCtx } from "./_generated/server";
+import { loadActiveMastersByCategory } from "./lib/mastersLoad";
 
 export type MasterOption = { value: string; label: string };
 
@@ -225,7 +226,7 @@ export async function seedAreaMasters(ctx: MutationCtx) {
       CONSTRUCTION_TYPES.map((o, i) => ({ ...o, position: i + 1 })),
     ),
   ]);
-  const legacyUsageTypeRows = (await ctx.db.query("masters").collect()).filter((m) => m.category === "usage_type");
+  const legacyUsageTypeRows = await loadActiveMastersByCategory(ctx, "usage_type");
   await Promise.all(
     legacyUsageTypeRows.map(async (row) => {
       if (row.isActive) await ctx.db.patch(row._id, { isActive: false });

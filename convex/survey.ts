@@ -28,6 +28,7 @@ import {
   computeSurveyCompletionPercent,
   refreshSurveyCompletionPct,
 } from "./lib/surveyProgress";
+import { recordSurveyStatsInsert, recordSurveyStatsRemove, recordSurveyStatsUpdate } from "./lib/surveyScopeStats";
 import { filterSurveysBySearch } from "./lib/surveySearch";
 import { assertUniqueSurveySlot, surveyIdentifyingSlotChanged } from "./lib/surveyUniqueness";
 import { computeSurveyWardAggregates } from "./lib/surveyWardStats";
@@ -848,6 +849,8 @@ export const saveDraft = mutation({
         clientUpdatedAt: args.clientUpdatedAt,
         completionPct,
       });
+      const updated = await ctx.db.get(existing._id);
+      if (updated) await recordSurveyStatsUpdate(ctx, existing, updated);
       await writeAudit(ctx, {
         actorId: me._id,
         action: auditActionForSave(existing, ownScope, false),
@@ -868,6 +871,8 @@ export const saveDraft = mutation({
       clientUpdatedAt: args.clientUpdatedAt,
       completionPct,
     });
+    const created = await ctx.db.get(newId);
+    if (created) await recordSurveyStatsInsert(ctx, created);
     await writeAudit(ctx, {
       actorId: me._id,
       action: auditActionForSave(null, ownScope, true),
@@ -949,6 +954,8 @@ export const upsert = mutation({
         serverVersion: existing.serverVersion + 1,
         clientUpdatedAt: args.clientUpdatedAt,
       });
+      const updated = await ctx.db.get(existing._id);
+      if (updated) await recordSurveyStatsUpdate(ctx, existing, updated);
       await Promise.all([
         refreshSurveyCompletionPct(ctx, existing._id),
         writeAudit(ctx, {
@@ -969,6 +976,8 @@ export const upsert = mutation({
       qcStatus: "pending",
       serverVersion: 1,
     });
+    const created = await ctx.db.get(newId);
+    if (created) await recordSurveyStatsInsert(ctx, created);
     await Promise.all([
       refreshSurveyCompletionPct(ctx, newId),
       writeAudit(ctx, {
@@ -1241,6 +1250,8 @@ export const submit = mutation({
       submittedAt: Date.now(),
       serverVersion: survey.serverVersion + 1,
     });
+    const submitted = await ctx.db.get(args.id);
+    if (submitted) await recordSurveyStatsUpdate(ctx, survey, submitted);
     await writeAudit(ctx, {
       actorId: me._id,
       action: "survey.submitted",
@@ -1276,6 +1287,7 @@ export const remove = mutation({
     for await (const r of ctx.db.query("qcRemarks").withIndex("by_survey", (q) => q.eq("surveyId", args.id))) {
       await ctx.db.delete(r._id);
     }
+    await recordSurveyStatsRemove(ctx, survey);
     await ctx.db.delete(args.id);
 
     await writeAudit(ctx, {

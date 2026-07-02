@@ -1,10 +1,29 @@
-import { DashboardPageClient } from "@/app/(dashboard)/dashboard/dashboard-client";
-import { api } from "@/convex/_generated/api";
-import { preloadConvexQuery } from "@/lib/convex-server";
+import { DashboardActivitySection } from "@/app/(dashboard)/dashboard/dashboard-activity-section";
+import { DashboardAnalyticsSection } from "@/app/(dashboard)/dashboard/dashboard-analytics-section";
+import { DashboardKpisSection } from "@/app/(dashboard)/dashboard/dashboard-kpis-section";
+import { DashboardShell } from "@/app/(dashboard)/dashboard/dashboard-shell";
+import { ActivitySkeleton, ChartsSkeleton } from "@/app/(dashboard)/dashboard/dashboard-skeletons";
+import { CardsSkeleton } from "@/components/shared/loading";
+import { Suspense } from "react";
 
-export default async function DashboardPage() {
+export default function DashboardPage() {
   const nowMs = Date.now();
-  const preloadedCounts = await preloadConvexQuery(api.webDashboard.counts, { nowMs });
 
-  return <DashboardPageClient preloadedCounts={preloadedCounts} />;
+  return (
+    <div className="space-y-6 lg:space-y-8">
+      <DashboardShell />
+
+      <Suspense fallback={<CardsSkeleton count={5} />}>
+        <DashboardKpisSection nowMs={nowMs} />
+      </Suspense>
+
+      <Suspense fallback={<ChartsSkeleton />}>
+        <DashboardAnalyticsSection nowMs={nowMs} />
+      </Suspense>
+
+      <Suspense fallback={<ActivitySkeleton />}>
+        <DashboardActivitySection />
+      </Suspense>
+    </div>
+  );
 }

@@ -123,6 +123,33 @@ async function queryByDistrict(
     .take(take);
 }
 
+/** Admin list without geo filter — batch by municipality index instead of full-table scan. */
+async function queryAdminScopeSurveys(
+  ctx: QueryCtx,
+  scope: Awaited<ReturnType<typeof resolveTenantScope>>,
+  muniIds: Set<Id<"municipalities">>,
+  status: Doc<"surveys">["status"] | undefined,
+  take: number,
+): Promise<Doc<"surveys">[]> {
+  const scopedMunis = scope.municipalities.length > 0 ? scope.municipalities.map((m) => m._id) : [...muniIds];
+  if (scopedMunis.length === 0) return [];
+
+  const batches = await Promise.all(
+    scopedMunis.map((municipalityId) => queryByMunicipality(ctx, municipalityId, status, take)),
+  );
+  const seen = new Set<string>();
+  const rows: Doc<"surveys">[] = [];
+  for (const batch of batches) {
+    for (const row of batch) {
+      if (seen.has(row._id)) continue;
+      seen.add(row._id);
+      rows.push(row);
+    }
+  }
+  rows.sort((a, b) => b._creationTime - a._creationTime);
+  return rows.slice(0, take);
+}
+
 /** Ward narrowing is for surveyors and QC supervisors with ward assignments. */
 async function wardLimitsApply(ctx: QueryCtx, user: Doc<"users">): Promise<boolean> {
   if (user.role === "admin" || user.role === "supervisor") return false;
@@ -192,7 +219,7 @@ export async function querySurveysInFieldScope(
     if (args.districtId) {
       return (await queryByDistrict(ctx, args.districtId, args.status, take)).slice(0, args.limit);
     }
-    const rows = await ctx.db.query("surveys").order("desc").take(take);
+    const rows = await queryAdminScopeSurveys(ctx, scope, muniIds, args.status, take);
     return (await filterSurveysInScope(ctx, rows, me, muniIds)).slice(0, args.limit);
   }
 

@@ -1,6 +1,8 @@
+import { api } from "@/convex/_generated/api";
 import { auth } from "@clerk/nextjs/server";
 import { preloadQuery } from "convex/nextjs";
 import type { FunctionReference } from "convex/server";
+import { cache } from "react";
 
 const convexOptions = {
   skipConvexDeploymentUrlCheck: true,
@@ -12,3 +14,13 @@ export async function preloadConvexQuery<Query extends FunctionReference<"query"
   const token = await getToken({ template: "convex" });
   return preloadQuery(query, args, { ...convexOptions, token: token ?? undefined });
 }
+
+/** Deduped per-request preload for the home dashboard bundle (KPIs + analytics). */
+export const preloadDashboardHome = cache(async (nowMs: number, trendDays = 30) => {
+  return preloadConvexQuery(api.webDashboard.homeBundle, { nowMs, trendDays });
+});
+
+/** Deduped per-request preload for the home activity feed. */
+export const preloadDashboardActivity = cache(async () => {
+  return preloadConvexQuery(api.webDashboard.recentActivity, {});
+});

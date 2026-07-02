@@ -420,4 +420,26 @@ export default defineSchema({
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
   }).index("by_user_created", ["requestedBy", "createdAt"]),
+
+  /**
+   * Denormalized per-municipality survey counters for fast dashboard KPIs.
+   * Updated by survey/QC mutations; backfill via migrations/backfillSurveyScopeStats.
+   */
+  surveyMunicipalityStats: defineTable({
+    municipalityId: v.id("municipalities"),
+    total: v.number(),
+    drafts: v.number(),
+    submitted: v.number(),
+    qcApproved: v.number(),
+    qcRejected: v.number(),
+    qcPending: v.number(),
+  }).index("by_municipality", ["municipalityId"]),
+
+  /** Per-municipality daily rollups for "today" and "submitted today" KPIs. */
+  surveyDailyStats: defineTable({
+    municipalityId: v.id("municipalities"),
+    dateKey: v.string(),
+    created: v.number(),
+    submitted: v.number(),
+  }).index("by_municipality_date", ["municipalityId", "dateKey"]),
 });

@@ -4,6 +4,7 @@
  */
 import { resolveTaxRateZoneKey } from "../lib/qc/tax-rate-matrix";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { loadActiveMastersByCategory } from "./lib/mastersLoad";
 
 export type MasterOption = { value: string; label: string };
 
@@ -146,8 +147,8 @@ export function buildAllowedTaxZoneSet(masterValues?: string[]): Set<string> {
 }
 
 export async function loadAllowedTaxZoneSet(ctx: QueryCtx | MutationCtx): Promise<Set<string>> {
-  const rows = await ctx.db.query("masters").collect();
-  const dbValues = rows.filter((m) => m.isActive !== false && m.category === "tax_rate_zone").map((m) => m.value);
+  const rows = await loadActiveMastersByCategory(ctx, "tax_rate_zone");
+  const dbValues = rows.map((m) => m.value);
   return buildAllowedTaxZoneSet(dbValues);
 }
 

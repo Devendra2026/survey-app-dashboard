@@ -9,6 +9,7 @@ import { query, type QueryCtx } from "./_generated/server";
 import { hasCapability } from "./capabilities";
 import { collectSurveysInFieldScope, querySurveysInFieldScope } from "./fieldAccess";
 import { requireUser } from "./helpers";
+import { loadDashboardCountsFromStats } from "./lib/surveyScopeStats";
 import {
   buildGroupSurveyCounts,
   computeDailyTrendFromSlice,
@@ -419,8 +420,12 @@ export const counts = query({
     const me = await requireUser(ctx, { allowPending: true });
     if (me.status !== "active") return EMPTY_COUNTS;
 
+    const todayMs = startOfDayMs(args.nowMs);
+    const fastCounts = await loadDashboardCountsFromStats(ctx, me, todayMs);
+    if (fastCounts) return fastCounts;
+
     const rows = await loadScopedSurveyRows(ctx, me);
-    return computeDashboardCounts(rows, startOfDayMs(args.nowMs));
+    return computeDashboardCounts(rows, todayMs);
   },
 });
 
@@ -460,7 +465,7 @@ export const homeBundle = query({
 
     const rows = await loadScopedSurveyRows(ctx, me);
     const todayMs = startOfDayMs(args.nowMs);
-    const counts = computeDashboardCounts(rows, todayMs);
+    const counts = (await loadDashboardCountsFromStats(ctx, me, todayMs)) ?? computeDashboardCounts(rows, todayMs);
     const analytics = await buildAnalyticsBundle(ctx, me, rows, todayMs, args.trendDays ?? 30, args.nowMs);
 
     return { counts, analytics };

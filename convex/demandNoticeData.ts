@@ -11,6 +11,7 @@ import {
   presentFloorRow,
 } from "./areaMasters";
 import { assertCanReadWard } from "./helpers";
+import { loadActiveMastersByCategories } from "./lib/mastersLoad";
 import { mergeMasterOptions, SANITATION_TYPES, WATER_SOURCES } from "./serviceMasters";
 import {
   OWNERSHIP_TYPES,
@@ -42,8 +43,8 @@ type MastersBundle = DemandNoticeMastersBundle;
 
 async function loadMastersBundle(ctx: QueryCtx, municipalityId: Id<"municipalities">): Promise<MastersBundle> {
   const categorySet = new Set<string>(MASTER_BUNDLE_CATEGORIES);
-  const rows = (await ctx.db.query("masters").collect()).filter(
-    (m) => m.isActive !== false && categorySet.has(m.category),
+  const rows = (await loadActiveMastersByCategories(ctx, MASTER_BUNDLE_CATEGORIES)).filter((m) =>
+    categorySet.has(m.category),
   );
   rows.sort((a, b) => a.category.localeCompare(b.category) || a.position - b.position);
 
