@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartCardSkeleton } from "@/app/(dashboard)/dashboard/dashboard-skeletons";
+import { ChartCardSkeleton } from "@/app/(dashboard)/dashboard/skeletons";
 import {
   QcSupervisorProductivityChart,
   SurveyorProductivityChart,

@@ -2,7 +2,7 @@ import { DashboardActivitySection } from "@/app/(dashboard)/dashboard/dashboard-
 import { DashboardAnalyticsSection } from "@/app/(dashboard)/dashboard/dashboard-analytics-section";
 import { DashboardKpisSection } from "@/app/(dashboard)/dashboard/dashboard-kpis-section";
 import { DashboardShell } from "@/app/(dashboard)/dashboard/dashboard-shell";
-import { ActivitySkeleton, ChartsSkeleton } from "@/app/(dashboard)/dashboard/dashboard-skeletons";
+import { ActivitySkeleton, ChartsSkeleton } from "@/app/(dashboard)/dashboard/skeletons";
 import { CardsSkeleton } from "@/components/shared/loading";
 import { Suspense } from "react";
 
